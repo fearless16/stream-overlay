@@ -1,0 +1,16 @@
+{
+  "name": "cricket-stream-server",
+  "version": "1.0.0",
+  "description": "YouTube Live Chat to WebSocket bridge for Cricket With Prajjwal stream overlays",
+  "main": "yt-chat-server.js",
+  "scripts": {
+    "start": "node yt-chat-server.js",
+    "chat": "node yt-chat-server.js"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "dotenv": "^16.4.0",
+    "googleapis": "^130.0.0",
+    "ws": "^8.21.0"
+  }
+}

@@ -1,0 +1,158 @@
+
+🎙  Mock stream server running on ws://localhost:8765
+   Open chat-overlay.html in OBS browser source or Chrome
+
+Timeline:
+  0s   — initial score + goals sent on connect
+  1s+  — chat messages every 3-6s
+  20s  — score update #2
+  45s  — goals update
+  60s  — score update #3
+  120s — final score (India win)
+
+[+] Client connected (1 total)
+[→] {"type":"youtube-chat","name":"Rahul S.","text":"What a six! Great timing! 🏏","msgType":"chat","profileImageUrl":"https
+[→] {"type":"youtube-chat","name":"Ankit Verma","text":"Loving the commentary bhai!","msgType":"chat","profileImageUrl":"htt
+[→] {"type":"youtube-chat","name":"CricketFan07","text":"Keep it up brother! 🔥","msgType":"chat","profileImageUrl":"https:/
+[→] {"type":"youtube-chat","name":"Priya K.","text":"First time watching, already hooked!","msgType":"chat","profileImageUrl
+[→] {"type":"score","data":{"teams":[{"name":"India","score":"167/4","overs":"28.1"},{"name":"Australia","score":"0/0","over
+[→] {"type":"youtube-chat","name":"Vikram","text":"That was a no-ball for sure 😤","msgType":"chat","profileImageUrl":"https
+[-] Client disconnected (0 remaining)
+[+] Client connected (1 total)
+[→] {"type":"youtube-chat","name":"Deepak M.","text":"Best cricket analysis on YouTube!","msgType":"chat","profileImageUrl":
+[→] {"type":"youtube-chat","name":"SachinFan99","text":"Rohit is in sublime form today","msgType":"chat","profileImageUrl":n
+[→] {"type":"youtube-chat","name":"Neha T.","text":"Can you explain the DRS rule again?","msgType":"chat","profileImageUrl":
+[→] {"type":"youtube-chat","name":"Arjun P.","text":"LBW should have been given!","msgType":"chat","profileImageUrl":null}
+[→] {"type":"youtube-chat","name":"Karan B.","text":"India winning this for sure 🇮🇳","msgType":"chat","profileImageUrl":nu
+[→] {"type":"goals","data":{"todayGoal":"$28 / $50","todayGoalFill":56,"winStreak":5,"subGoal":"63 / 100","subGoalFill":63}}
+[→] {"type":"youtube-chat","name":"Mod_Suresh","text":"Keeping chat clean folks, be respectful","msgType":"moderator","profi
+[→] {"type":"youtube-chat","name":"Sunita R.","text":"Just subscribed! Amazing stream!","msgType":"membership","profileImage
+[→] {"type":"youtube-chat","name":"BigFan2024","text":"This pitch is a minefield!","msgType":"superchat","amount":"5","profi
+[→] {"type":"score","data":{"teams":[{"name":"India","score":"180/4","overs":"31.0"},{"name":"Australia","score":"0/0","over
+[→] {"type":"youtube-chat","name":"Rajesh D.","text":"Bumrah is unplayable today 🎯","msgType":"chat","profileImageUrl":null
+[→] {"type":"youtube-chat","name":"Prajjwal","text":"🔴 Welcome everyone! Drop a like!","msgType":"announcement","profileIma
+[→] {"type":"youtube-chat","name":"Amit Shah","text":"Great work on the overlay bhai!","msgType":"superchat","amount":"10","
+[→] {"type":"youtube-chat","name":"Pooja V.","text":"Finally a cricket channel worth watching","msgType":"chat","profileImag
+[→] {"type":"youtube-chat","name":"TechCricket","text":"The spin is really gripping here","msgType":"chat","profileImageUrl"
+[→] {"type":"youtube-chat","name":"Gaurav N.","text":"Shami should bowl the next over","msgType":"chat","profileImageUrl":nu
+[→] {"type":"youtube-chat","name":"Meera S.","text":"Love the energy! Keep streaming! ❤️","msgType":"membership","profileIma
+[→] {"type":"youtube-chat","name":"StickerFan","text":"[Sticker] 🎮 GG!","msgType":"superchat","amount":"3","profileImageUrl
+[→] {"type":"youtube-chat","name":"Rahul S.","text":"What a six! Great timing! 🏏","msgType":"chat","profileImageUrl":"https
+[→] {"type":"youtube-chat","name":"Ankit Verma","text":"Loving the commentary bhai!","msgType":"chat","profileImageUrl":"htt
+[→] {"type":"youtube-chat","name":"CricketFan07","text":"Keep it up brother! 🔥","msgType":"chat","profileImageUrl":"https:/
+[→] {"type":"youtube-chat","name":"Priya K.","text":"First time watching, already hooked!","msgType":"chat","profileImageUrl
+[→] {"type":"youtube-chat","name":"Vikram","text":"That was a no-ball for sure 😤","msgType":"chat","profileImageUrl":"https
+[→] {"type":"youtube-chat","name":"Deepak M.","text":"Best cricket analysis on YouTube!","msgType":"chat","profileImageUrl":
+[→] {"type":"youtube-chat","name":"SachinFan99","text":"Rohit is in sublime form today","msgType":"chat","profileImageUrl":n
+[-] Client disconnected (0 remaining)
+[+] Client connected (1 total)
+[→] {"type":"youtube-chat","name":"Neha T.","text":"Can you explain the DRS rule again?","msgType":"chat","profileImageUrl":
+[→] {"type":"youtube-chat","name":"Arjun P.","text":"LBW should have been given!","msgType":"chat","profileImageUrl":null}
+[→] {"type":"youtube-chat","name":"Karan B.","text":"India winning this for sure 🇮🇳","msgType":"chat","profileImageUrl":nu
+[→] {"type":"youtube-chat","name":"Mod_Suresh","text":"Keeping chat clean folks, be respectful","msgType":"moderator","profi
+[→] {"type":"youtube-chat","name":"Sunita R.","text":"Just subscribed! Amazing stream!","msgType":"membership","profileImage
+[→] {"type":"youtube-chat","name":"BigFan2024","text":"This pitch is a minefield!","msgType":"superchat","amount":"5","profi
+[→] {"type":"youtube-chat","name":"Rajesh D.","text":"Bumrah is unplayable today 🎯","msgType":"chat","profileImageUrl":null
+[→] {"type":"youtube-chat","name":"Prajjwal","text":"🔴 Welcome everyone! Drop a like!","msgType":"announcement","profileIma
+[→] {"type":"youtube-chat","name":"Amit Shah","text":"Great work on the overlay bhai!","msgType":"superchat","amount":"10","
+[→] {"type":"youtube-chat","name":"Pooja V.","text":"Finally a cricket channel worth watching","msgType":"chat","profileImag
+[→] {"type":"youtube-chat","name":"TechCricket","text":"The spin is really gripping here","msgType":"chat","profileImageUrl"
+[→] {"type":"youtube-chat","name":"Gaurav N.","text":"Shami should bowl the next over","msgType":"chat","profileImageUrl":nu
+[→] {"type":"youtube-chat","name":"Meera S.","text":"Love the energy! Keep streaming! ❤️","msgType":"membership","profileIma
+[→] {"type":"youtube-chat","name":"StickerFan","text":"[Sticker] 🎮 GG!","msgType":"superchat","amount":"3","profileImageUrl
+[→] {"type":"youtube-chat","name":"Rahul S.","text":"What a six! Great timing! 🏏","msgType":"chat","profileImageUrl":"https
+[→] {"type":"youtube-chat","name":"Ankit Verma","text":"Loving the commentary bhai!","msgType":"chat","profileImageUrl":"htt
+[→] {"type":"youtube-chat","name":"CricketFan07","text":"Keep it up brother! 🔥","msgType":"chat","profileImageUrl":"https:/
+[→] {"type":"youtube-chat","name":"Priya K.","text":"First time watching, already hooked!","msgType":"chat","profileImageUrl
+[→] {"type":"youtube-chat","name":"Vikram","text":"That was a no-ball for sure 😤","msgType":"chat","profileImageUrl":"https
+[→] {"type":"youtube-chat","name":"Deepak M.","text":"Best cricket analysis on YouTube!","msgType":"chat","profileImageUrl":
+[→] {"type":"youtube-chat","name":"SachinFan99","text":"Rohit is in sublime form today","msgType":"chat","profileImageUrl":n
+[→] {"type":"youtube-chat","name":"Neha T.","text":"Can you explain the DRS rule again?","msgType":"chat","profileImageUrl":
+[→] {"type":"youtube-chat","name":"Arjun P.","text":"LBW should have been given!","msgType":"chat","profileImageUrl":null}
+[→] {"type":"youtube-chat","name":"Karan B.","text":"India winning this for sure 🇮🇳","msgType":"chat","profileImageUrl":nu
+[→] {"type":"youtube-chat","name":"Mod_Suresh","text":"Keeping chat clean folks, be respectful","msgType":"moderator","profi
+[-] Client disconnected (0 remaining)
+[+] Client connected (1 total)
+[→] {"type":"youtube-chat","name":"Sunita R.","text":"Just subscribed! Amazing stream!","msgType":"membership","profileImage
+[→] {"type":"youtube-chat","name":"BigFan2024","text":"This pitch is a minefield!","msgType":"superchat","amount":"5","profi
+[→] {"type":"youtube-chat","name":"Rajesh D.","text":"Bumrah is unplayable today 🎯","msgType":"chat","profileImageUrl":null
+[→] {"type":"youtube-chat","name":"Prajjwal","text":"🔴 Welcome everyone! Drop a like!","msgType":"announcement","profileIma
+[→] {"type":"youtube-chat","name":"Amit Shah","text":"Great work on the overlay bhai!","msgType":"superchat","amount":"10","
+[→] {"type":"youtube-chat","name":"Pooja V.","text":"Finally a cricket channel worth watching","msgType":"chat","profileImag
+[→] {"type":"youtube-chat","name":"TechCricket","text":"The spin is really gripping here","msgType":"chat","profileImageUrl"
+[→] {"type":"youtube-chat","name":"Gaurav N.","text":"Shami should bowl the next over","msgType":"chat","profileImageUrl":nu
+[→] {"type":"youtube-chat","name":"Meera S.","text":"Love the energy! Keep streaming! ❤️","msgType":"membership","profileIma
+[→] {"type":"youtube-chat","name":"StickerFan","text":"[Sticker] 🎮 GG!","msgType":"superchat","amount":"3","profileImageUrl
+[→] {"type":"youtube-chat","name":"Rahul S.","text":"What a six! Great timing! 🏏","msgType":"chat","profileImageUrl":"https
+[→] {"type":"youtube-chat","name":"Ankit Verma","text":"Loving the commentary bhai!","msgType":"chat","profileImageUrl":"htt
+[→] {"type":"youtube-chat","name":"CricketFan07","text":"Keep it up brother! 🔥","msgType":"chat","profileImageUrl":"https:/
+[→] {"type":"youtube-chat","name":"Priya K.","text":"First time watching, already hooked!","msgType":"chat","profileImageUrl
+[→] {"type":"youtube-chat","name":"Vikram","text":"That was a no-ball for sure 😤","msgType":"chat","profileImageUrl":"https
+[→] {"type":"youtube-chat","name":"Deepak M.","text":"Best cricket analysis on YouTube!","msgType":"chat","profileImageUrl":
+[→] {"type":"youtube-chat","name":"SachinFan99","text":"Rohit is in sublime form today","msgType":"chat","profileImageUrl":n
+[→] {"type":"youtube-chat","name":"Neha T.","text":"Can you explain the DRS rule again?","msgType":"chat","profileImageUrl":
+[→] {"type":"youtube-chat","name":"Arjun P.","text":"LBW should have been given!","msgType":"chat","profileImageUrl":null}
+[→] {"type":"youtube-chat","name":"Karan B.","text":"India winning this for sure 🇮🇳","msgType":"chat","profileImageUrl":nu
+[→] {"type":"youtube-chat","name":"Mod_Suresh","text":"Keeping chat clean folks, be respectful","msgType":"moderator","profi
+[→] {"type":"youtube-chat","name":"Sunita R.","text":"Just subscribed! Amazing stream!","msgType":"membership","profileImage
+[-] Client disconnected (0 remaining)
+[+] Client connected (1 total)
+[→] {"type":"youtube-chat","name":"BigFan2024","text":"This pitch is a minefield!","msgType":"superchat","amount":"5","profi
+[→] {"type":"youtube-chat","name":"Rajesh D.","text":"Bumrah is unplayable today 🎯","msgType":"chat","profileImageUrl":null
+[→] {"type":"youtube-chat","name":"Prajjwal","text":"🔴 Welcome everyone! Drop a like!","msgType":"announcement","profileIma
+[→] {"type":"youtube-chat","name":"Amit Shah","text":"Great work on the overlay bhai!","msgType":"superchat","amount":"10","
+[→] {"type":"youtube-chat","name":"Pooja V.","text":"Finally a cricket channel worth watching","msgType":"chat","profileImag
+[→] {"type":"youtube-chat","name":"TechCricket","text":"The spin is really gripping here","msgType":"chat","profileImageUrl"
+[→] {"type":"youtube-chat","name":"Gaurav N.","text":"Shami should bowl the next over","msgType":"chat","profileImageUrl":nu
+[→] {"type":"youtube-chat","name":"Meera S.","text":"Love the energy! Keep streaming! ❤️","msgType":"membership","profileIma
+[→] {"type":"youtube-chat","name":"StickerFan","text":"[Sticker] 🎮 GG!","msgType":"superchat","amount":"3","profileImageUrl
+[→] {"type":"youtube-chat","name":"Rahul S.","text":"What a six! Great timing! 🏏","msgType":"chat","profileImageUrl":"https
+[→] {"type":"youtube-chat","name":"Ankit Verma","text":"Loving the commentary bhai!","msgType":"chat","profileImageUrl":"htt
+[→] {"type":"youtube-chat","name":"CricketFan07","text":"Keep it up brother! 🔥","msgType":"chat","profileImageUrl":"https:/
+[-] Client disconnected (0 remaining)
+[+] Client connected (1 total)
+[-] Client disconnected (0 remaining)
+[+] Client connected (1 total)
+[→] {"type":"youtube-chat","name":"Priya K.","text":"First time watching, already hooked!","msgType":"chat","profileImageUrl
+[→] {"type":"youtube-chat","name":"Vikram","text":"That was a no-ball for sure 😤","msgType":"chat","profileImageUrl":"https
+[→] {"type":"youtube-chat","name":"Deepak M.","text":"Best cricket analysis on YouTube!","msgType":"chat","profileImageUrl":
+[→] {"type":"youtube-chat","name":"SachinFan99","text":"Rohit is in sublime form today","msgType":"chat","profileImageUrl":n
+[→] {"type":"youtube-chat","name":"Neha T.","text":"Can you explain the DRS rule again?","msgType":"chat","profileImageUrl":
+[→] {"type":"youtube-chat","name":"Arjun P.","text":"LBW should have been given!","msgType":"chat","profileImageUrl":null}
+[→] {"type":"youtube-chat","name":"Karan B.","text":"India winning this for sure 🇮🇳","msgType":"chat","profileImageUrl":nu
+[→] {"type":"youtube-chat","name":"Mod_Suresh","text":"Keeping chat clean folks, be respectful","msgType":"moderator","profi
+[→] {"type":"youtube-chat","name":"Sunita R.","text":"Just subscribed! Amazing stream!","msgType":"membership","profileImage
+[→] {"type":"youtube-chat","name":"BigFan2024","text":"This pitch is a minefield!","msgType":"superchat","amount":"5","profi
+[→] {"type":"youtube-chat","name":"Rajesh D.","text":"Bumrah is unplayable today 🎯","msgType":"chat","profileImageUrl":null
+[→] {"type":"youtube-chat","name":"Prajjwal","text":"🔴 Welcome everyone! Drop a like!","msgType":"announcement","profileIma
+[→] {"type":"youtube-chat","name":"Amit Shah","text":"Great work on the overlay bhai!","msgType":"superchat","amount":"10","
+[→] {"type":"youtube-chat","name":"Pooja V.","text":"Finally a cricket channel worth watching","msgType":"chat","profileImag
+[→] {"type":"youtube-chat","name":"TechCricket","text":"The spin is really gripping here","msgType":"chat","profileImageUrl"
+[→] {"type":"youtube-chat","name":"Gaurav N.","text":"Shami should bowl the next over","msgType":"chat","profileImageUrl":nu
+[→] {"type":"youtube-chat","name":"Meera S.","text":"Love the energy! Keep streaming! ❤️","msgType":"membership","profileIma
+[→] {"type":"youtube-chat","name":"StickerFan","text":"[Sticker] 🎮 GG!","msgType":"superchat","amount":"3","profileImageUrl
+[→] {"type":"youtube-chat","name":"Rahul S.","text":"What a six! Great timing! 🏏","msgType":"chat","profileImageUrl":"https
+[→] {"type":"youtube-chat","name":"Ankit Verma","text":"Loving the commentary bhai!","msgType":"chat","profileImageUrl":"htt
+[→] {"type":"youtube-chat","name":"CricketFan07","text":"Keep it up brother! 🔥","msgType":"chat","profileImageUrl":"https:/
+[→] {"type":"youtube-chat","name":"Priya K.","text":"First time watching, already hooked!","msgType":"chat","profileImageUrl
+[→] {"type":"youtube-chat","name":"Vikram","text":"That was a no-ball for sure 😤","msgType":"chat","profileImageUrl":"https
+[→] {"type":"youtube-chat","name":"Deepak M.","text":"Best cricket analysis on YouTube!","msgType":"chat","profileImageUrl":
+[→] {"type":"youtube-chat","name":"SachinFan99","text":"Rohit is in sublime form today","msgType":"chat","profileImageUrl":n
+[→] {"type":"youtube-chat","name":"Neha T.","text":"Can you explain the DRS rule again?","msgType":"chat","profileImageUrl":
+[→] {"type":"youtube-chat","name":"Arjun P.","text":"LBW should have been given!","msgType":"chat","profileImageUrl":null}
+[→] {"type":"youtube-chat","name":"Karan B.","text":"India winning this for sure 🇮🇳","msgType":"chat","profileImageUrl":nu
+[→] {"type":"youtube-chat","name":"Mod_Suresh","text":"Keeping chat clean folks, be respectful","msgType":"moderator","profi
+[-] Client disconnected (0 remaining)
+[+] Client connected (1 total)
+[→] {"type":"youtube-chat","name":"Sunita R.","text":"Just subscribed! Amazing stream!","msgType":"membership","profileImage
+[→] {"type":"youtube-chat","name":"BigFan2024","text":"This pitch is a minefield!","msgType":"superchat","amount":"5","profi
+[→] {"type":"youtube-chat","name":"Rajesh D.","text":"Bumrah is unplayable today 🎯","msgType":"chat","profileImageUrl":null
+[-] Client disconnected (0 remaining)
+[+] Client connected (1 total)
+[→] {"type":"youtube-chat","name":"Prajjwal","text":"🔴 Welcome everyone! Drop a like!","msgType":"announcement","profileIma
+[→] {"type":"youtube-chat","name":"Amit Shah","text":"Great work on the overlay bhai!","msgType":"superchat","amount":"10","
+[-] Client disconnected (0 remaining)
+[+] Client connected (1 total)
+[→] {"type":"youtube-chat","name":"Pooja V.","text":"Finally a cricket channel worth watching","msgType":"chat","profileImag
+[→] {"type":"youtube-chat","name":"TechCricket","text":"The spin is really gripping here","msgType":"chat","profileImageUrl"
+[-] Client disconnected (0 remaining)
