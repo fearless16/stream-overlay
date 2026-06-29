@@ -497,8 +497,9 @@ body {
 }
 
 #scorecard {
-  position: fixed; top: 110px; left: 24px;
-  width: 380px;
+  position: fixed; top: 92px; left: 24px;
+  width: 420px;
+  max-height: calc(1080px - 160px);
   background: linear-gradient(160deg, rgba(10,8,18,0.96), rgba(6,4,14,0.98));
   backdrop-filter: blur(24px) saturate(1.4);
   border: 1px solid rgba(255,45,85,0.1);
@@ -585,19 +586,42 @@ body {
   50% { box-shadow: 0 0 12px var(--neon-blue), 0 0 30px rgba(0,212,255,0.5); }
 }
 
-.sc-bd { padding: 16px 18px; position: relative; z-index: 1; }
+.sc-bd {
+  padding: 14px 16px 16px;
+  position: relative;
+  z-index: 1;
+  max-height: calc(1080px - 232px);
+  overflow: hidden;
+}
 
 .sc-tms {
-  display: flex; justify-content: space-between; align-items: center;
-  margin-bottom: 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1fr);
+  align-items: start;
+  column-gap: 6px;
+  margin-bottom: 14px;
   position: relative;
 }
 .sc-t {
-  text-align: center; flex: 1;
+  text-align: center;
+  min-width: 0;
   padding: 8px 4px;
   border-radius: 12px;
   transition: all 0.3s ease;
   position: relative;
+}
+.sc-t.active {
+  background: rgba(255,255,255,0.035);
+  box-shadow: inset 0 0 0 1px rgba(255,215,0,0.12);
+}
+.sc-t-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 16px; padding: 0 7px; margin-bottom: 6px;
+  border-radius: 999px;
+  background: rgba(255,215,0,0.1);
+  color: var(--gold);
+  font-size: 8px; font-weight: 900;
+  letter-spacing: 1px; text-transform: uppercase;
 }
 .sc-t::before {
   content: ''; position: absolute; inset: 0;
@@ -617,11 +641,13 @@ body {
 .sc-t:hover .sc-t-flag { transform: scale(1.15) translateY(-2px); }
 .sc-t-name {
   font-size: 13px; font-weight: 800; color: var(--text);
-  margin-bottom: 6px; letter-spacing: -0.2px;
+  margin-bottom: 6px; letter-spacing: 0;
   text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 100%;
 }
 .sc-t-score {
-  font-size: 30px; font-weight: 900;
+  font-size: 28px; font-weight: 900;
   background: linear-gradient(135deg, var(--gold), #ff9500, var(--gold));
   background-size: 200% 200%;
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
@@ -630,29 +656,41 @@ body {
   animation: scScoreShimmer 3s ease-in-out infinite;
   filter: drop-shadow(0 0 8px rgba(255,215,0,0.15));
   transition: filter 0.3s;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.sc-t-score.blank {
+  font-size: 15px;
+  -webkit-text-fill-color: var(--muted);
+  background: none;
+  color: var(--muted);
+  letter-spacing: 0;
+  animation: none;
 }
 .sc-t-sep {
   -webkit-text-fill-color: rgba(255,215,0,0.4);
   font-weight: 700;
 }
 .sc-t-wk {
-  font-size: 22px;
+  font-size: 21px;
 }
 .sc-t-ov {
   font-size: 10px; color: var(--muted); margin-top: 6px; font-weight: 700;
   letter-spacing: 0.5px;
+  min-height: 12px;
 }
 .sc-vs {
   font-size: 11px; color: rgba(255,255,255,0.15); font-weight: 900;
-  padding: 0 12px; position: relative;
+  padding-top: 48px; position: relative;
   letter-spacing: 2px;
+  text-align: center;
 }
 .sc-vs::before, .sc-vs::after {
   content: ''; position: absolute; left: 50%; width: 1px;
   background: linear-gradient(180deg, transparent, rgba(255,255,255,0.08), transparent); height: 24px;
 }
-.sc-vs::before { top: -28px; }
-.sc-vs::after { bottom: -28px; }
+.sc-vs::before { top: 16px; }
+.sc-vs::after { top: 72px; }
 
 @keyframes scScoreShimmer {
   0%,100% { background-position: 0% 50%; }
@@ -674,8 +712,11 @@ body {
   padding-top: 12px;
 }
 .sc-bm {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 6px 8px; font-size: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  padding: 7px 8px; font-size: 12px;
   border-radius: 8px;
   transition: all 0.25s ease;
   position: relative;
@@ -705,9 +746,9 @@ body {
   box-shadow: 0 2px 6px rgba(0,0,0,0.2);
 }
 .sc-bm-name {
-  color: var(--text); font-weight: 700; flex: 1;
+  color: var(--text); font-weight: 700;
   display: flex; align-items: center; gap: 6px;
-  padding-left: 4px;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .sc-bm-name .str {
   color: var(--gold); font-size: 10px;
@@ -717,25 +758,24 @@ body {
   0%,100% { opacity: 1; text-shadow: 0 0 4px rgba(255,215,0,0.3); }
   50% { opacity: 0.6; text-shadow: 0 0 8px rgba(255,215,0,0.6); }
 }
-.sc-bm-runs {
+.sc-bm-score {
   color: var(--gold); font-weight: 900; font-size: 15px;
-  min-width: 50px; text-align: right;
+  min-width: 64px; text-align: right;
   text-shadow: 0 0 8px rgba(255,215,0,0.15);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
-.sc-bm-balls {
+.sc-bm-score-balls {
   color: var(--muted); font-size: 10px;
-  min-width: 35px; text-align: right; font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-.sc-bm-sr {
-  color: var(--neon-blue); font-size: 10px;
-  min-width: 50px; text-align: right; font-weight: 700;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
 
 .sc-bowler {
-  display: flex; justify-content: space-between; align-items: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 10px;
   padding: 8px 8px; font-size: 11px;
   border-top: 1px solid rgba(255,45,85,0.06);
   margin-top: 8px; padding-top: 10px;
@@ -750,12 +790,13 @@ body {
   30% { background: rgba(0,212,255,0.06); }
   100% { background: transparent; }
 }
-.sc-bowler-name { color: var(--text); font-weight: 700; }
+.sc-bowler-name { color: var(--text); font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sc-bowler-eco { color: var(--muted); font-size: 10px; font-weight: 600; }
 .sc-bowler-fig {
   color: var(--neon-blue); font-weight: 800; font-size: 13px;
   text-shadow: 0 0 8px rgba(0,212,255,0.15);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .sc-over {
@@ -858,12 +899,21 @@ body {
   font-size: 10px; color: rgba(255,45,85,0.5); text-align: center;
   margin-top: 4px; font-weight: 700;
 }
+.sc-lead-trail {
+  font-size: 11px; color: var(--gold); text-align: center;
+  margin-top: 8px; font-weight: 800;
+  letter-spacing: 0.2px;
+}
 .sc-status {
   margin-top: 10px; padding-top: 10px;
   border-top: 1px solid rgba(255,45,85,0.06);
   font-size: 12px; color: var(--text2); font-weight: 700;
   text-align: center;
   animation: scStatusFadeIn 0.5s ease both;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 @keyframes scStatusFadeIn {
   0% { opacity: 0; transform: translateY(4px); }
@@ -1366,9 +1416,11 @@ function setHealth(status) {
 /* FIX: Proper cricket overs parser (base-6 balls) */
 function parseOvers(oversStr) {
   if (!oversStr) return 0;
-  const parts = String(oversStr).split('.');
+  const str = String(oversStr).trim();
+  if (!str) return 0;
+  const parts = str.split('.');
   const full = parseInt(parts[0]) || 0;
-  const balls = parseInt(parts[1]) || 0;
+  const balls = parseInt(parts[1] || '0') % 6;
   return full + (balls / 6);
 }
 
@@ -1565,6 +1617,11 @@ function showCommentOnScreen(name, text, type, userColor, profileImageUrl) {
 function hideComment() {
   if (scDismissTimer) { clearTimeout(scDismissTimer); scDismissTimer = null; }
   DOM.showComment.classList.remove('active');
+  const card = document.querySelector('.sc-card');
+  if (card) {
+    card.style.animation = '';
+    card.offsetHeight;
+  }
 }
 
 /* ════════════════════════════════════════
@@ -1611,9 +1668,35 @@ function animateNumber(el, from, to, duration = 500) {
 }
 
 function _parseScore(scoreStr) {
-  if (!scoreStr || scoreStr === '-') return { runs: 0, wickets: 0 };
-  const m = String(scoreStr).match(/(\d+)\s*\/?\s*(\d*)/);
-  return { runs: parseInt(m?.[1]) || 0, wickets: parseInt(m?.[2]) || 0 };
+  if (!scoreStr || scoreStr === '-') return { runs: 0, wickets: null, hasWickets: false };
+  const m = String(scoreStr).trim().match(/^(\d+)(?:\s*[\/\-]\s*(\d+))?/);
+  return {
+    runs: parseInt(m?.[1]) || 0,
+    wickets: m?.[2] != null ? parseInt(m[2]) || 0 : null,
+    hasWickets: m?.[2] != null,
+  };
+}
+
+function _scoreHtml(parsed) {
+  const wk = parsed.hasWickets ? `<span class="sc-t-sep">/</span><span class="sc-t-wk" data-anim="wk">${parsed.wickets}</span>` : '';
+  return `<span class="sc-t-runs" data-anim="runs">${parsed.runs}</span>${wk}`;
+}
+
+function _isBlankScore(score) {
+  const s = String(score ?? '').trim();
+  return !s || s === '-' || s === '--' || /^yet\s+to\s+bat$/i.test(s) || /^dnb$/i.test(s);
+}
+
+function _teamScoreBlock(team, parsed) {
+  if (_isBlankScore(team.score)) {
+    return `<div class="sc-t-score blank">${esc(team.note || 'Yet to bat')}</div>`;
+  }
+  return `<div class="sc-t-score" data-runs="${parsed.runs}" data-wk="${parsed.wickets ?? ''}">${_scoreHtml(parsed)}</div>`;
+}
+
+function _teamMeta(team) {
+  if (_isBlankScore(team.score)) return '';
+  return team.overs ? `${esc(team.overs)} ov` : '';
 }
 
 function _detectEvents(prev, curr) {
@@ -1680,12 +1763,13 @@ function updateScore(data) {
 
   const merged = { ...data };
   if (currentScore) {
+    const sameBattingSide = (currentScore.teams?.[0]?.abbr || currentScore.teams?.[0]?.name) === (merged.teams?.[0]?.abbr || merged.teams?.[0]?.name);
     if (!merged.batsmen && currentScore.batsmen) merged.batsmen = currentScore.batsmen;
     if (!merged.bowler && currentScore.bowler) merged.bowler = currentScore.bowler;
-    if (!merged.currentOver && currentScore.currentOver) merged.currentOver = currentScore.currentOver;
-    if (!merged.partnership && currentScore.partnership) merged.partnership = currentScore.partnership;
-    if (!merged.lastWicket && currentScore.lastWicket) merged.lastWicket = currentScore.lastWicket;
-    if (!merged.target && currentScore.target) merged.target = currentScore.target;
+    if (sameBattingSide && !merged.currentOver && currentScore.currentOver) merged.currentOver = currentScore.currentOver;
+    if (sameBattingSide && !merged.partnership && currentScore.partnership) merged.partnership = currentScore.partnership;
+    if (sameBattingSide && !merged.lastWicket && currentScore.lastWicket) merged.lastWicket = currentScore.lastWicket;
+    if (sameBattingSide && !merged.target && currentScore.target) merged.target = currentScore.target;
   }
 
   const prev = currentScore;
@@ -1710,24 +1794,22 @@ function updateScore(data) {
 
   const t1ScoreChanged = _changed('teams.0.score');
   const t1Parsed = _parseScore(t1.score);
-  h += `<div class="sc-t${t1ScoreChanged ? ' sc-score-changed' : ''}"><div class="sc-t-flag">${_flag(t1.name)}</div><div class="sc-t-name">${esc(t1.name || 'T1')}</div><div class="sc-t-score" data-runs="${t1Parsed.runs}" data-wk="${t1Parsed.wickets}"><span class="sc-t-runs" data-anim="runs">${t1Parsed.runs}</span><span class="sc-t-sep">/</span><span class="sc-t-wk" data-anim="wk">${t1Parsed.wickets}</span></div><div class="sc-t-ov">${t1.overs ? esc(t1.overs) + ' ov' : ''}</div></div>`;
+  h += `<div class="sc-t active${t1ScoreChanged ? ' sc-score-changed' : ''}"><div class="sc-t-badge">Batting</div><div class="sc-t-flag">${_flag(t1.abbr || t1.name)}</div><div class="sc-t-name" title="${esc(t1.name || 'T1')}">${esc(t1.name || 'T1')}</div>${_teamScoreBlock(t1, t1Parsed)}<div class="sc-t-ov">${_teamMeta(t1)}</div></div>`;
 
   h += '<div class="sc-vs">VS</div>';
 
   const t2ScoreChanged = _changed('teams.1.score');
   const t2Parsed = _parseScore(t2.score);
-  h += `<div class="sc-t${t2ScoreChanged ? ' sc-score-changed' : ''}"><div class="sc-t-flag">${_flag(t2.name)}</div><div class="sc-t-name">${esc(t2.name || 'T2')}</div><div class="sc-t-score" data-runs="${t2Parsed.runs}" data-wk="${t2Parsed.wickets}"><span class="sc-t-runs" data-anim="runs">${t2Parsed.runs}</span><span class="sc-t-sep">/</span><span class="sc-t-wk" data-anim="wk">${t2Parsed.wickets}</span></div><div class="sc-t-ov">${t2.overs ? esc(t2.overs) + ' ov' : ''}</div></div>`;
+  h += `<div class="sc-t${t2ScoreChanged ? ' sc-score-changed' : ''}"><div class="sc-t-badge">${_isBlankScore(t2.score) ? 'Waiting' : 'Innings'}</div><div class="sc-t-flag">${_flag(t2.abbr || t2.name)}</div><div class="sc-t-name" title="${esc(t2.name || 'T2')}">${esc(t2.name || 'T2')}</div>${_teamScoreBlock(t2, t2Parsed)}<div class="sc-t-ov">${_teamMeta(t2)}</div></div>`;
   h += '</div>';
 
   if (bm.length) {
     const batsmenChanged = _changed('batsmen');
     h += '<div class="sc-bmen">';
     bm.forEach((b, i) => {
-      const sr = b.balls && parseInt(b.balls) > 0 ? ((parseInt(b.runs || 0) / parseInt(b.balls)) * 100).toFixed(1) : '0.0';
-      const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(b.name)}&backgroundColor=b6e3f4,c0aede,d1d4f9`;
       const stagger = batsmenChanged ? `animation-delay:${i * 100}ms;` : '';
       const entryClass = batsmenChanged ? ' sc-bm-enter' : '';
-      h += `<div class="sc-bm${entryClass}" style="${stagger}"><img class="sc-bm-avatar" src="${avatarUrl}" alt="" onerror="this.style.display='none'" loading="lazy"><span class="sc-bm-name">${esc(b.name)}${b.striker ? '<span class="str">★</span>' : ''}</span><span class="sc-bm-sr">${sr}</span><span class="sc-bm-runs" data-bm-runs="${i}">${esc(b.runs || '0')}</span><span class="sc-bm-balls">(${esc(b.balls || '0')})</span></div>`;
+      h += `<div class="sc-bm${entryClass}" style="${stagger}"><span class="sc-bm-name">${esc(b.name)}${b.striker ? '<span class="str">★</span>' : ''}</span><span class="sc-bm-score"><span data-bm-runs="${i}">${esc(b.runs || '0')}</span><span class="sc-bm-score-balls">(${esc(b.balls || '0')})</span></span></div>`;
     });
     h += '</div>';
   }
@@ -1768,11 +1850,13 @@ function updateScore(data) {
     const total = parseInt(merged.target.total);
     if (total > 0) pct = Math.min(100, (parseInt(merged.target.current || 0) / total) * 100);
     const targetChanged = _changed('target.current');
-    h += `<div class="sc-target"><div class="sc-target-label"><span>Target Progress</span><span>${esc(merged.target.current)} / ${esc(merged.target.total)}</span></div><div class="sc-target-bar"><div class="sc-target-fill${targetChanged ? ' sc-target-anim' : ''}" style="width:${pct}%"></div></div></div>`;
+    const needText = merged.target.need ? `Need ${esc(merged.target.need)}${merged.target.balls ? ' from ' + esc(merged.target.balls) : ''}` : 'Target';
+    h += `<div class="sc-target"><div class="sc-target-label"><span>${needText}</span><span>${esc(merged.target.current)} / ${esc(merged.target.total)}</span></div><div class="sc-target-bar"><div class="sc-target-fill${targetChanged ? ' sc-target-anim' : ''}" style="width:${pct}%"></div></div></div>`;
   }
 
   if (merged.partnership) h += `<div class="sc-partner">Partnership: ${esc(merged.partnership)}</div>`;
   if (merged.lastWicket) h += `<div class="sc-last-wk">Last Wicket: ${esc(merged.lastWicket)}</div>`;
+  if (merged.leadTrail) h += `<div class="sc-lead-trail">${esc(merged.leadTrail)}</div>`;
   if (merged.status) h += `<div class="sc-status">${esc(merged.status)}</div>`;
   h += '</div>';
 
@@ -1784,11 +1868,11 @@ function updateScore(data) {
     const t1RunsEl = DOM.scContent.querySelector('.sc-t:first-child .sc-t-runs');
     const t1WkEl = DOM.scContent.querySelector('.sc-t:first-child .sc-t-wk');
     if (t1RunsEl && prevT1.runs !== t1Parsed.runs) animateNumber(t1RunsEl, prevT1.runs, t1Parsed.runs, 500);
-    if (t1WkEl && prevT1.wickets !== t1Parsed.wickets) animateNumber(t1WkEl, prevT1.wickets, t1Parsed.wickets, 400);
+    if (t1WkEl && t1Parsed.hasWickets && prevT1.hasWickets && prevT1.wickets !== t1Parsed.wickets) animateNumber(t1WkEl, prevT1.wickets, t1Parsed.wickets, 400);
     const t2RunsEl = DOM.scContent.querySelector('.sc-t:last-child .sc-t-runs');
     const t2WkEl = DOM.scContent.querySelector('.sc-t:last-child .sc-t-wk');
     if (t2RunsEl && prevT2.runs !== t2Parsed.runs) animateNumber(t2RunsEl, prevT2.runs, t2Parsed.runs, 500);
-    if (t2WkEl && prevT2.wickets !== t2Parsed.wickets) animateNumber(t2WkEl, prevT2.wickets, t2Parsed.wickets, 400);
+    if (t2WkEl && t2Parsed.hasWickets && prevT2.hasWickets && prevT2.wickets !== t2Parsed.wickets) animateNumber(t2WkEl, prevT2.wickets, t2Parsed.wickets, 400);
 
     if (prev.batsmen && merged.batsmen) {
       merged.batsmen.forEach((b, i) => {
@@ -1851,11 +1935,16 @@ function updateScore(data) {
 /* ════════════════════════════════════════
    FORM HANDLERS
    ════════════════════════════════════════ */
+function setScorecardVisible(visible) {
+  state.scorecardVisible = !!visible;
+  DOM.scorecard.classList.toggle('hidden', !state.scorecardVisible);
+  const btn = $('fToggle');
+  if (btn) btn.textContent = state.scorecardVisible ? 'Hide' : 'Show';
+}
+
 function toggleScorecard(e) {
   if (e) e.stopPropagation();
-  const hidden = DOM.scorecard.classList.toggle('hidden');
-  state.scorecardVisible = !hidden;
-  $('fToggle').textContent = hidden ? 'Show' : 'Hide';
+  setScorecardVisible(DOM.scorecard.classList.contains('hidden'));
 }
 
 function popChat(e) {
@@ -1871,7 +1960,13 @@ function popChat(e) {
 }
 
 function toggleControls() {
+  const wasOpen = DOM.ctrlPanel.classList.contains('open');
   DOM.ctrlPanel.classList.toggle('open');
+  if (!wasOpen) {
+    setTimeout(() => {
+      DOM.ctrlPanel.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }, 100);
+  }
 }
 
 /* FIX: Reset BRB timer display when closing overlay */
@@ -1904,8 +1999,15 @@ function resetAll(e) {
   DOM.dAmt.textContent = '$0';
   currentScore = null;
   DOM.scContent.innerHTML = '<div class="sc-empty">No match data</div>';
-  DOM.scorecard.classList.add('hidden');
-  
+  setScorecardVisible(false);
+  hideComment();
+  if (state.brbActive && state.brbTimerInterval) {
+    clearInterval(state.brbTimerInterval);
+    state.brbTimerInterval = null;
+  }
+  state.brbActive = false;
+  DOM.brbOverlay.classList.remove('active');
+  DOM.brbTimer.textContent = '00:00';
 }
 
 document.addEventListener('keydown', e => {
@@ -1928,9 +2030,6 @@ window.addEventListener('storage', e => {
     if (e.key === 'cricket-chat-pop') addMsg(JSON.parse(e.newValue));
     else if (e.key === 'cricket-score-update') {
       updateScore(JSON.parse(e.newValue));
-      DOM.scorecard.classList.remove('hidden');
-      state.scorecardVisible = true;
-      $('fToggle').textContent = 'Hide';
     }
     else if (e.key === 'cricket-chat-clear') clearChat();
     else if (e.key === 'cricket-show-comment') {
@@ -1940,7 +2039,7 @@ window.addEventListener('storage', e => {
       showCommentOnScreen(d.name, d.text, d.msgType || 'chat', color, d.profileImageUrl);
     }
     else if (e.key === 'cricket-score-visible') {
-      e.newValue === '0' ? DOM.scorecard.classList.add('hidden') : DOM.scorecard.classList.remove('hidden');
+      setScorecardVisible(e.newValue !== '0');
     }
   } catch (err) { console.error('Storage event error:', err); }
 });
@@ -1960,9 +2059,6 @@ function connectWS() {
           addMsg({ name: d.name, text: d.text, msgType: d.msgType || 'chat', amount: d.amount, profileImageUrl: d.profileImageUrl });
         } else if (d.type === 'score') {
           updateScore(d.data);
-          DOM.scorecard.classList.remove('hidden');
-          state.scorecardVisible = true;
-          $('fToggle').textContent = 'Hide';
         } else if (d.type === 'show-comment') {
           showCommentOnScreen(d.name, d.text, d.msgType || 'chat');
         } else if (d.type === 'hide-comment') {

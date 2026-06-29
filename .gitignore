@@ -3,3 +3,4 @@ node_modules/
 *.log
 .chat_seen.json
 .youtube_token.json
+.env
