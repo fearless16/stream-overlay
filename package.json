@@ -5,12 +5,17 @@
   "main": "yt-chat-server.js",
   "scripts": {
     "start": "node yt-chat-server.js",
-    "chat": "node yt-chat-server.js"
+    "chat": "node yt-chat-server.js",
+    "mock": "node mock-server.js",
+    "score": "node live-score-poller.js",
+    "test": "node test-parser.js",
+    "obs-connect": "node obs-connect.js"
   },
   "dependencies": {
     "cheerio": "^1.2.0",
     "dotenv": "^16.4.0",
     "googleapis": "^130.0.0",
+    "obs-websocket-js": "^5.0.5",
     "ws": "^8.21.0"
   }
 }

@@ -1,138 +1,33 @@
 require('dotenv').config({ path: require('path').join(__dirname, '.env') });
-const { google } = require('googleapis');
 const WebSocket = require('ws');
 const path = require('path');
 const fs = require('fs');
-const http = require('http');
-const { execSync } = require('child_process');
 
 const VIDEO_ID = process.env.VIDEO_ID || 'Gtm65By2uwg';
 const WS_PORT = parseInt(process.env.WS_PORT || '8765', 10);
-const POLL_INTERVAL = parseInt(process.env.POLL_INTERVAL || '5000', 10);
+const POLL_INTERVAL = parseInt(process.env.POLL_INTERVAL || '3000', 10);
 
 const SEEN_PATH = path.join(__dirname, '.chat_seen.json');
+const HISTORY_PATH = path.join(__dirname, '.chat_history.json');
 
-// Try to use OAuth first (for private streams), fallback to API key
-let auth = null;
-let oauthAuth = null;
-let apiKeyAuth = null;
-let usingApiKey = false;
-
-async function setupAuth() {
-  const secretsPath = '/Users/prajwalbairagi/projects/yt-clips/client_secrets.json';
-  const tokenPath = path.join(__dirname, '.youtube_token.json');
-  const apiKey = process.env.YOUTUBE_API_KEY;
-
-  // Store API key for fallback
-  if (apiKey) apiKeyAuth = apiKey;
-
-  // Try OAuth with client_secrets
-  if (fs.existsSync(secretsPath)) {
-    const secrets = JSON.parse(fs.readFileSync(secretsPath, 'utf8')).installed;
-    const oauth2 = new google.auth.OAuth2(
-      secrets.client_id,
-      secrets.client_secret,
-      'http://localhost:3000/oauth2callback'
-    );
-
-    // Try loading existing token
-    if (fs.existsSync(tokenPath)) {
-      let token;
-      try { token = JSON.parse(fs.readFileSync(tokenPath, 'utf8')); }
-      catch(e) { fs.unlinkSync(tokenPath); console.log('Corrupted token file, deleted.'); return await setupAuth(); }
-      oauth2.setCredentials(token);
-      // Check if expired and refresh
-      if (token.expiry_date && Date.now() > token.expiry_date) {
-        try {
-          const { credentials } = await oauth2.refreshAccessToken();
-          fs.writeFileSync(tokenPath, JSON.stringify(credentials));
-          oauth2.setCredentials(credentials);
-          console.log('OAuth token refreshed');
-        } catch(e) {
-          console.log('Token refresh failed, will re-auth');
-          fs.unlinkSync(tokenPath);
-          return await setupAuth();
-        }
-      }
-      oauthAuth = oauth2;
-      auth = oauth2;
-      console.log('Authenticated via OAuth');
-      return;
-    }
-
-    // No token - start auth flow
-    console.log('\n=== YouTube OAuth Required ===');
-    console.log('Visit this URL to authorize:');
-    const url = oauth2.generateAuthUrl({
-      access_type: 'offline',
-      scope: ['https://www.googleapis.com/auth/youtube.readonly']
-    });
-    console.log(url);
-    console.log('');
-
-    // Open in browser
-    try { execSync(`open "${url}"`); } catch(e) {}
-
-    // Start temp server to catch callback
-    const server = http.createServer(async (req, res) => {
-      const parsed = new URL(req.url, 'http://localhost:3000');
-      const code = parsed.searchParams.get('code');
-      if (!code) { res.writeHead(200); res.end('Waiting for code...'); return; }
-      const { tokens } = await oauth2.getToken(code);
-      fs.writeFileSync(tokenPath, JSON.stringify(tokens));
-      oauth2.setCredentials(tokens);
-      oauthAuth = oauth2;
-      auth = oauth2;
-      console.log('OAuth token saved!');
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end('<h1>Authorized!</h1><p>You can close this tab and return to terminal.</p>');
-      server.close();
-    });
-    server.listen(3000, () => console.log('Waiting for OAuth callback on http://localhost:3000...'));
-
-    // Wait for auth
-    while (!auth) { await new Promise(r => setTimeout(r, 1000)); }
-    return;
-  }
-
-  // Fallback to API key
-  if (apiKey) {
-    auth = apiKey;
-    usingApiKey = true;
-    console.log('Authenticated via API key');
-    return;
-  }
-
-  console.error('No authentication method available.');
-  console.error('Set YOUTUBE_API_KEY in .env or provide client_secrets.json');
-  process.exit(1);
-}
-
-function switchToApiKey() {
-  if (apiKeyAuth && !usingApiKey) {
-    console.log('OAuth quota exceeded — switching to API key auth');
-    auth = apiKeyAuth;
-    usingApiKey = true;
-    liveChatId = null; // reset so we re-fetch with new auth
-  }
-}
-
-// ─── WebSocket Server ───
 const wss = new WebSocket.Server({ port: WS_PORT });
 console.log(`WebSocket server on ws://localhost:${WS_PORT}`);
 
-// ─── YouTube API Client ───
-function getYouTube() {
-  return google.youtube({
-    version: 'v3',
-    auth: auth,
-  });
+let seenIds = new Set();
+let continuationToken = null;
+let messageHistory = [];
+let usingFake = false;
+let fakeInterval = null;
+const MAX_HISTORY = 50;
+
+if (fs.existsSync(HISTORY_PATH)) {
+  try { messageHistory = JSON.parse(fs.readFileSync(HISTORY_PATH, 'utf8')); } catch(e) {}
 }
 
-let seenIds = new Set();
-let liveChatId = null;
+function saveHistory() {
+  try { fs.writeFileSync(HISTORY_PATH, JSON.stringify(messageHistory.slice(-MAX_HISTORY))); } catch(e) {}
+}
 
-// Load seen IDs from disk
 if (fs.existsSync(SEEN_PATH)) {
   try { seenIds = new Set(JSON.parse(fs.readFileSync(SEEN_PATH, 'utf8'))); } catch(e) {}
 }
@@ -141,175 +36,265 @@ function saveSeen() {
   try { fs.writeFileSync(SEEN_PATH, JSON.stringify([...seenIds].slice(-2000))); } catch(e) {}
 }
 
-function esc(s) {
-  return String(s || '').replace(/[<>&"']/g, c => ({ '<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
+const FAKE_NAMES = [
+  'Rahul Sharma', 'Priya Patel', 'Amit Singh', 'Sneha Reddy', 'Vikram Joshi',
+  'Ananya Gupta', 'Rohit Kumar', 'Neha Verma', 'Arjun Nair', 'Kavya Iyer',
+  'Deepak Chauhan', 'Pooja Mehta', 'Sanjay Rao', 'Ritu Agarwal', 'Manoj Tiwari',
+  'Divya Nair', 'Suresh Babu', 'Lakshmi Krishnan', 'Gaurav Saxena', 'Meera Chopra',
+  'Aadi', 'Zara Khan', 'Yash', 'Ishita', 'Om',
+  'Kriti', 'Harsh', 'Tanya', 'Dhruv', 'Sana',
+];
+
+const FAKE_MESSAGES = [
+  'Great shot! 👌', 'Let\'s go! 🔥', 'What a catch!', 'Need 10 an over now',
+  'Umpire?? 🤨', 'This is our year 💪', 'Bowling change needed', 'Field placement is off',
+  'Dhoni finishes off in style! oh wait', 'Classic cover drive!',
+  'Yorker length perfect', 'Why play that shot? 😤', 'Run rate climbing',
+  'Smooth finish 🧈', 'Pitch is helping spinners', 'Drop catch 🫣',
+  'Captain knock incoming 🏏', 'Need partnership here', 'Edge and gone!',
+  'Six! 🚀 straight into the stands', 'Four! 🎯 through covers',
+  'Good over, only 4 off it', 'LBW! Plumb!', 'Review! UltraEdge shows nothing',
+  'Lucky escape that time', 'Runs flowing now', 'Bowler on top here',
+  'Fifty up! 👏', '100 partnership', 'CRR climbing nicely',
+  'Best batting display this tournament', 'Game over? 🤔', 'Not over till it\'s over',
+  'Crowd is loving this', 'What a comeback!', 'Tight bowling',
+  'Edge... dropped!!! 🫣', 'Direct hit!', 'Run out!',
+  'That\'s a 🦅 (6,6,6,6,6,6)', 'Bowled! Stumps flying!',
+  'RCB would find a way to lose this 🤡', 'Kohli vibes',
+  'Bazball energy 🏏', 'Need this partnership to fire',
+  'Nervous 90s now...', 'Deserved century! 👏👏',
+  'Get ready for the final over thriller!',
+];
+
+const FAKE_SUPERCHATS = [
+  { name: 'Ananya Gupta', text: 'Great stream bhai! 🔥', amt: '5.00' },
+  { name: 'Rohit Kumar', text: 'Keep it up prajjwal! 🏏', amt: '10.00' },
+  { name: 'Priya Patel', text: 'Love from Delhi ❤️', amt: '3.00' },
+  { name: 'Vikram Joshi', text: 'Top tier analysis 🧠', amt: '7.50' },
+  { name: 'Kavya Iyer', text: 'Cricket fam represent!', amt: '15.00' },
+  { name: 'Arjun Nair', text: 'First time here, loving it!', amt: '2.00' },
+  { name: 'Sneha Reddy', text: 'Prajjwal for president 🫡', amt: '12.00' },
+];
+
+function pick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
 }
 
-async function findLiveChatId() {
-  try {
-    const yt = getYouTube();
-    const res = await yt.videos.list({
-      part: 'liveStreamingDetails',
-      id: VIDEO_ID,
-    });
-    const video = res.data.items[0];
-    if (!video || !video.liveStreamingDetails || !video.liveStreamingDetails.activeLiveChatId) {
-      console.log('No active live chat found. Is the stream live?');
-      return null;
-    }
-    console.log(`Found live chat ID: ${video.liveStreamingDetails.activeLiveChatId}`);
-    return video.liveStreamingDetails.activeLiveChatId;
-  } catch (err) {
-    const msg = err.message || '';
-    if (msg.includes('quota') || (err.response && err.response.data && JSON.stringify(err.response.data).includes('quota'))) {
-      console.error('YouTube API quota exceeded. Quota resets daily at midnight Pacific Time.');
-      if (err.response) console.error(err.response.data);
-      switchToApiKey();
-      if (usingApiKey) {
-        console.log('Retrying with API key in 5s...');
-        return 'QUOTA_EXCEEDED';
-      }
-      console.error('No API key fallback available. Retrying in 5 minutes...');
-      return 'QUOTA_EXCEEDED';
-    }
-    console.error('Error finding live chat:', err.message);
-    if (err.response) console.error(err.response.data);
-    return null;
+function generateFakeMessage(includeSuperchat = false) {
+  const isSuperchat = includeSuperchat && Math.random() < 0.08;
+  if (isSuperchat) {
+    const sc = pick(FAKE_SUPERCHATS);
+    return { name: sc.name, text: sc.text, msgType: 'superchat', amount: sc.amt, profileImageUrl: null };
   }
+  const isMembership = Math.random() < 0.03;
+  if (isMembership) {
+    return { name: pick(FAKE_NAMES), text: 'Joined as a member! 🎉', msgType: 'membership', amount: null, profileImageUrl: null };
+  }
+  return {
+    name: pick(FAKE_NAMES),
+    text: pick(FAKE_MESSAGES),
+    msgType: 'chat',
+    amount: null,
+    profileImageUrl: null,
+  };
+}
+
+function broadcastMessage(d) {
+  const payload = JSON.stringify({ type: 'youtube-chat', ...d });
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) client.send(payload);
+  });
+  const badge = d.msgType === 'superchat' ? ` [$${d.amount}]` :
+                d.msgType === 'membership' ? ' [MEMBER]' : '';
+  console.log(`[Fake] ${d.name}${badge}: ${d.text}`);
+}
+
+function seedFakeHistory(count = 15) {
+  if (messageHistory.length >= 10) return;
+  for (let i = 0; i < count; i++) {
+    const d = generateFakeMessage(true);
+    d.type = 'youtube-chat';
+    messageHistory.push(d);
+  }
+  saveHistory();
+  console.log(`Seeded ${count} fake messages into history`);
+}
+
+function startFakeChat() {
+  if (fakeInterval) return;
+  usingFake = true;
+  seedFakeHistory(15);
+  console.log('Starting fake chat (stream offline)');
+
+  const sendBurst = () => {
+    const count = 1 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < count; i++) {
+      const d = generateFakeMessage(true);
+      d.type = 'youtube-chat';
+      messageHistory.push(d);
+      if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
+      saveHistory();
+      broadcastMessage(d);
+    }
+  };
+
+  sendBurst();
+  fakeInterval = setInterval(sendBurst, 5000 + Math.random() * 4000);
+}
+
+function stopFakeChat() {
+  if (fakeInterval) {
+    clearInterval(fakeInterval);
+    fakeInterval = null;
+  }
+  usingFake = false;
+}
+
+async function getInitialContinuation() {
+  const url = `https://www.youtube.com/live_chat?v=${VIDEO_ID}`;
+  const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } });
+  if (!res.ok) throw new Error(`live_chat page ${res.status}`);
+  const html = await res.text();
+  const match = html.match(/ytInitialData\s*=\s*({[\s\S]+?});\s*(?:\n|<)/);
+  if (!match) throw new Error('Could not find ytInitialData');
+  const data = JSON.parse(match[1]);
+  const continuations = data?.contents?.liveChatRenderer?.continuations;
+  if (!continuations || !continuations.length) throw new Error('No continuations in liveChatRenderer');
+  const cont = continuations[0]?.nextContinuationData?.continuation;
+  if (!cont) throw new Error('No continuation token found');
+  console.log('Got initial continuation token');
+  return cont;
+}
+
+function parseChatAction(action) {
+  const item = action.addChatItemAction?.item;
+  if (!item) return null;
+
+  let renderer, msgType = 'chat', amount = null;
+
+  if (item.liveChatTextMessageRenderer) {
+    renderer = item.liveChatTextMessageRenderer;
+  } else if (item.liveChatPaidMessageRenderer) {
+    renderer = item.liveChatPaidMessageRenderer;
+    msgType = 'superchat';
+    amount = renderer.purchaseAmountText?.simpleText || null;
+  } else if (item.liveChatMembershipItemRenderer) {
+    renderer = item.liveChatMembershipItemRenderer;
+    msgType = 'membership';
+  } else return null;
+
+  const id = renderer.id;
+  if (!id || seenIds.has(id)) return null;
+  seenIds.add(id);
+
+  const messageRuns = renderer.message?.runs;
+  const text = messageRuns ? messageRuns.map(r => r.text || r.emoji?.shortcuts?.[0] || '').join('') : '';
+
+  let authorName = 'Viewer';
+  if (renderer.authorName?.simpleText) authorName = renderer.authorName.simpleText;
+  else if (renderer.authorName?.runs) authorName = renderer.authorName.runs.map(r => r.text).join('');
+
+  const profileImageUrl = renderer.authorPhoto?.thumbnails?.[0]?.url || null;
+
+  return { type: 'youtube-chat', name: authorName, text, msgType, amount, profileImageUrl };
 }
 
 async function pollChat() {
-  if (!liveChatId) {
-    liveChatId = await findLiveChatId();
-    if (!liveChatId) {
-      console.log('Retrying in 30s...');
+  if (!continuationToken) {
+    try {
+      continuationToken = await getInitialContinuation();
+      if (usingFake) {
+        stopFakeChat();
+        console.log('Stream came online, switched to live chat');
+      }
+    } catch (err) {
+      if (!usingFake) startFakeChat();
       setTimeout(pollChat, 30000);
-      return;
-    }
-    if (liveChatId === 'QUOTA_EXCEEDED') {
-      liveChatId = null;
-      const delay = usingApiKey ? 5000 : 5 * 60 * 1000;
-      setTimeout(pollChat, delay);
       return;
     }
   }
 
   try {
-    const yt = getYouTube();
-    const res = await yt.liveChatMessages.list({
-      liveChatId,
-      part: 'snippet,authorDetails',
+    const url = `https://www.youtube.com/live_chat/get_live_chat?continuation=${encodeURIComponent(continuationToken)}`;
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json',
+        'x-youtube-client-version': '2.20240101.00.00',
+        'x-youtube-client-name': '1',
+      },
     });
-
-    const messages = res.data.items || [];
-    const newMessages = [];
-
-    for (const msg of messages) {
-      if (seenIds.has(msg.id)) continue;
-      seenIds.add(msg.id);
-
-      const snippet = msg.snippet || {};
-      const author = msg.authorDetails || {};
-
-      let msgType = 'chat';
-      let amount = null;
-      let profileImageUrl = author.profileImageUrl || null;
-
-      if (snippet.type === 'superChatEvent') {
-        msgType = 'superchat';
-        amount = snippet.superChatDetails ? snippet.superChatDetails.amountDisplayString : null;
-      } else if (snippet.type === 'newSponsorEvent') {
-        msgType = 'membership';
-      } else if (snippet.type === 'superStickerEvent') {
-        msgType = 'superchat';
-        amount = snippet.superStickerDetails ? snippet.superStickerDetails.amountDisplayString : null;
-      }
-
-      // Detect moderator
-      if (msgType === 'chat' && (author.isChatModerator || author.isChatOwner)) {
-        msgType = 'moderator';
-      }
-
-      // Handle sticker — use alt text if displayMessage is empty
-      let text = snippet.displayMessage || '';
-      if (!text && snippet.type === 'superStickerEvent' && snippet.superStickerDetails) {
-        text = snippet.superStickerDetails.superStickerMetadata?.altText || '[Sticker]';
-      }
-
-      const data = {
-        type: 'youtube-chat',
-        name: author.displayName || 'Viewer',
-        text,
-        msgType,
-        amount,
-        channelId: author.channelId,
-        isModerator: author.isChatModerator,
-        isOwner: author.isChatOwner,
-        profileImageUrl,
-      };
-
-      newMessages.push(data);
-
-      const badge = msgType === 'superchat' ? ` [$${amount || 'SUPER'}]` :
-                    msgType === 'membership' ? ' [MEMBER]' :
-                    msgType === 'moderator' ? ' [MOD]' : '';
-      console.log(`${author.displayName}${badge}: ${snippet.displayMessage}`);
+    if (!res.ok) throw new Error(`get_live_chat ${res.status}`);
+    const data = await res.json();
+    const continuation = data?.continuationContents?.liveChatContinuation;
+    if (!continuation) {
+      continuationToken = null;
+      setTimeout(pollChat, 15000);
+      return;
     }
 
-    // Stagger broadcasts so overlay doesn't get slammed
+    const nextCont = continuation.continuations?.[0]?.nextContinuationData?.continuation;
+    if (nextCont) continuationToken = nextCont;
+
+    const actions = continuation.actions || [];
+    const newMessages = [];
+
+    for (const action of actions) {
+      const d = parseChatAction(action);
+      if (!d) continue;
+      newMessages.push(d);
+      messageHistory.push(d);
+      if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
+      saveHistory();
+
+      const badge = d.msgType === 'superchat' ? ` [$${d.amount || 'SUPER'}]` :
+                    d.msgType === 'membership' ? ' [MEMBER]' : '';
+      console.log(`${d.name}${badge}: ${d.text}`);
+    }
+
     if (newMessages.length > 0) {
-      const staggerMs = 300;
-      newMessages.forEach((data, i) => {
+      newMessages.forEach((d, i) => {
         setTimeout(() => {
-          const payload = JSON.stringify(data);
+          const payload = JSON.stringify(d);
           wss.clients.forEach(client => {
             if (client.readyState === WebSocket.OPEN) client.send(payload);
           });
-        }, i * staggerMs);
+        }, i * 300);
       });
-      console.log(`Broadcasting ${newMessages.length} messages over ${newMessages.length * staggerMs}ms`);
+      console.log(`Broadcasting ${newMessages.length} messages`);
     }
 
     if (seenIds.size > 3000) saveSeen();
-
-    // Use API's pollingIntervalMillis if available, otherwise our configured interval
-    const nextPoll = res.data.pollingIntervalMillis || POLL_INTERVAL;
-    setTimeout(pollChat, nextPoll);
-    return;
+    const timeoutMs = continuation.continuations?.[0]?.nextContinuationData?.timeoutMs || POLL_INTERVAL;
+    setTimeout(pollChat, timeoutMs);
   } catch (err) {
-    const msg = err.message || '';
-    const isQuota = msg.includes('quota') || (err.response && JSON.stringify(err.response.data || '').includes('quota'));
-    if (isQuota) {
-      console.error('Quota exceeded during poll.');
-      switchToApiKey();
-      const delay = usingApiKey ? 5000 : 5 * 60 * 1000;
-      console.log(`Retrying in ${delay/1000}s...`);
-      liveChatId = null;
-      setTimeout(pollChat, delay);
-      return;
+    if (err.message.includes('404') || err.message.includes('Not Found')) {
+      continuationToken = null;
     }
-    if (err.code === 403) console.error('API error 403:', err.message);
-    else if (err.code === 404) { console.error('Live chat ended.'); liveChatId = null; }
-    else console.error('Poll error:', err.message);
+    setTimeout(pollChat, POLL_INTERVAL);
   }
-
-  setTimeout(pollChat, POLL_INTERVAL);
 }
 
-// ─── Main ───
 (async () => {
-  await setupAuth();
-  console.log(`Polling chat for video: ${VIDEO_ID}`);
+  console.log(`Chat server for video: ${VIDEO_ID}`);
   pollChat();
 
   wss.on('connection', ws => {
     console.log('Client connected');
-    ws.send(JSON.stringify({ type: 'connected', message: 'YouTube Chat Bridge ready' }));
-    // Rebroadcast incoming messages (e.g. from live-score-poller)
+    ws.send(JSON.stringify({ type: 'connected', message: 'YouTube Chat Bridge ready', fake: usingFake }));
+    const recent = messageHistory.slice(-10);
+    if (recent.length > 0) {
+      recent.forEach((msg, i) => {
+        setTimeout(() => {
+          if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
+        }, i * 150);
+      });
+      console.log(`Replayed ${recent.length} historical messages to new client`);
+    }
     ws.on('message', raw => {
       try {
         const data = JSON.parse(raw.toString());
-        if (['score', 'goals', 'show-comment', 'hide-comment', 'youtube-chat'].includes(data.type)) {
+        if (['score', 'goals', 'show-comment', 'hide-comment', 'youtube-chat', 'replay', 'score-visible'].includes(data.type)) {
           wss.clients.forEach(client => {
             if (client !== ws && client.readyState === WebSocket.OPEN) client.send(raw.toString());
           });

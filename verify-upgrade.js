@@ -1,0 +1,14 @@
+const fs = require('fs');
+const html = fs.readFileSync('chat-overlay.html', 'utf8');
+console.log('File size:', html.length);
+console.log('Has --user-color on sc-card:', html.includes("card.style.setProperty('--user-color', c);"));
+console.log('Has scBarShimmer:', html.includes('@keyframes scBarShimmer'));
+console.log('Has transform rotate scorecard:', html.includes('transform: rotate(360deg)'));
+console.log('Right panel width:', html.match(/width: var\(--right-panel-w\)/) ? 'OK' : 'MISSING');
+console.log('Has contain:', html.includes('contain: layout paint style'));
+console.log('Has color-mix:', html.includes('color-mix'));
+console.log('msg.chat removed:', !html.includes('.msg.chat { border-left-color'));
+console.log('Has media queries:', html.includes('@media (max-width: 720px)'));
+console.log('sc-card width 700px:', html.includes('width: 700px;'));
+console.log('sc-avatar 64px:', html.includes('width: 64px;'));
+console.log('sc-msg 30px:', html.includes('font-size: 30px;'));
