@@ -993,7 +993,10 @@ body {
   position: fixed; bottom: 0; left: 0; right: 0;
   z-index: 50;
   pointer-events: all;
-  display: flex; flex-direction: column; align-items: center;
+  display: none; flex-direction: column; align-items: center;
+}
+#ctrl-panel.admin-mode {
+  display: flex;
 }
 #ctrl-tab {
   display: inline-flex; align-items: center; gap: 10px;
@@ -2202,6 +2205,14 @@ function connectWS() {
   }
 }
 connectWS();
+
+const isAdmin = new URLSearchParams(window.location.search).get('mode') === 'admin';
+if (isAdmin) {
+  DOM.ctrlPanel.classList.add('admin-mode');
+  DOM.ctrlPanel.classList.add('open');
+  if (!state.scorecardVisible) setScorecardVisible(true);
+  $('fToggle').textContent = 'Hide';
+}
 
 </script>
 </body>
