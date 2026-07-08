@@ -30,7 +30,7 @@
 
 body {
   background: transparent;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI Emoji', 'Noto Color Emoji', 'Apple Color Emoji', sans-serif;
   width: 1920px; height: 1080px;
   overflow: hidden;
   color: var(--text);
@@ -256,6 +256,10 @@ body {
 .msg .badge.membership { background: rgba(0,230,118,0.12); color: var(--green); border-color: rgba(0,230,118,0.25); }
 .msg .badge.moderator { background: rgba(0,212,255,0.12); color: var(--neon-blue); border-color: rgba(0,212,255,0.25); }
 .msg .badge.announcement { background: rgba(68,138,255,0.12); color: #448AFF; border-color: rgba(68,138,255,0.25); }
+.msg .badge.sticker { background: rgba(255,64,129,0.12); color: #FF4081; border-color: rgba(255,64,129,0.25); }
+.msg.sticker .name { color: #FF4081 !important; }
+.msg .sticker-img { margin-top: 8px; max-width: 120px; }
+.msg .sticker-img img { width: 100%; height: auto; border-radius: 8px; display: block; }
 
 .msg.superchat .name { color: var(--gold) !important; }
 .msg.superchat .text { color: rgba(255,240,180,0.85); }
@@ -405,7 +409,7 @@ body {
 
 .sc-msg {
   font-size: 30px;
-  font-family: 'Poppins', 'Inter', sans-serif;
+  font-family: 'Poppins', 'Inter', 'Segoe UI Emoji', 'Noto Color Emoji', 'Apple Color Emoji', sans-serif;
   font-weight: 600;
   color: rgba(240,236,228,0.85);
   line-height: 1.4;
@@ -435,6 +439,95 @@ body {
   0%,100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.4; transform: scale(0.7); }
 }
+
+/* Diagnostic panels (Agent 2/3): internal monitoring only. Hidden from the
+   viewer-facing overlay; revealed solely in ?mode=admin for stream operators. */
+.diagnostic { display: none !important; }
+body.admin.show-diag .diagnostic#stream-health { display: block; }
+body.admin.show-diag .diagnostic#audio-monitor { display: flex; }
+
+/* ════════════════════════════════════════
+   STREAM HEALTH PANEL (Agent 3)
+   ════════════════════════════════════════ */
+#stream-health {
+  position: fixed; top: 92px; right: 24px;
+  z-index: 25;
+  background: rgba(8, 6, 16, 0.9);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px;
+  padding: 10px 12px;
+  pointer-events: none;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+#stream-health .sh-title {
+  font-size: 9px; font-weight: 900; letter-spacing: 2px;
+  color: var(--muted); text-transform: uppercase; margin-bottom: 8px;
+  text-align: center;
+}
+#stream-health .sh-grid {
+  display: grid; grid-template-columns: repeat(2, auto);
+  gap: 6px 14px; justify-items: start;
+}
+#stream-health .sh-item {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 11px; font-weight: 700; color: var(--text2);
+  letter-spacing: 0.5px;
+}
+#stream-health .sh-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--green); box-shadow: 0 0 8px var(--green);
+  transition: all 0.3s; flex-shrink: 0;
+}
+#stream-health .sh-item.warn .sh-dot { background: var(--gold); box-shadow: 0 0 8px var(--gold); }
+#stream-health .sh-item.warn .sh-label { color: var(--gold); }
+#stream-health .sh-item.err .sh-dot {
+  background: var(--neon-red); box-shadow: 0 0 10px var(--neon-red);
+  animation: livePulse 1s infinite;
+}
+#stream-health .sh-item.err .sh-label { color: var(--neon-red); }
+#stream-health .sh-item.off .sh-dot { background: #555; box-shadow: none; }
+#stream-health .sh-item.off .sh-label { color: var(--muted); }
+#stream-health .sh-item.muted .sh-dot { background: var(--neon-red); box-shadow: 0 0 10px var(--neon-red); }
+
+/* ════════════════════════════════════════
+   AUDIO MONITOR (Agent 2)
+   ════════════════════════════════════════ */
+#audio-monitor {
+  position: fixed; bottom: 56px; left: 24px;
+  z-index: 25; width: 360px;
+  background: rgba(8, 6, 16, 0.9);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px; padding: 10px 12px;
+  pointer-events: none; box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  display: flex; flex-direction: column; gap: 8px;
+}
+#audio-monitor .am-row {
+  display: flex; align-items: center; gap: 10px;
+}
+#audio-monitor .am-name {
+  font-size: 9px; font-weight: 900; letter-spacing: 1.5px;
+  color: var(--muted); width: 64px; flex-shrink: 0;
+}
+#audio-monitor .am-meter {
+  flex: 1; height: 10px; border-radius: 999px;
+  background: rgba(255,255,255,0.06); overflow: hidden;
+  position: relative;
+}
+#audio-monitor .am-fill {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--green) 0%, var(--gold) 70%, var(--neon-red) 100%);
+  transition: width 0.08s linear;
+}
+#audio-monitor .am-state {
+  font-size: 10px; font-weight: 800; letter-spacing: 1px;
+  width: 86px; text-align: right; flex-shrink: 0; color: var(--text2);
+}
+#audio-monitor .am-row.muted .am-state { color: var(--neon-red); }
+#audio-monitor .am-row.off .am-state { color: var(--muted); }
+#audio-monitor .am-row.device-missing .am-state { color: var(--neon-red); animation: livePulse 1s infinite; }
 
 /* ════════════════════════════════════════
    BRAND BAR
@@ -475,6 +568,27 @@ body {
 #brand-health .health-indicator.warning { background: var(--gold); box-shadow: 0 0 8px var(--gold); }
 #brand-health .health-indicator.error { background: var(--neon-red); box-shadow: 0 0 8px var(--neon-red); animation: livePulse 1s infinite; }
 #brand-health .health-text { font-size: 10px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+#brand-viewers {
+  display: flex; align-items: center; gap: 6px;
+  margin-left: 10px; padding-left: 14px;
+  border-left: 1px solid rgba(255,255,255,0.06);
+}
+#brand-viewers .viewer-count {
+  font-size: 18px; font-weight: 900;
+  color: var(--neon-blue);
+  font-variant-numeric: tabular-nums;
+  min-width: 44px;
+  letter-spacing: -0.5px;
+  text-shadow: 0 0 14px rgba(0,212,255,0.25);
+  transition: all 0.25s ease;
+}
+#brand-viewers .viewer-count.updating {
+  text-shadow: 0 0 24px rgba(0,212,255,0.55);
+}
+#brand-viewers .viewer-label {
+  font-size: 9px; font-weight: 800; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 1.5px;
+}
 
 /* ════════════════════════════════════════
     SCORECARD — State of the Art
@@ -1229,6 +1343,25 @@ body {
     <div class="health-indicator" id="health-ind"></div>
     <div class="health-text" id="health-text">Stream Healthy</div>
   </div>
+  <div id="brand-viewers">
+    <span class="viewer-count" id="viewerCount">—</span>
+    <span class="viewer-label">VIEWERS</span>
+  </div>
+</div>
+
+<!-- Agent 3: Stream Health panel — green/red status for every subsystem.
+     Diagnostic only: hidden from viewers, shown in ?mode=admin. -->
+<div id="stream-health" class="diagnostic">
+  <div class="sh-title">STREAM HEALTH</div>
+  <div class="sh-grid">
+    <div class="sh-item" id="sh-obs"><span class="sh-dot"></span><span class="sh-label">OBS</span></div>
+    <div class="sh-item" id="sh-chat"><span class="sh-dot"></span><span class="sh-label">Chat</span></div>
+    <div class="sh-item" id="sh-score"><span class="sh-dot"></span><span class="sh-label">Score</span></div>
+    <div class="sh-item" id="sh-viewer"><span class="sh-dot"></span><span class="sh-label">Viewer</span></div>
+    <div class="sh-item" id="sh-desktop"><span class="sh-dot"></span><span class="sh-label">Desktop</span></div>
+    <div class="sh-item" id="sh-mic"><span class="sh-dot"></span><span class="sh-label">Mic</span></div>
+    <div class="sh-item" id="sh-encoder"><span class="sh-dot"></span><span class="sh-label">Encoder</span></div>
+  </div>
 </div>
 
 <div id="right-panel">
@@ -1313,7 +1446,7 @@ body {
     </div>
 
     <div class="ctrl-hint">
-      Shortcuts: <kbd>Ctrl+1</kbd> Scorecard • <kbd>Ctrl+2</kbd> Controls • <kbd>Ctrl+3</kbd> Clear Chat • <kbd>Esc</kbd> Dismiss
+      Shortcuts: <kbd>Alt+C</kbd> Controls • <kbd>Alt+N</kbd> Nerd Stats • <kbd>Alt+R</kbd> Refresh • <kbd>Ctrl+1</kbd> Scorecard • <kbd>Ctrl+3</kbd> Clear • <kbd>Esc</kbd> Dismiss
     </div>
   </div>
 </div>
@@ -1321,6 +1454,21 @@ body {
 <div id="bottom-bar">
   <div class="bb-brand">Cricket With Prajjwal</div>
   <div class="bb-social">youtube.com/@prajjwal • #CricketWithPrajjwal</div>
+</div>
+
+<!-- Agent 2: OBS Audio meters. Diagnostic only: hidden from viewers,
+     shown in ?mode=admin. -->
+<div id="audio-monitor" class="diagnostic">
+  <div class="am-row" id="am-desktop">
+    <div class="am-name">DESKTOP</div>
+    <div class="am-meter"><div class="am-fill"></div></div>
+    <div class="am-state">—</div>
+  </div>
+  <div class="am-row" id="am-mic">
+    <div class="am-name">MIC</div>
+    <div class="am-meter"><div class="am-fill"></div></div>
+    <div class="am-state">—</div>
+  </div>
 </div>
 
 <script>
@@ -1354,6 +1502,23 @@ const state = {
   msgHistory: [],
   replayIndex: -1,
   replayTimer: null,
+  // Agent 1 / 6: dedupe incoming chat by content+author to prevent duplicates
+  seenMsgKeys: new Map(), // key -> timestamp (pruned periodically)
+  // Agent 1 / 7: last-message / server-health bookkeeping
+  lastChatAt: Date.now(),
+  lastHeartbeatAt: Date.now(),
+  serverAlive: false,
+  // Agent 4: viewer cache age
+  viewerCount: 0,
+  viewerFetchedAt: 0,
+  // Agent 3: subsystem health (true=ok, false=error, 'warn', 'off')
+  health: { obs: 'off', chat: false, score: false, viewer: false, desktop: false, mic: false, encoder: false },
+  // Agent 2: last audio frame ts for staleness
+  lastAudioAt: 0,
+  // Agent 5: score freshness
+  lastScoreAt: 0,
+  scoreStale: true,
+  nerdVisible: false,
 };
 
 const $ = id => document.getElementById(id);
@@ -1372,7 +1537,25 @@ const DOM = {
   brbOverlay: $('brb-overlay'),
   brbTimer: $('brb-timer'),
   brbCloseBtn: $('brb-close-btn'),
-  scBackdrop: $('sc-backdrop')
+  scBackdrop: $('sc-backdrop'),
+  viewerCount: $('viewerCount'),
+  // Agent 3: stream health items
+  sh: {
+    obs: $('sh-obs'),
+    chat: $('sh-chat'),
+    score: $('sh-score'),
+    viewer: $('sh-viewer'),
+    desktop: $('sh-desktop'),
+    mic: $('sh-mic'),
+    encoder: $('sh-encoder'),
+  },
+  // Agent 2: audio monitors
+  amDesktop: $('am-desktop'),
+  amDesktopFill: $('am-desktop').querySelector('.am-fill'),
+  amDesktopState: $('am-desktop').querySelector('.am-state'),
+  amMic: $('am-mic'),
+  amMicFill: $('am-mic').querySelector('.am-fill'),
+  amMicState: $('am-mic').querySelector('.am-state'),
 };
 
 DOM.brbCloseBtn.addEventListener('click', toggleBRB);
@@ -1490,9 +1673,25 @@ const YT_EMOJI = {
 function renderEmoji(str) {
   return String(str ?? '').replace(/:[\w-]+:/g, match => {
     const url = YT_EMOJI[match];
-    if (url) return `<img class="emoji-img" src="${url}" alt="${match}" title="${match}" />`;
+    if (url) return `<img class="emoji-img" src="${url}" alt="${match}" title="${match}" onerror="this.replaceWith(document.createTextNode('${match}'))" />`;
     return match;
   });
+}
+
+// Render structured runs sent by the server (preferred over text+map lookup).
+// Each run: { type:'text'|'emoji', text, src, alt }. Emoji/sticker images use
+// YouTube's own CDN URLs so every custom emoji renders without a hardcoded map.
+function renderRuns(runs) {
+  if (!Array.isArray(runs) || !runs.length) return null;
+  return runs.map(r => {
+    if (r.type === 'emoji' && r.src) {
+      const alt = esc(r.alt || r.text || 'emoji');
+      // URL is server-validated YouTube CDN; escape quotes defensively.
+      const src = String(r.src).replace(/"/g, '%22');
+      return `<img class="emoji-img" src="${src}" alt="${alt}" title="${alt}" loading="lazy" onerror="this.replaceWith(document.createTextNode('${alt}'))" />`;
+    }
+    return esc(r.text ?? '');
+  }).join('');
 }
 
 function initials(name) {
@@ -1512,10 +1711,139 @@ function formatTime() {
   return now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
+function formatCount(n) {
+  if (n == null || isNaN(n)) return '—';
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'K';
+  return String(n);
+}
+
+function setViewerCount(count) {
+  const el = DOM.viewerCount;
+  const raw = parseInt(el.dataset.raw, 10);
+  el.textContent = formatCount(count);
+  el.dataset.raw = count != null ? count : '';
+  if (raw !== count) {
+    el.classList.remove('updating');
+    void el.offsetWidth;
+    el.classList.add('updating');
+  }
+}
+
 function setHealth(status) {
   DOM.healthInd.className = 'health-indicator ' + status;
   const texts = { healthy: 'Stream Healthy', warning: 'Connection Weak', error: 'Reconnecting...' };
   DOM.healthText.textContent = texts[status] || status;
+}
+
+/* ════════════════════════════════════════
+   Agent 3: Stream Health panel updater
+   ════════════════════════════════════════ */
+function setSubsystem(name, status) {
+  state.health[name] = status;
+  const el = DOM.sh[name];
+  if (!el) return;
+  el.classList.remove('warn', 'err', 'off', 'muted');
+  if (status === 'off') el.classList.add('off');
+  else if (status === false || status === 'err') el.classList.add('err');
+  else if (status === 'warn' || status === 'muted') el.classList.add(status === 'muted' ? 'muted' : 'warn');
+}
+
+function refreshStreamHealth() {
+  // Overall brand-bar indicator reflects worst subsystem
+  const h = state.health;
+  const hasErr = Object.values(h).some(v => v === false || v === 'err' || v === 'muted');
+  const hasWarn = Object.values(h).some(v => v === 'warn' || v === 'off');
+  setHealth(hasErr ? 'error' : hasWarn ? 'warning' : 'healthy');
+}
+
+/* ════════════════════════════════════════
+   Agent 2: Audio meter rendering (rAF-batched)
+   ════════════════════════════════════════ */
+let _audioPending = null;
+let _audioRaf = null;
+function applyAudioFrame(frame) {
+  _audioPending = frame;
+  if (_audioRaf) return;
+  _audioRaf = requestAnimationFrame(() => {
+    _audioRaf = null;
+    const f = _audioPending;
+    if (!f) return;
+    state.lastAudioAt = f.ts || Date.now();
+
+    // Desktop
+    if (f.desktop) {
+      const lvl = Math.min(100, Math.round((f.desktop.level || 0) * 100));
+      DOM.amDesktopFill.style.width = lvl + '%';
+      DOM.amDesktop.classList.toggle('muted', !!f.desktop.muted);
+      DOM.amDesktop.classList.remove('off');
+      DOM.amDesktopState.textContent = f.desktop.muted ? 'MUTED' : (f.desktop.name ? 'ON' : '—');
+      setSubsystem('desktop', lvl > 0 && !f.desktop.muted ? true : (f.desktop.muted ? 'muted' : true));
+    } else {
+      DOM.amDesktopFill.style.width = '0%';
+      DOM.amDesktop.classList.add('off');
+      DOM.amDesktopState.textContent = 'NO DEVICE';
+      setSubsystem('desktop', 'off');
+    }
+
+    // Mic
+    if (f.mic) {
+      const lvl = Math.min(100, Math.round((f.mic.level || 0) * 100));
+      DOM.amMicFill.style.width = lvl + '%';
+      DOM.amMic.classList.toggle('muted', !!f.mic.muted);
+      DOM.amMic.classList.remove('off');
+      DOM.amMicState.textContent = f.mic.muted ? 'MUTED' : (f.mic.name ? 'ON' : '—');
+      setSubsystem('mic', f.mic.muted ? 'muted' : true);
+    } else {
+      DOM.amMicFill.style.width = '0%';
+      DOM.amMic.classList.add('off');
+      DOM.amMicState.textContent = 'NO DEVICE';
+      setSubsystem('mic', 'off');
+    }
+    refreshStreamHealth();
+  });
+}
+
+/* ════════════════════════════════════════
+   Agent 4: Viewer count with cache age + smooth tween
+   ════════════════════════════════════════ */
+let _viewerRaf = null;
+let _viewerTarget = 0;
+let _viewerDisplayed = 0;
+function setViewerCount(count, fetchedAt) {
+  const raw = state.viewerCount;
+  state.viewerCount = count;
+  state.viewerFetchedAt = fetchedAt || Date.now();
+  // mark subsystem healthy when we get fresh data
+  if (count != null && count > 0) setSubsystem('viewer', true);
+  refreshStreamHealth();
+
+  const el = DOM.viewerCount;
+  el.textContent = formatCount(count);
+  el.dataset.raw = count != null ? count : '';
+  if (raw !== count) {
+    el.classList.remove('updating');
+    void el.offsetWidth;
+    el.classList.add('updating');
+  }
+
+  // Smooth tween toward the new value (no flicker) using rAF
+  if (count == null || isNaN(count)) return;
+  _viewerTarget = count;
+  if (_viewerRaf) return;
+  _viewerRaf = requestAnimationFrame(() => {
+    _viewerRaf = null;
+    const step = () => {
+      const diff = _viewerTarget - _viewerDisplayed;
+      if (Math.abs(diff) < 1) {
+        _viewerDisplayed = _viewerTarget;
+      } else {
+        _viewerDisplayed += diff * 0.25;
+        _viewerRaf = requestAnimationFrame(step);
+      }
+    };
+    step();
+  });
 }
 
 /* FIX: Proper cricket overs parser (base-6 balls) */
@@ -1539,6 +1867,23 @@ function addMsg(data, options = {}) {
   const text = data.text || '';
   const amount = data.amount || null;
   const profileImageUrl = data.profileImageUrl || null;
+  const runs = data.runs || null;
+  const stickerUrl = data.stickerUrl || null;
+
+  // Agent 1 / 6: dedupe. Key by author+text+type+amount so the same chat line
+  // is never rendered twice (e.g. after a fast reconnect/replay overlap).
+  if (!isDemo) {
+    const key = `${name}|${text}|${type}|${amount || ''}|${stickerUrl || ''}`;
+    const seenAt = state.seenMsgKeys.get(key);
+    const now = Date.now();
+    if (seenAt && now - seenAt < 4000) {
+      return; // duplicate within 4s window — drop
+    }
+    state.seenMsgKeys.set(key, now);
+    state.lastChatAt = now;
+    setSubsystem('chat', true);
+    refreshStreamHealth();
+  }
 
   if (!isDemo) {
     state.hasRealData = true;
@@ -1546,12 +1891,17 @@ function addMsg(data, options = {}) {
       clearTimeout(state.demoTimer);
       state.demoTimer = null;
     }
-    state.msgHistory.push({ name, text, type, amount, profileImageUrl, userColor: getUserColor(name) });
+    state.msgHistory.push({ name, text, type, amount, profileImageUrl, runs, stickerUrl, userColor: getUserColor(name) });
     if (state.msgHistory.length > 20) state.msgHistory.shift();
   }
 
   const userColor = getUserColor(name);
-  const el = document.createElement('div');
+  // Agent 6: recycle message nodes from a pool instead of allocating a fresh
+  // element for every chat line. Keeps DOM node count bounded and avoids GC
+  // pressure during a 5000-message burst (overlay stays at 60fps).
+  const el = _msgPool.pop() || document.createElement('div');
+  el.className = '';
+  el.onclick = null;
   const msgId = Date.now() + Math.random().toString(36).substr(2, 9);
   el.className = `msg ${type}`;
   el.dataset.id = msgId;
@@ -1561,9 +1911,17 @@ function addMsg(data, options = {}) {
 
   let badge = '';
   if (type === 'superchat') badge = `<span class="badge superchat">Super Chat${amount ? ' $' + esc(amount) : ''}</span>`;
+  else if (type === 'sticker') badge = `<span class="badge sticker">Sticker${amount ? ' $' + esc(amount) : ''}</span>`;
   else if (type === 'membership') badge = `<span class="badge membership">Member</span>`;
   else if (type === 'moderator') badge = `<span class="badge moderator">Mod</span>`;
   else if (type === 'announcement') badge = `<span class="badge announcement">Announce</span>`;
+
+  // Prefer structured runs (real YouTube emoji/sticker image URLs); fall back
+  // to the text+map approach for legacy payloads.
+  const textHtml = renderRuns(runs) ?? renderEmoji(esc(text));
+  const stickerHtml = stickerUrl
+    ? `<div class="sticker-img"><img src="${String(stickerUrl).replace(/"/g, '%22')}" alt="sticker" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`
+    : '';
 
   el.innerHTML = `
     <div class="msg-actions">
@@ -1572,7 +1930,8 @@ function addMsg(data, options = {}) {
       <button class="msg-action-btn del" title="Delete">✕</button>
     </div>
     <div class="msg-top">${badge}<span class="name" style="color:${userColor}">${esc(name)}</span><span class="msg-time">${formatTime()}</span></div>
-    <div class="text">${renderEmoji(esc(text))}</div>
+    <div class="text">${textHtml}</div>
+    ${stickerHtml}
   `;
 
   el.querySelector('.msg-action-btn.pin').addEventListener('click', (e) => {
@@ -1605,10 +1964,10 @@ function addMsg(data, options = {}) {
     if (oldest) {
       oldest.classList.add('exiting');
       oldest.addEventListener('animationend', () => {
-        oldest.remove();
+        recycleMsg(oldest);
         updateCount();
       }, { once: true });
-      setTimeout(() => { oldest?.remove(); updateCount(); }, 600);
+      setTimeout(() => { recycleMsg(oldest); updateCount(); }, 600);
     }
   }
 
@@ -1646,9 +2005,24 @@ function deleteMessage(id) {
   if (el) {
     if (state.pinnedId === id) state.pinnedId = null;
     el.classList.add('exiting');
-    el.addEventListener('animationend', () => el.remove(), { once: true });
-    setTimeout(() => el?.remove(), 500);
+    el.addEventListener('animationend', () => recycleMsg(el), { once: true });
+    setTimeout(() => recycleMsg(el), 500);
   }
+}
+
+// Agent 6: return a detached message node to the recycle pool (detaches from
+// layout, drops listeners via innerHTML reset on next reuse).
+function recycleMsg(el) {
+  if (!el || !el.parentNode) {
+    // Ensure it's removed even if already detached
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+  } else {
+    el.parentNode.removeChild(el);
+  }
+  el.className = '';
+  el.removeAttribute('data-id');
+  el.onclick = null;
+  if (_msgPool.length < MAX_POOL) _msgPool.push(el);
 }
 
 function pinMessage(id) {
@@ -1663,7 +2037,7 @@ function pinMessage(id) {
 
 function clearChat(event) {
   if (event) event.stopPropagation();
-  while (DOM.container.firstChild) DOM.container.firstChild.remove();
+  while (DOM.container.firstChild) recycleMsg(DOM.container.firstChild);
   updateCount();
 }
 
@@ -1743,6 +2117,10 @@ function replayHistory() {
 let currentScore = null;
 let _prevRenderState = null;
 let _animFrameIds = new Map();
+let _prevScoreJson = null;     // Agent 6: last rendered score JSON (render-skip)
+let _forceScoreRender = false; // Agent 6: bypass render-skip on explicit redraw
+const _msgPool = [];           // Agent 6: recycled message nodes
+const MAX_POOL = 30;           // keep a few spares for fast reuse
 
 const _teamColorMap = {};
 const _teamPalette = [
@@ -1879,6 +2257,16 @@ function updateScore(data) {
     DOM.scContent.innerHTML = '<div class="sc-empty">No match data</div>';
     return;
   }
+
+  // Agent 6: skip a full re-render when the payload is byte-identical to the
+  // last one we drew. This prevents unnecessary DOM thrash / GC churn when the
+  // score poller re-sends the same score (no flicker, lower CPU at 60fps).
+  const incoming = JSON.stringify(data);
+  if (currentScore && _prevScoreJson === incoming && !_forceScoreRender) {
+    return;
+  }
+  _prevScoreJson = incoming;
+  _forceScoreRender = false;
 
   const merged = { ...data };
   if (currentScore) {
@@ -2129,17 +2517,37 @@ function resetAll(e) {
   DOM.brbTimer.textContent = '00:00';
 }
 
+function toggleNerdStats() {
+  state.nerdVisible = !state.nerdVisible;
+  document.body.classList.toggle('show-diag', state.nerdVisible);
+}
+function refreshAll() {
+  state.ws?.close();
+  connectWS();
+  if (typeof currentScore !== 'undefined') _forceScoreRender = true;
+  state.lastHeartbeatAt = Date.now();
+  state.serverAlive = true;
+  setSubsystem('chat', true);
+  refreshStreamHealth();
+}
+
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     if (state.replayTimer) { clearTimeout(state.replayTimer); state.replayTimer = null; state.replayIndex = -1; }
     hideComment();
     if (state.brbActive) toggleBRB();
   }
-  if (!e.ctrlKey) return;
-  if (e.key === '1') { e.preventDefault(); toggleScorecard(); }
-  if (e.key === '2') { e.preventDefault(); toggleControls(); }
-  if (e.key === '3') { e.preventDefault(); clearChat(); }
-  if (e.key === '4') { e.preventDefault(); replayHistory(); }
+  if (e.ctrlKey) {
+    if (e.key === '1') { e.preventDefault(); toggleScorecard(); }
+    if (e.key === '2') { e.preventDefault(); toggleControls(); }
+    if (e.key === '3') { e.preventDefault(); clearChat(); }
+    if (e.key === '4') { e.preventDefault(); replayHistory(); }
+  }
+  if (e.altKey) {
+    if (e.key === 'c' || e.key === 'C') { e.preventDefault(); toggleControls(); }
+    if (e.key === 'r' || e.key === 'R') { e.preventDefault(); refreshAll(); }
+    if (e.key === 'n' || e.key === 'N') { e.preventDefault(); toggleNerdStats(); }
+  }
 });
 
 $('popMsg').addEventListener('keydown', e => {
@@ -2150,6 +2558,7 @@ window.addEventListener('storage', e => {
   try {
     if (e.key === 'cricket-chat-pop') addMsg(JSON.parse(e.newValue));
     else if (e.key === 'cricket-score-update') {
+      _forceScoreRender = true;
       updateScore(JSON.parse(e.newValue));
     }
     else if (e.key === 'cricket-chat-clear') clearChat();
@@ -2178,9 +2587,14 @@ function connectWS() {
       try {
         const d = JSON.parse(ev.data);
         if (d.type === 'youtube-chat') {
-          addMsg({ name: d.name, text: d.text, msgType: d.msgType || 'chat', amount: d.amount, profileImageUrl: d.profileImageUrl });
+          // ignore the player-inserted demos; only real relayed chat goes through
+          addMsg({ name: d.name, text: d.text, msgType: d.msgType || 'chat', amount: d.amount, profileImageUrl: d.profileImageUrl, runs: d.runs, stickerUrl: d.stickerUrl });
         } else if (d.type === 'score') {
           updateScore(d.data);
+          state.lastScoreAt = Date.now();
+          state.scoreStale = !!d.stale;
+          setSubsystem('score', d.stale ? 'warn' : true);
+          refreshStreamHealth();
         } else if (d.type === 'show-comment') {
           showCommentOnScreen(d.name, d.text, d.msgType || 'chat');
         } else if (d.type === 'hide-comment') {
@@ -2189,11 +2603,43 @@ function connectWS() {
           replayHistory();
         } else if (d.type === 'score-visible') {
           setScorecardVisible(d.data === '1');
+        } else if (d.type === 'score-redraw') {
+          _forceScoreRender = true;
+          if (d.data) updateScore(d.data);
+        } else if (d.type === 'viewers') {
+          setViewerCount(d.count, d.age);
+        } else if (d.type === 'heartbeat') {
+          // Agent 1 / 3 / 7: server is alive. Record ts + update chat/viewer health.
+          state.lastHeartbeatAt = Date.now();
+          state.serverAlive = true;
+          if (Date.now() - state.lastChatAt < 60000) { setSubsystem('chat', true); }
+          refreshStreamHealth();
+        } else if (d.type === 'obs-status') {
+          // Agent 2 / 3 / 7: OBS connection state
+          setSubsystem('obs', d.connected ? true : 'off');
+          setSubsystem('encoder', d.connected ? true : 'off');
+          refreshStreamHealth();
+        } else if (d.type === 'obs-audio') {
+          // Agent 2: desktop/mic meters + mute
+          applyAudioFrame(d);
+          setSubsystem('obs', d.connected ? true : 'off');
+        } else if (d.type === 'score-health') {
+          // Agent 5: score freshness — flag stale in health panel
+          state.lastScoreAt = d.lastSuccessAt || state.lastScoreAt;
+          state.scoreStale = !!d.stale;
+          setSubsystem('score', d.stale ? 'warn' : true);
+          refreshStreamHealth();
         }
       } catch (err) { console.error('WS message error:', err); }
     };
     state.ws.onclose = () => {
       setHealth('error');
+      // Agent 1 / 7: chat + connection drop => mark subsystems down
+      setSubsystem('chat', false);
+      setSubsystem('obs', 'off');
+      setSubsystem('score', 'warn');
+      setSubsystem('viewer', 'warn');
+      refreshStreamHealth();
       const delay = Math.min(1000 * Math.pow(2, state.wsReconnectAttempts) + Math.random() * 1000, 30000);
       state.wsReconnectAttempts++;
       setTimeout(connectWS, delay);
@@ -2201,15 +2647,61 @@ function connectWS() {
     state.ws.onerror = () => state.ws?.close();
   } catch (e) {
     setHealth('error');
+    setSubsystem('chat', false);
+    refreshStreamHealth();
     setTimeout(connectWS, 5000);
   }
 }
+
+// Agent 1 / 7: overlay-side watchdog. The server sends a heartbeat every 2s.
+// If we haven't heard from it for >8s, assume the node died and force a
+// reconnect. This is what makes "Server kill -> restart" recover with no
+// manual browser refresh.
+function startOverlayWatchdog() {
+  setInterval(() => {
+    const sinceHeartbeat = Date.now() - state.lastHeartbeatAt;
+    if (state.serverAlive && sinceHeartbeat > 8000) {
+      console.warn('[Watchdog] no heartbeat from server — reconnecting WS');
+      state.serverAlive = false;
+      try { state.ws?.close(); } catch (e) {}
+      // onclose handler schedules the reconnect
+    }
+  }, 3000);
+}
+
+// Agent 4: periodically refresh the viewer "age" readout + flag staleness
+function startViewerAgeTicker() {
+  setInterval(() => {
+    const ageMs = Date.now() - (state.viewerFetchedAt || 0);
+    if (state.viewerFetchedAt && ageMs > 60000) {
+      setSubsystem('viewer', 'warn');
+    }
+    refreshStreamHealth();
+  }, 5000);
+}
+
+// Agent 1 / 6: prune the dedupe map so it can't grow unbounded
+function startDedupPrune() {
+  setInterval(() => {
+    const now = Date.now();
+    for (const [k, t] of state.seenMsgKeys) {
+      if (now - t > 10000) state.seenMsgKeys.delete(k);
+    }
+  }, 15000);
+}
+
 connectWS();
+startOverlayWatchdog();
+startViewerAgeTicker();
+startDedupPrune();
 
 const isAdmin = new URLSearchParams(window.location.search).get('mode') === 'admin';
 if (isAdmin) {
+  document.body.classList.add('admin');
+  document.body.classList.add('show-diag');
   DOM.ctrlPanel.classList.add('admin-mode');
   DOM.ctrlPanel.classList.add('open');
+  state.nerdVisible = true;
   if (!state.scorecardVisible) setScorecardVisible(true);
   $('fToggle').textContent = 'Hide';
 }
