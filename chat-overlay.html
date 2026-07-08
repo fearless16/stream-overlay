@@ -154,12 +154,16 @@ body {
 }
 
 #chat-container {
-  flex: 1; overflow: hidden;
+  flex: 1; overflow-y: auto;
   display: flex; flex-direction: column;
-  justify-content: flex-end;
   gap: 4px;
   position: relative;
+  scroll-behavior: smooth;
 }
+
+#chat-container::-webkit-scrollbar { width: 4px; }
+#chat-container::-webkit-scrollbar-track { background: transparent; }
+#chat-container::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
 
 .msg {
   display: flex; flex-direction: column;
@@ -475,6 +479,27 @@ body {
 #brand-health .health-indicator.warning { background: var(--gold); box-shadow: 0 0 8px var(--gold); }
 #brand-health .health-indicator.error { background: var(--neon-red); box-shadow: 0 0 8px var(--neon-red); animation: livePulse 1s infinite; }
 #brand-health .health-text { font-size: 10px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+#brand-viewers {
+  display: flex; align-items: center; gap: 6px;
+  margin-left: 10px; padding-left: 14px;
+  border-left: 1px solid rgba(255,255,255,0.06);
+}
+#brand-viewers .viewer-count {
+  font-size: 18px; font-weight: 900;
+  color: var(--neon-blue);
+  font-variant-numeric: tabular-nums;
+  min-width: 44px;
+  letter-spacing: -0.5px;
+  text-shadow: 0 0 14px rgba(0,212,255,0.25);
+  transition: all 0.25s ease;
+}
+#brand-viewers .viewer-count.updating {
+  text-shadow: 0 0 24px rgba(0,212,255,0.55);
+}
+#brand-viewers .viewer-label {
+  font-size: 9px; font-weight: 800; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 1.5px;
+}
 
 /* ════════════════════════════════════════
     SCORECARD — State of the Art
@@ -1229,6 +1254,10 @@ body {
     <div class="health-indicator" id="health-ind"></div>
     <div class="health-text" id="health-text">Stream Healthy</div>
   </div>
+  <div id="brand-viewers">
+    <span class="viewer-count" id="viewerCount">—</span>
+    <span class="viewer-label">VIEWERS</span>
+  </div>
 </div>
 
 <div id="right-panel">
@@ -1325,7 +1354,7 @@ body {
 
 <script>
 const CONFIG = {
-  maxMessages: 12,
+  maxMessages: 150,
   demoInterval: 4000,
   wsUrl: 'ws://localhost:8765',
   autoDismiss: 75000,
@@ -1354,6 +1383,7 @@ const state = {
   msgHistory: [],
   replayIndex: -1,
   replayTimer: null,
+  userScrolledUp: false,
 };
 
 const $ = id => document.getElementById(id);
@@ -1372,11 +1402,24 @@ const DOM = {
   brbOverlay: $('brb-overlay'),
   brbTimer: $('brb-timer'),
   brbCloseBtn: $('brb-close-btn'),
-  scBackdrop: $('sc-backdrop')
+  scBackdrop: $('sc-backdrop'),
+  viewerCount: $('viewerCount')
 };
 
 DOM.brbCloseBtn.addEventListener('click', toggleBRB);
 DOM.scBackdrop.addEventListener('click', hideComment);
+
+function isAtBottom() {
+  return DOM.container.scrollHeight - DOM.container.scrollTop - DOM.container.clientHeight < 60;
+}
+
+function scrollToBottom(smooth = true) {
+  DOM.container.scrollTo({ top: DOM.container.scrollHeight, behavior: smooth ? 'smooth' : 'instant' });
+}
+
+DOM.container.addEventListener('scroll', () => {
+  state.userScrolledUp = !isAtBottom();
+});
 
 function esc(str) {
   const div = document.createElement('div');
@@ -1490,9 +1533,19 @@ const YT_EMOJI = {
 function renderEmoji(str) {
   return String(str ?? '').replace(/:[\w-]+:/g, match => {
     const url = YT_EMOJI[match];
-    if (url) return `<img class="emoji-img" src="${url}" alt="${match}" title="${match}" />`;
+    if (url) return `<img class="emoji-img" src="${url}" alt="${match}" title="${match}" onerror="this.onerror=null;this.replaceWith(document.createTextNode(this.title))" />`;
     return match;
   });
+}
+
+function renderSegments(segments) {
+  if (!segments || !segments.length) return '';
+  return segments.map(s => {
+    if (s.type === 'emoji' && s.url) {
+      return `<img class="emoji-img" src="${esc(s.url)}" alt="${esc(s.value)}" title="${esc(s.value)}" onerror="this.onerror=null;this.replaceWith(document.createTextNode(this.title))" />`;
+    }
+    return esc(s.value || '');
+  }).join('');
 }
 
 function initials(name) {
@@ -1510,6 +1563,25 @@ function getUserColor(name) {
 function formatTime() {
   const now = new Date();
   return now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+function formatCount(n) {
+  if (n == null || isNaN(n)) return '—';
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'K';
+  return String(n);
+}
+
+function setViewerCount(count) {
+  const el = DOM.viewerCount;
+  const raw = parseInt(el.dataset.raw, 10);
+  el.textContent = formatCount(count);
+  el.dataset.raw = count != null ? count : '';
+  if (raw !== count) {
+    el.classList.remove('updating');
+    void el.offsetWidth;
+    el.classList.add('updating');
+  }
 }
 
 function setHealth(status) {
@@ -1539,6 +1611,7 @@ function addMsg(data, options = {}) {
   const text = data.text || '';
   const amount = data.amount || null;
   const profileImageUrl = data.profileImageUrl || null;
+  const segments = data.segments || null;
 
   if (!isDemo) {
     state.hasRealData = true;
@@ -1546,7 +1619,7 @@ function addMsg(data, options = {}) {
       clearTimeout(state.demoTimer);
       state.demoTimer = null;
     }
-    state.msgHistory.push({ name, text, type, amount, profileImageUrl, userColor: getUserColor(name) });
+    state.msgHistory.push({ name, text, type, amount, profileImageUrl, segments, userColor: getUserColor(name) });
     if (state.msgHistory.length > 20) state.msgHistory.shift();
   }
 
@@ -1572,7 +1645,7 @@ function addMsg(data, options = {}) {
       <button class="msg-action-btn del" title="Delete">✕</button>
     </div>
     <div class="msg-top">${badge}<span class="name" style="color:${userColor}">${esc(name)}</span><span class="msg-time">${formatTime()}</span></div>
-    <div class="text">${renderEmoji(esc(text))}</div>
+    <div class="text">${segments ? renderSegments(segments) : renderEmoji(esc(text))}</div>
   `;
 
   el.querySelector('.msg-action-btn.pin').addEventListener('click', (e) => {
@@ -1581,7 +1654,7 @@ function addMsg(data, options = {}) {
   });
   el.querySelector('.msg-action-btn.show').addEventListener('click', (e) => {
     e.stopPropagation();
-    showCommentOnScreen(name, text, type, userColor, profileImageUrl);
+    showCommentOnScreen(name, text, type, userColor, profileImageUrl, segments);
   });
   el.querySelector('.msg-action-btn.del').addEventListener('click', (e) => {
     e.stopPropagation();
@@ -1591,7 +1664,7 @@ function addMsg(data, options = {}) {
   if (!noAnim) el.classList.add('new-entry');
 
   el.addEventListener('click', () => {
-    showCommentOnScreen(name, text, type, userColor, profileImageUrl);
+    showCommentOnScreen(name, text, type, userColor, profileImageUrl, segments);
     el.style.boxShadow = '0 0 0 2px rgba(255,255,255,0.3), 0 0 20px rgba(255,255,255,0.1)';
     setTimeout(() => el.style.boxShadow = '', 300);
   });
@@ -1613,6 +1686,7 @@ function addMsg(data, options = {}) {
   }
 
   DOM.container.appendChild(el);
+  if (!state.userScrolledUp) scrollToBottom(true);
   updateCount();
 
   if (type === 'superchat' && amount) {
@@ -1626,7 +1700,7 @@ function addMsg(data, options = {}) {
     }
     const si = document.createElement('div');
     si.className = 'sp-item';
-    si.innerHTML = `<span class="sp-name">${esc(name)}</span><span class="sp-text">${esc(text.substring(0, 45))}</span><span class="sp-amt">$${esc(amount)}</span>`;
+    si.innerHTML = `<span class="sp-name">${esc(name)}</span><span class="sp-text">${segments ? renderSegments(segments) : renderEmoji(esc(text.substring(0, 45)))}</span><span class="sp-amt">$${esc(amount)}</span>`;
     if (DOM.spList.firstChild) DOM.spList.insertBefore(si, DOM.spList.firstChild);
     else DOM.spList.appendChild(si);
     while (DOM.spList.children.length > 5) DOM.spList.lastChild.remove();
@@ -1672,13 +1746,13 @@ function clearChat(event) {
    ════════════════════════════════════════ */
 let scDismissTimer = null;
 
-function showCommentOnScreen(name, text, type, userColor, profileImageUrl) {
+function showCommentOnScreen(name, text, type, userColor, profileImageUrl, segments) {
   const t = type || 'chat';
   const c = userColor || 'var(--neon-red)';
 
   const avatarEl = $('sc-avatar');
   if (profileImageUrl) {
-    avatarEl.innerHTML = `<img src="${esc(profileImageUrl)}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+    avatarEl.innerHTML = `<img src="${esc(profileImageUrl)}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" onerror="this.onerror=null;this.style.display='none'">`;
   } else {
     avatarEl.textContent = initials(name || 'V');
   }
@@ -1694,7 +1768,7 @@ function showCommentOnScreen(name, text, type, userColor, profileImageUrl) {
   b.style.background = `${c}33`;
   b.style.color = c;
 
-  $('sc-msg').innerHTML = renderEmoji(esc(text || ''));
+  $('sc-msg').innerHTML = segments ? renderSegments(segments) : renderEmoji(esc(text || ''));
 
   DOM.showComment.classList.add('active');
 
@@ -1731,7 +1805,7 @@ function replayHistory() {
     }
     const m = state.msgHistory[state.replayIndex++];
     const color = m.userColor || getUserColor(m.name || 'Viewer');
-    showCommentOnScreen(m.name, m.text, m.type || 'chat', color, m.profileImageUrl);
+    showCommentOnScreen(m.name, m.text, m.type || 'chat', color, m.profileImageUrl, m.segments);
     state.replayTimer = setTimeout(showNext, 3500);
   }
   showNext();
@@ -2073,7 +2147,7 @@ function popChat(e) {
   const type = $('popType').value;
   if (!text) return;
   const color = getUserColor(name);
-  addMsg({ name, text, msgType: type, userColor: color });
+  addMsg({ name, text, msgType: type, userColor: color, segments: null });
   $('popMsg').value = '';
   $('popMsg').focus();
 }
@@ -2158,7 +2232,7 @@ window.addEventListener('storage', e => {
       const d = JSON.parse(e.newValue);
       if (d.hide) { hideComment(); return; }
       const color = d.userColor || getUserColor(d.name || 'Viewer');
-      showCommentOnScreen(d.name, d.text, d.msgType || 'chat', color, d.profileImageUrl);
+      showCommentOnScreen(d.name, d.text, d.msgType || 'chat', color, d.profileImageUrl, d.segments);
     }
     else if (e.key === 'cricket-score-visible') {
       setScorecardVisible(e.newValue !== '0');
@@ -2178,17 +2252,19 @@ function connectWS() {
       try {
         const d = JSON.parse(ev.data);
         if (d.type === 'youtube-chat') {
-          addMsg({ name: d.name, text: d.text, msgType: d.msgType || 'chat', amount: d.amount, profileImageUrl: d.profileImageUrl });
+          addMsg({ name: d.name, text: d.text, msgType: d.msgType || 'chat', amount: d.amount, profileImageUrl: d.profileImageUrl, segments: d.segments });
         } else if (d.type === 'score') {
           updateScore(d.data);
         } else if (d.type === 'show-comment') {
-          showCommentOnScreen(d.name, d.text, d.msgType || 'chat');
+          showCommentOnScreen(d.name, d.text, d.msgType || 'chat', null, null, d.segments);
         } else if (d.type === 'hide-comment') {
           hideComment();
         } else if (d.type === 'replay') {
           replayHistory();
         } else if (d.type === 'score-visible') {
           setScorecardVisible(d.data === '1');
+        } else if (d.type === 'viewers') {
+          setViewerCount(d.count);
         }
       } catch (err) { console.error('WS message error:', err); }
     };
