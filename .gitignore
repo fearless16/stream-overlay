@@ -4,3 +4,5 @@ node_modules/
 .chat_seen.json
 .youtube_token.json
 .env
+
+# runtime state.chat_history.json.chat_seen.json
