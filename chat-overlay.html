@@ -158,7 +158,6 @@ body {
   display: flex; flex-direction: column;
   gap: 4px;
   position: relative;
-  scroll-behavior: smooth;
 }
 
 #chat-container::-webkit-scrollbar { width: 4px; }
@@ -179,8 +178,11 @@ body {
   border-left: 3px solid rgba(255,45,85,0.4);
   transition: all 0.2s ease;
   overflow: hidden;
-  animation: msgEnter 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
+
+/* Only NEW live messages animate in; replayed history appears instantly so
+   scrolling stays smooth and never fights a backlog of entrance animations. */
+.msg.new-entry { animation: msgEnter 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
 
 .msg:hover {
   background: rgba(255,255,255,0.06);
@@ -1354,7 +1356,7 @@ body {
 
 <script>
 const CONFIG = {
-  maxMessages: 150,
+  maxMessages: 200,
   demoInterval: 4000,
   wsUrl: 'ws://localhost:8765',
   autoDismiss: 75000,
@@ -1413,8 +1415,8 @@ function isAtBottom() {
   return DOM.container.scrollHeight - DOM.container.scrollTop - DOM.container.clientHeight < 60;
 }
 
-function scrollToBottom(smooth = true) {
-  DOM.container.scrollTo({ top: DOM.container.scrollHeight, behavior: smooth ? 'smooth' : 'instant' });
+function scrollToBottom(smooth = false) {
+  DOM.container.scrollTo({ top: DOM.container.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
 }
 
 DOM.container.addEventListener('scroll', () => {
@@ -1686,7 +1688,7 @@ function addMsg(data, options = {}) {
   }
 
   DOM.container.appendChild(el);
-  if (!state.userScrolledUp) scrollToBottom(true);
+  if (!state.userScrolledUp) scrollToBottom(false);
   updateCount();
 
   if (type === 'superchat' && amount) {
@@ -2251,10 +2253,22 @@ function connectWS() {
     state.ws.onmessage = ev => {
       try {
         const d = JSON.parse(ev.data);
-        if (d.type === 'youtube-chat') {
-          addMsg({ name: d.name, text: d.text, msgType: d.msgType || 'chat', amount: d.amount, profileImageUrl: d.profileImageUrl, segments: d.segments });
+        if (d.type === 'connected') {
+          // Server replays persisted history right after this message. Clear the
+          // panel + local state first so a reconnect/refresh never duplicates chat.
+          clearChat();
+          DOM.spList.innerHTML = '';
+          state.topDonator = { name: '—', amount: 0 };
+          DOM.dName.textContent = '—';
+          DOM.dAmt.textContent = '$0';
+          state.msgHistory = [];
+          state.pinnedId = null;
+          state.userScrolledUp = false;
+        } else if (d.type === 'youtube-chat') {
+          addMsg({ name: d.name, text: d.text, msgType: d.msgType || 'chat', amount: d.amount, profileImageUrl: d.profileImageUrl, segments: d.segments }, d.isHistory ? { noAnim: true } : {});
         } else if (d.type === 'score') {
           updateScore(d.data);
+          if (!state.scorecardVisible && d.data && d.data.teams) setScorecardVisible(true);
         } else if (d.type === 'show-comment') {
           showCommentOnScreen(d.name, d.text, d.msgType || 'chat', null, null, d.segments);
         } else if (d.type === 'hide-comment') {

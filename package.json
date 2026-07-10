@@ -4,8 +4,8 @@
   "description": "YouTube Live Chat to WebSocket bridge for Cricket With Prajjwal stream overlays",
   "main": "yt-chat-server.js",
   "scripts": {
-    "start": "node yt-chat-server.js",
-    "chat": "node yt-chat-server.js",
+    "start": "node guardian.js",
+    "chat": "node guardian.js",
     "mock": "node mock-server.js",
     "score": "node live-score-poller.js",
     "test": "node test-parser.js",

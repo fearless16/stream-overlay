@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Streamer Dashboard — Cricket With Prajjwal</title>
+<style>
+  :root { --ok:#00E676; --warn:#FFD700; --bad:#FF2D55; --bg:#0b0a12; --panel:#14121f; --line:rgba(255,255,255,0.07); --txt:#e8e8f0; --mut:#8a8a9a; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--txt); font-family:'Inter',system-ui,sans-serif; padding:18px; width:420px; }
+  h1 { font-size:13px; letter-spacing:2px; text-transform:uppercase; color:var(--mut); margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+  h1 .dot { width:8px; height:8px; border-radius:50%; background:var(--bad); box-shadow:0 0 10px var(--bad); }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:12px; }
+  .row { display:flex; align-items:center; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--line); }
+  .row:last-child { border-bottom:none; }
+  .label { font-size:12px; color:var(--mut); font-weight:600; letter-spacing:.4px; }
+  .val { font-size:13px; font-weight:700; display:flex; align-items:center; gap:8px; }
+  .pill { font-size:11px; font-weight:800; padding:3px 10px; border-radius:999px; letter-spacing:.5px; }
+  .p-ok { background:rgba(0,230,118,0.14); color:var(--ok); }
+  .p-bad { background:rgba(255,45,85,0.14); color:var(--bad); }
+  .p-warn { background:rgba(255,215,0,0.14); color:var(--warn); }
+  .p-off { background:rgba(255,255,255,0.06); color:var(--mut); }
+  .dev { font-size:13px; }
+  .dev .name { font-weight:800; }
+  .dev .meta { font-size:11px; color:var(--mut); margin-top:2px; }
+  .bar { height:6px; border-radius:3px; background:rgba(255,255,255,0.07); overflow:hidden; margin-top:6px; }
+  .bar > i { display:block; height:100%; background:linear-gradient(90deg,var(--ok),#00b3a4); width:0%; transition:width .4s; }
+  .section-title { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--mut); margin:0 0 8px 2px; }
+  .muted-tag { font-size:10px; color:var(--bad); font-weight:800; }
+  .ts { font-size:10px; color:var(--mut); margin-top:10px; text-align:right; }
+</style>
+</head>
+<body>
+  <h1><span class="dot" id="wsDot"></span> Streamer Dashboard <span style="color:var(--mut);font-weight:500;letter-spacing:0;">(private)</span></h1>
+
+  <div class="card">
+    <div class="section-title">OBS</div>
+    <div class="row"><span class="label">Connection</span><span class="val" id="obsConn"><span class="pill p-off">—</span></span></div>
+    <div class="row"><span class="label">Streaming</span><span class="val" id="obsStream"><span class="pill p-off">—</span></span></div>
+    <div class="row"><span class="label">Recording</span><span class="val" id="obsRec"><span class="pill p-off">—</span></span></div>
+    <div class="row"><span class="label">Bitrate</span><span class="val" id="obsBitrate">—</span></div>
+    <div class="row"><span class="label">FPS</span><span class="val" id="obsFps">—</span></div>
+    <div class="row"><span class="label">Dropped frames</span><span class="val" id="obsDropped">—</span></div>
+    <div class="row"><span class="label">Skipped frames</span><span class="val" id="obsSkipped">—</span></div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Microphone</div>
+    <div id="micBox"><div class="dev"><span class="name" style="color:var(--mut)">not detected</span></div></div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Camera</div>
+    <div id="camBox"><div class="dev"><span class="name" style="color:var(--mut)">not detected</span></div></div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Chat Bridge</div>
+    <div class="row"><span class="label">Bridge</span><span class="val" id="chatBridge"><span class="pill p-off">—</span></span></div>
+    <div class="row"><span class="label">Source</span><span class="val" id="chatFake"><span class="pill p-ok">REAL</span></span></div>
+    <div class="row"><span class="label">Last message</span><span class="val" id="chatLast">—</span></div>
+    <div class="row"><span class="label">Viewers</span><span class="val" id="viewers">—</span></div>
+  </div>
+
+  <div class="ts" id="ts">connecting…</div>
+
+<script>
+const WS = 'ws://localhost:8765';
+let ws;
+function setPill(el, kind, text) { el.innerHTML = '<span class="pill p-'+kind+'">'+text+'</span>'; }
+function connState(connected) {
+  const dot = document.getElementById('wsDot');
+  dot.style.background = connected ? 'var(--ok)' : 'var(--bad)';
+  dot.style.boxShadow = '0 0 10px ' + (connected ? 'var(--ok)' : 'var(--bad)');
+}
+function devBox(elId, dev) {
+  const box = document.getElementById(elId);
+  if (!dev) { box.innerHTML = '<div class="dev"><span class="name" style="color:var(--mut)">not detected</span></div>'; return; }
+  const conn = dev.connected ? '<span class="pill p-ok">CONNECTED</span>' : '<span class="pill p-bad">OFFLINE</span>';
+  const mute = dev.muted ? ' <span class="muted-tag">MUTED</span>' : '';
+  const vol = Math.round((dev.volume ?? 1) * 100);
+  box.innerHTML =
+    '<div class="dev"><span class="name">'+esc(dev.name)+'</span> '+conn+mute+'</div>'+
+    '<div class="meta">'+esc((dev.kind||'').replace(/_/g,' '))+' · volume '+vol+'%</div>'+
+    '<div class="bar"><i style="width:'+Math.min(100,vol)+'%"></i></div>';
+}
+function esc(s){ const d=document.createElement('div'); d.textContent=String(s??''); return d.innerHTML; }
+function fmtAgo(ts){ if(!ts) return '—'; const s=Math.floor((Date.now()-ts)/1000); if(s<2) return 'just now'; if(s<60) return s+'s ago'; if(s<3600) return Math.floor(s/60)+'m ago'; return Math.floor(s/3600)+'h ago'; }
+
+function handle(d) {
+  if (d.type === 'metrics') {
+    const o = d.obs || {};
+    setPill(document.getElementById('obsConn'), o.connected?'ok':'bad', o.connected?'CONNECTED':'DISCONNECTED');
+    setPill(document.getElementById('obsStream'), o.streaming?'ok':'off', o.streaming?'LIVE':'off');
+    setPill(document.getElementById('obsRec'), o.recording?'warn':'off', o.recording?'REC':'off');
+    document.getElementById('obsBitrate').textContent = o.bitrate!=null ? Math.round(o.bitrate/1000)+' kbps' : '—';
+    document.getElementById('obsFps').textContent = o.fps!=null ? o.fps.toFixed(1) : '—';
+    document.getElementById('obsDropped').textContent = o.droppedFrames!=null ? o.droppedFrames : '—';
+    document.getElementById('obsSkipped').textContent = o.skippedFrames!=null ? o.skippedFrames : '—';
+    devBox('micBox', d.mic);
+    devBox('camBox', d.camera);
+    const c = d.chat || {};
+    setPill(document.getElementById('chatBridge'), c.bridge?'ok':'bad', c.bridge?'ONLINE':'DOWN');
+    document.getElementById('chatLast').textContent = fmtAgo(c.lastChatAt);
+  } else if (d.type === 'viewers') {
+    document.getElementById('viewers').textContent = d.count!=null ? d.count.toLocaleString() : '—';
+  } else if (d.type === 'connected') {
+    document.getElementById('chatLast').textContent = 'just now';
+  }
+  document.getElementById('ts').textContent = 'updated ' + new Date().toLocaleTimeString();
+}
+
+function connect() {
+  connState(false);
+  try { ws = new WebSocket(WS); } catch(e) { setTimeout(connect, 2000); return; }
+  ws.onopen = () => connState(true);
+  ws.onmessage = ev => { try { handle(JSON.parse(ev.data)); } catch(e){} };
+  ws.onclose = () => { connState(false); setTimeout(connect, 2000); };
+  ws.onerror = () => { try{ws.close();}catch(e){} };
+}
+connect();
+</script>
+</body>
+</html>

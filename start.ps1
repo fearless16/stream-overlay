@@ -2,7 +2,8 @@
 # Usage: powershell -ExecutionPolicy Bypass -NoProfile -File start.ps1 [start|stop|status|go-live|obs|preview|mode|menu]
 
 param(
-    [string]$Action = "menu"
+    [string]$Action = "menu",
+    [string]$Value = ""
 )
 
 $ErrorActionPreference = "Continue"
@@ -43,6 +44,9 @@ function Get-ObsPid {
 }
 
 function Stop-Server {
+    $flag = Join-Path $Root "logs\stop.flag"
+    if (-not (Test-Path "logs")) { New-Item -ItemType Directory -Path "logs" | Out-Null }
+    New-Item -ItemType File -Path $flag -Force | Out-Null
     $pid_ = Get-ServerPid
     if ($pid_) {
         Write-Host "  Stopping server PID $pid_..." -ForegroundColor Yellow
@@ -52,25 +56,35 @@ function Stop-Server {
     } else {
         Write-Host "  No server running on port $WS_PORT" -ForegroundColor DarkGray
     }
+    Get-Process -Name node -ErrorAction SilentlyContinue | Where-Object {
+        $_.CommandLine -like "*live-score-poller*"
+    } | ForEach-Object {
+        Write-Host "  Stopping score poller PID $($_.Id)..." -ForegroundColor Yellow
+        Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
+    }
 }
 
 function Start-Server {
+    param([string]$VideoId = "")
+    if ($VideoId) { Set-VideoId -InputStr $VideoId }
     Stop-Server
     if (-not (Test-Path "logs")) { New-Item -ItemType Directory -Path "logs" | Out-Null }
     $envVars = Read-Env
     $mode = if ($envVars["MODE"]) { $envVars["MODE"] } else { "mock" }
     Write-Host ""
     Write-Host "  Mode: $mode" -ForegroundColor Cyan
-    $logFile = Join-Path $Root "logs\server.log"
     if ($mode -eq "real") {
-        $script = "yt-chat-server.js"
-        Write-Host "  Starting real YouTube chat server..." -ForegroundColor Cyan
+        Write-Host "  Starting REAL YouTube chat server (self-healing)..." -ForegroundColor Cyan
+        $flag = Join-Path $Root "logs\stop.flag"
+        if (Test-Path $flag) { Remove-Item $flag -Force }
+        $guard = Join-Path $Root "guardian.js"
+        $logFile = Join-Path $Root "logs\server.log"
+        $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "node `"$guard`" >> `"$logFile`" 2>&1" -WorkingDirectory $Root -WindowStyle Hidden -PassThru
     } else {
-        $script = "mock-server.js"
         Write-Host "  Starting mock server (fake chat for testing)..." -ForegroundColor Cyan
+        $logFile = Join-Path $Root "logs\server.log"
+        $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "node mock-server.js > `"$logFile`" 2>&1" -WorkingDirectory $Root -WindowStyle Hidden -PassThru
     }
-    $args = "/c", "node $script > `"$logFile`" 2>&1"
-    $proc = Start-Process -FilePath "cmd.exe" -ArgumentList $args -WorkingDirectory $Root -WindowStyle Hidden -PassThru
     Start-Sleep -Seconds 2
     $listen = Get-NetTCPConnection -LocalPort $WS_PORT -State Listen -ErrorAction SilentlyContinue
     if ($listen) {
@@ -81,6 +95,21 @@ function Start-Server {
             Write-Host "  Last log lines:" -ForegroundColor Yellow
             Get-Content $logFile -Tail 8 | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
         }
+    }
+    Start-ScorePoller
+}
+
+function Start-ScorePoller {
+    $pollPid = Get-NetTCPConnection -LocalPort $WS_PORT -State Listen -ErrorAction SilentlyContinue
+    if (-not (Test-Path "logs")) { New-Item -ItemType Directory -Path "logs" | Out-Null }
+    $logFile = Join-Path $Root "logs\score.log"
+    $errFile = Join-Path $Root "logs\score.err"
+    $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "node live-score-poller.js >> `"$logFile`" 2>> `"$errFile`"" -WorkingDirectory $Root -WindowStyle Hidden -PassThru
+    Start-Sleep -Seconds 2
+    if (Get-Process -Id $proc.Id -ErrorAction SilentlyContinue) {
+        Write-Host "  [OK] Score poller running (PID $($proc.Id))" -ForegroundColor Green
+    } else {
+        Write-Host "  [FAIL] Score poller did not start. Check logs\score.err" -ForegroundColor Red
     }
 }
 
@@ -211,18 +240,63 @@ function Switch-Mode {
     Write-Host "  Mode: $current -> $new" -ForegroundColor Green
     if ($new -eq "real") {
         Write-Host "  Make sure VIDEO_ID in .env is a CURRENTLY-LIVE YouTube stream." -ForegroundColor Yellow
+        Write-Host "  Use option [S] in menu to set it." -ForegroundColor DarkGray
     } else {
         Write-Host "  Mock mode = fake chat (works offline)." -ForegroundColor DarkGray
     }
 }
 
+function Set-VideoId {
+    param([string]$InputStr)
+    if (-not $InputStr) {
+        $InputStr = Read-Host "  Enter YouTube video ID or URL"
+    }
+    # Extract video ID from various URL formats
+    $id = $null
+    if ($InputStr -match '(?:youtube\.com|youtu\.be).*[?&/]v[/=]([a-zA-Z0-9_-]{11})') {
+        $id = $Matches[1]
+    } elseif ($InputStr -match 'youtu\.be/([a-zA-Z0-9_-]{11})') {
+        $id = $Matches[1]
+    } elseif ($InputStr -match '/video/([a-zA-Z0-9_-]{11})/') {
+        $id = $Matches[1]
+    } elseif ($InputStr -match '^([a-zA-Z0-9_-]{11})$') {
+        $id = $InputStr
+    }
+    if (-not $id) {
+        Write-Host "  [FAIL] Could not extract video ID from: $InputStr" -ForegroundColor Red
+        return
+    }
+    $envFile = Join-Path $Root ".env"
+    $content = if (Test-Path $envFile) { Get-Content $envFile -Raw } else { "" }
+    if ($content -match '(?m)^VIDEO_ID=.*$') {
+        $content = $content -replace '(?m)^VIDEO_ID=.*$', "VIDEO_ID=$id"
+    } else {
+        $content = "VIDEO_ID=$id`n$content"
+    }
+    [System.IO.File]::WriteAllText($envFile, $content, [System.Text.UTF8Encoding]::new($false))
+    Write-Host "  [OK] VIDEO_ID set to $id" -ForegroundColor Green
+}
+
+function Apply-ObsSettings {
+    $script = Join-Path $Root "apply-obs-settings.js"
+    if (-not (Test-Path $script)) {
+        Write-Host "  [WARN] apply-obs-settings.js not found - skipping optimized OBS settings." -ForegroundColor Yellow
+        return
+    }
+    Write-Host "  Applying optimized OBS settings..." -ForegroundColor Cyan
+    & node $script
+    Write-Host ""
+}
+
 function Go-Live {
+    param([string]$VideoId = "")
     Write-Host ""
     Write-Host "  === One-shot go-live ===" -ForegroundColor Cyan
-    Start-Server
+    Start-Server -VideoId $VideoId
     Start-Sleep -Milliseconds 500
     $obsId = Get-ObsPid
     if (-not $obsId) { Launch-OBS }
+    Apply-ObsSettings
     Inject-ObsSource
     Start-Sleep -Milliseconds 500
     Open-Preview
@@ -241,10 +315,13 @@ function Show-Menu {
     Write-Host "  [6]  Launch OBS"                  -ForegroundColor Yellow
     Write-Host "  [7]  View live logs"              -ForegroundColor Yellow
     Write-Host "  [8]  One-shot GO-LIVE"            -ForegroundColor Magenta
+    Write-Host "  [9]  Apply optimized OBS settings" -ForegroundColor Cyan
+    Write-Host "  [W]  Optimize Windows for streaming" -ForegroundColor Yellow
+    Write-Host "  [S]  Set YouTube video ID"         -ForegroundColor Yellow
     Write-Host "  [0]  Exit"                        -ForegroundColor Yellow
     Write-Host ""
     $choice = Read-Host "  Choose"
-    switch ($choice) {
+    switch ($choice.ToUpper()) {
         "1" { Start-Server; pause; Show-Menu }
         "2" { Stop-Server; pause; Show-Menu }
         "3" { Switch-Mode; pause; Show-Menu }
@@ -253,13 +330,20 @@ function Show-Menu {
         "6" { Launch-OBS; pause; Show-Menu }
         "7" { Show-Logs; pause; Show-Menu }
         "8" { Go-Live; pause; Show-Menu }
+        "9" { Apply-ObsSettings; pause; Show-Menu }
+        "S" { Set-VideoId; pause; Show-Menu }
+        "W" { & powershell -ExecutionPolicy Bypass -NoProfile -File (Join-Path $Root "optimize-windows.ps1"); pause; Show-Menu }
         "0" { return }
         default { Show-Menu }
     }
 }
 
+if ($Action -notmatch '^(start|stop|status|preview|obs|inject|logs|mode|go-live|apply|winopt|setid|menu)$' -and $Action -match '^[a-zA-Z0-9_-]{11}$') {
+    $Value = $Action
+    $Action = 'start'
+}
 switch ($Action) {
-    "start"    { Start-Server }
+    "start"    { Start-Server -VideoId $Value }
     "stop"     { Stop-Server }
     "status"   { Show-Status }
     "preview"  { Open-Preview }
@@ -267,7 +351,10 @@ switch ($Action) {
     "inject"   { Inject-ObsSource }
     "logs"     { Show-Logs }
     "mode"     { Switch-Mode }
-    "go-live"  { Go-Live }
+    "go-live"  { Go-Live -VideoId $Value }
+    "apply"    { Apply-ObsSettings }
+    "winopt"   { & powershell -ExecutionPolicy Bypass -NoProfile -File (Join-Path $Root "optimize-windows.ps1") }
+    "setid"    { Set-VideoId -InputStr $Value }
     "menu"     { Show-Menu }
     default    { Show-Menu }
 }

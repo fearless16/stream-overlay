@@ -1,12 +1,25 @@
 /**
  * mock-server.js
- * Simulates a live stream WebSocket feed on ws://localhost:8765
- * Run: node mock-server.js
+ * Simulates a fake live stream WebSocket feed on ws://localhost:8770
+ * DISABLED by policy — only runs with ALLOW_FAKE_CHAT=1. Must NOT feed OBS.
+ * Run: ALLOW_FAKE_CHAT=1 node mock-server.js
  */
 
 const { WebSocketServer } = require('ws');
 
-const PORT = 8765;
+// ⛔ Fake chat is DISABLED by policy. This server only emits simulated (fake)
+// chat and must never feed the live OBS overlay. For local UI testing only,
+// opt in explicitly with ALLOW_FAKE_CHAT=1.
+if (process.env.ALLOW_FAKE_CHAT !== '1') {
+  console.error('\n⛔  Fake chat is disabled.');
+  console.error('     This mock server emits simulated chat and must NOT feed the live OBS overlay.');
+  console.error('     To run it for local UI testing anyway, set ALLOW_FAKE_CHAT=1\n');
+  process.exit(1);
+}
+
+// Distinct port so it can NEVER collide with or replace the real yt-chat-server
+// (which owns 8765 / 8766). Point a test overlay at ws://localhost:8770 instead.
+const PORT = 8770;
 const wss = new WebSocketServer({ port: PORT });
 
 console.log(`\n🎙  Mock stream server running on ws://localhost:${PORT}`);
