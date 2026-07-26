@@ -21,6 +21,7 @@ const POLL_INTERVAL = parseInt(process.env.POLL_INTERVAL || '2000', 10);
 const VIEWER_POLL_INTERVAL = parseInt(process.env.VIEWER_POLL_INTERVAL || '15000', 10);
 const MODE = (process.env.MODE || 'auto').trim().toLowerCase();
 const RETRY_INTERVAL = parseInt(process.env.RETRY_INTERVAL || '15000', 10);
+const YOUTUBE_API_KEY = (process.env.YOUTUBE_API_KEY || '').trim();
 
 const SEEN_PATH = path.join(__dirname, '.chat_seen.json');
 const HISTORY_PATH = path.join(__dirname, '.chat_history.json');
@@ -311,6 +312,21 @@ function broadcastViewers() {
   });
 }
 
+async function fetchLikeCountFromAPI() {
+  if (!YOUTUBE_API_KEY) return null;
+  try {
+    const url = `https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${VIDEO_ID}&key=${YOUTUBE_API_KEY}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw new Error(`API ${res.status}`);
+    const data = await res.json();
+    const count = data?.items?.[0]?.statistics?.likeCount;
+    return count ? parseInt(count, 10) : null;
+  } catch (e) {
+    console.error('[Like API]', e.message);
+    return null;
+  }
+}
+
 function extractLikeCount(html) {
   try {
     const dataMatch = html.match(/ytInitialData\s*=\s*({.+?});\s*(?:\n|<)/);
@@ -402,7 +418,13 @@ async function fetchEngagementData() {
     if (viewersChanged) broadcastViewers();
 
     // ── Like Count ─────────────────────────────────────────────────────────
-    const newCount = extractLikeCount(html);
+    let newCount = null;
+    if (YOUTUBE_API_KEY) {
+      newCount = await fetchLikeCountFromAPI();
+    }
+    if (newCount === null) {
+      newCount = extractLikeCount(html);
+    }
     if (newCount !== null) {
       if (!likeCountInitialized) {
         currentLikeCount = newCount;
