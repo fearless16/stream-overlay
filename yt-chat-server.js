@@ -22,6 +22,26 @@ const VIEWER_POLL_INTERVAL = parseInt(process.env.VIEWER_POLL_INTERVAL || '15000
 const MODE = (process.env.MODE || 'auto').trim().toLowerCase();
 const RETRY_INTERVAL = parseInt(process.env.RETRY_INTERVAL || '15000', 10);
 const YOUTUBE_API_KEY = (process.env.YOUTUBE_API_KEY || '').trim();
+const YOUTUBE_COOKIES = (process.env.YOUTUBE_COOKIES || '').trim();
+const COOKIES_FILE = (process.env.COOKIES_FILE || '').trim();
+
+// Load cookies for authenticated requests (needed for private/unlisted streams)
+let authCookies = YOUTUBE_COOKIES;
+if (!authCookies && COOKIES_FILE && fs.existsSync(COOKIES_FILE)) {
+  try {
+    const raw = fs.readFileSync(COOKIES_FILE, 'utf8');
+    // Support both Netscape format and raw cookie string
+    authCookies = raw.split('\n')
+      .filter(l => l && !l.startsWith('#') && !l.startsWith('Http') && l.includes('\t'))
+      .map(l => l.split('\t'))
+      .filter(parts => parts.length >= 7)
+      .map(parts => `${parts[5]}=${parts[6]}`)
+      .join('; ');
+    if (!authCookies) authCookies = raw.trim();
+  } catch (e) {
+    console.error('[Cookies] Failed to load:', e.message);
+  }
+}
 
 // Cache of active chat messages by ID — used to preserve retracted messages
 const messageCache = new Map();
@@ -74,14 +94,21 @@ function saveSeen() {
   try { fs.writeFileSync(SEEN_PATH, JSON.stringify([...seenIds].slice(-2000))); } catch(e) {}
 }
 
-const FETCH_HEADERS = {
+function withCookies(headers) {
+  if (authCookies) {
+    return { ...headers, 'Cookie': authCookies };
+  }
+  return headers;
+}
+
+const FETCH_HEADERS = withCookies({
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
   'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
   'Accept-Language': 'en-US,en;q=0.9',
   'Accept-Encoding': 'gzip, deflate, br',
   'Origin': 'https://www.youtube.com',
   'Referer': `https://www.youtube.com/live_chat?v=${VIDEO_ID}`,
-};
+});
 
 function getContinuationToken(continuations) {
   if (!continuations || !continuations.length) return null;
@@ -225,12 +252,12 @@ async function pollChat() {
     const apiUrl = `https://www.youtube.com/youtubei/v1/live_chat/get_live_chat?key=${innertubeApiKey}`;
     const res = await fetch(apiUrl, {
       method: 'POST',
-      headers: {
+      headers: withCookies({
         'Content-Type': 'application/json',
         'User-Agent': FETCH_HEADERS['User-Agent'],
         'Origin': 'https://www.youtube.com',
         'Referer': `https://www.youtube.com/live_chat?v=${VIDEO_ID}`,
-      },
+      }),
       body: JSON.stringify({
         context: innertubeContext,
         continuation: continuationToken,
