@@ -130,12 +130,6 @@ const scoreSequence = [
 let chatIdx = 0;
 let scoreIdx = 1; /* index 0 sent on connect */
 
-function sendNextChat() {
-  const msg = chatMessages[chatIdx % chatMessages.length];
-  chatIdx++;
-  broadcast({ type: 'youtube-chat', ...msg, profileImageUrl: profileUrl(msg.name) });
-}
-
 function sendNextScore() {
   if (scoreIdx >= scoreSequence.length) return;
   broadcast({ type: 'score', data: scoreSequence[scoreIdx] });
@@ -164,13 +158,40 @@ wss.on('connection', (ws, req) => {
 });
 
 // Chat: every 3–6 seconds
-function scheduleChat() {
-  const delay = 3000 + Math.random() * 3000;
+let mockMsgIdCounter = 1;
+const mockMessageCache = new Map();
+
+function sendNextChat() {
+  const msg = chatMessages[chatIdx % chatMessages.length];
+  chatIdx++;
+  const msgId = 'mock_' + (mockMsgIdCounter++);
+  mockMessageCache.set(msgId, { ...msg, id: msgId });
+  broadcast({ type: 'youtube-chat', ...msg, id: msgId, profileImageUrl: profileUrl(msg.name) });
+}
+
+// Retract messages: randomly retract some messages 5-10s after they appear
+function scheduleRetraction() {
+  const delay = 8000 + Math.random() * 8000;
   setTimeout(() => {
-    if (wss.clients.size > 0) sendNextChat();
-    scheduleChat();
+    if (mockMessageCache.size > 0 && Math.random() > 0.5) {
+      const keys = [...mockMessageCache.keys()];
+      const targetId = keys[Math.floor(Math.random() * keys.length)];
+      const cached = mockMessageCache.get(targetId);
+      if (cached) {
+        broadcast({
+          type: 'retracted',
+          targetId,
+          deletedStateMessage: 'This message was removed',
+          message: cached,
+        });
+        mockMessageCache.delete(targetId);
+      }
+    }
+    scheduleRetraction();
   }, delay);
 }
+
+setTimeout(scheduleRetraction, 10000);
 
 // Like events: every 15–45 seconds
 let likeCount = 142;

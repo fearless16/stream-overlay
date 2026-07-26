@@ -267,6 +267,27 @@ body {
 .msg.superchat .text { color: rgba(255,240,180,0.85); }
 .msg.membership .text { color: rgba(0,230,118,0.85); }
 
+.msg.retracted {
+  border-left-color: #ff1744 !important;
+  background: linear-gradient(90deg, rgba(255,23,68,0.06), rgba(255,23,68,0.02)) !important;
+  opacity: 0.65;
+  position: relative;
+}
+.msg.retracted::after {
+  content: 'RETRACTED';
+  position: absolute; top: 4px; right: 34px;
+  font-size: 9px; font-weight: 900;
+  color: #ff1744;
+  letter-spacing: 1.5px;
+  opacity: 0.7;
+}
+.msg.retracted .name {
+  text-decoration: line-through;
+  text-decoration-color: #ff1744;
+}
+.msg.retracted .text {
+  color: rgba(255,23,68,0.5) !important;
+}
 @keyframes msgEnter {
   0% { transform: translateX(20px) scale(0.95); opacity: 0; filter: brightness(2); }
   100% { transform: translateX(0) scale(1); opacity: 1; filter: brightness(1); }
@@ -1822,6 +1843,7 @@ function addMsg(data, options = {}) {
   const amount = data.amount || null;
   const profileImageUrl = data.profileImageUrl || null;
   const segments = data.segments || null;
+  const ytId = data.ytId || null;
 
   if (!isDemo) {
     state.hasRealData = true;
@@ -1838,6 +1860,7 @@ function addMsg(data, options = {}) {
   const msgId = Date.now() + Math.random().toString(36).substr(2, 9);
   el.className = `msg ${type}`;
   el.dataset.id = msgId;
+  if (ytId) el.dataset.ytId = ytId;
   el.dataset.userColor = userColor;
   el.style.setProperty('--user-color', userColor);
   if (state.pinnedId === msgId) el.classList.add('pinned');
@@ -1922,6 +1945,21 @@ function updateCount() {
   DOM.chatCount.textContent = count;
   DOM.chatCount.classList.add('pulse');
   setTimeout(() => DOM.chatCount.classList.remove('pulse'), 300);
+}
+
+function markAsRetracted(targetId, deletedStateMessage, originalMsg) {
+  const el = document.querySelector(`[data-yt-id="${targetId}"]`);
+  if (!el) return;
+  el.classList.add('retracted');
+  el.dataset.retractedAt = Date.now();
+
+  // Update the text content if YouTube provides a retraction message
+  if (deletedStateMessage && originalMsg) {
+    const textEl = el.querySelector('.text');
+    if (textEl) {
+      textEl.innerHTML = `<em style="color:#ff6b6b;font-style:italic">${esc(deletedStateMessage)}</em>`;
+    }
+  }
 }
 
 /* FIX: Clears pinned state when pinned message is deleted */
@@ -2473,7 +2511,7 @@ function connectWS() {
           state.pinnedId = null;
           state.userScrolledUp = false;
         } else if (d.type === 'youtube-chat') {
-          addMsg({ name: d.name, text: d.text, msgType: d.msgType || 'chat', amount: d.amount, profileImageUrl: d.profileImageUrl, segments: d.segments }, d.isHistory ? { noAnim: true } : {});
+          addMsg({ name: d.name, text: d.text, msgType: d.msgType || 'chat', amount: d.amount, profileImageUrl: d.profileImageUrl, segments: d.segments, ytId: d.id }, d.isHistory ? { noAnim: true } : {});
         } else if (d.type === 'score') {
           updateScore(d.data);
           if (!state.scorecardVisible && d.data && d.data.teams) setScorecardVisible(true);
@@ -2489,6 +2527,8 @@ function connectWS() {
           setViewerCount(d.count);
         } else if (d.type === 'like') {
           triggerLikeAnimation(d.name || 'Someone', d.count);
+        } else if (d.type === 'retracted') {
+          markAsRetracted(d.targetId, d.deletedStateMessage, d.message);
         }
       } catch (err) { console.error('WS message error:', err); }
     };

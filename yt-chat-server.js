@@ -23,6 +23,10 @@ const MODE = (process.env.MODE || 'auto').trim().toLowerCase();
 const RETRY_INTERVAL = parseInt(process.env.RETRY_INTERVAL || '15000', 10);
 const YOUTUBE_API_KEY = (process.env.YOUTUBE_API_KEY || '').trim();
 
+// Cache of active chat messages by ID — used to preserve retracted messages
+const messageCache = new Map();
+const MAX_CACHE_SIZE = 500;
+
 const SEEN_PATH = path.join(__dirname, '.chat_seen.json');
 const HISTORY_PATH = path.join(__dirname, '.chat_history.json');
 
@@ -199,8 +203,9 @@ function parseChatAction(action) {
   }
 
   const profileImageUrl = renderer.authorPhoto?.thumbnails?.[0]?.url || null;
+  const authorChannelId = renderer.authorExternalChannelId || null;
 
-  return { type: 'youtube-chat', name: authorName, text, segments, msgType, amount, profileImageUrl };
+  return { id, authorChannelId, type: 'youtube-chat', name: authorName, text, segments, msgType, amount, profileImageUrl };
 }
 
 async function pollChat() {
@@ -245,14 +250,50 @@ async function pollChat() {
 
     const actions = continuation.actions || [];
     const newMessages = [];
+    const retractedIds = [];
 
     for (const action of actions) {
+      // ── Detect retraction actions ─────────────────────────────────────────
+      const removeAction = action.removeChatItemAction ||
+                           action.markChatItemAsDeletedAction;
+      if (removeAction?.target_item_id) {
+        retractedIds.push({
+          id: removeAction.target_item_id,
+          deletedStateMessage: removeAction.deletedStateMessage?.runs?.[0]?.text ||
+                               removeAction.deletedStateMessage?.simpleText || null,
+        });
+        continue;
+      }
+      if (action.markChatItemsByAuthorAsDeletedAction?.externalChannelId) {
+        // Retract ALL messages by this author
+        const authorId = action.markChatItemsByAuthorAsDeletedAction.externalChannelId;
+        const delMsg = action.markChatItemsByAuthorAsDeletedAction.deletedStateMessage?.runs?.[0]?.text ||
+                       action.markChatItemsByAuthorAsDeletedAction.deletedStateMessage?.simpleText || null;
+        // Find all cached messages by this author and retract each
+        for (const [msgId, msg] of messageCache) {
+          if (msg.authorChannelId === authorId) {
+            retractedIds.push({ id: msgId, deletedStateMessage: delMsg, authorId });
+          }
+        }
+        continue;
+      }
+
       let d = null;
       try { d = parseChatAction(action); } catch (e) {
         console.error('parseChatAction error (skipped):', e.message);
         continue;
       }
       if (!d) continue;
+
+      // Cache the message so we can show it if it gets retracted later
+      if (d.id) {
+        messageCache.set(d.id, d);
+        if (messageCache.size > MAX_CACHE_SIZE) {
+          const firstKey = messageCache.keys().next().value;
+          if (firstKey) messageCache.delete(firstKey);
+        }
+      }
+
       newMessages.push(d);
       messageHistory.push(d);
       if (messageHistory.length > MAX_HISTORY) messageHistory.shift();
@@ -272,6 +313,26 @@ async function pollChat() {
         }, 60000);
       }
     }
+
+    // ── Broadcast retracted messages ────────────────────────────────────────
+    for (const r of retractedIds) {
+      const retractedMsg = messageCache.get(r.id) || null;
+      const payload = JSON.stringify({
+        type: 'retracted',
+        targetId: r.id,
+        deletedStateMessage: r.deletedStateMessage || null,
+        message: retractedMsg, // null if we never saw the original
+      });
+      wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) client.send(payload);
+      });
+      if (retractedMsg) {
+        console.log(`[RETRACTED] ${retractedMsg.name}: ${retractedMsg.text}`);
+      } else {
+        console.log(`[RETRACTED] unknown message ${r.id}`);
+      }
+    }
+
     if (newMessages.length > 0) saveHistory();
 
     if (newMessages.length > 0) {
