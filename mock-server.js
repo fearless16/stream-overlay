@@ -193,6 +193,17 @@ function scheduleRetraction() {
 
 setTimeout(scheduleRetraction, 10000);
 
+// Chat stream scheduler: every 3–6 seconds
+function scheduleChat() {
+  const delay = 3000 + Math.random() * 3000;
+  setTimeout(() => {
+    if (wss.clients.size > 0) sendNextChat();
+    scheduleChat();
+  }, delay);
+}
+
+setTimeout(scheduleChat, 1000);
+
 // Like events: every 15–45 seconds
 let likeCount = 142;
 function scheduleLike() {
@@ -219,12 +230,10 @@ setTimeout(() => sendGoals({
   subGoal: '63 / 100', subGoalFill: 63
 }), 45000);
 
-// Start chat stream after 1s
-setTimeout(scheduleChat, 1000);
-
 console.log('Timeline:');
 console.log('  0s   — initial score + goals sent on connect');
 console.log('  1s+  — chat messages every 3-6s');
+console.log('  10s+ — retraction events every 8-16s (random, ~50% chance)');
 console.log('  20s  — score update #2');
 console.log('  45s  — goals update');
 console.log('  60s  — score update #3');
