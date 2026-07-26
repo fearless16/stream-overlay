@@ -1223,6 +1223,196 @@ body {
   margin-top: 16px;
 }
 
+/* ════════════════════════════════════════
+   LIKE ANIMATION — Fullscreen Futuristic
+   ════════════════════════════════════════ */
+#like-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  display: none; align-items: center; justify-content: center;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(255,30,70,0.35) 0%, rgba(200,10,50,0.15) 35%, transparent 65%);
+  opacity: 0;
+  will-change: opacity, transform;
+}
+#like-overlay.active {
+  display: flex;
+  opacity: 1;
+}
+#like-overlay.active.dismissing {
+  opacity: 0;
+  transition: opacity 0.5s cubic-bezier(0.6, 0, 1, 0.5);
+}
+#like-overlay.active.dismissing .like-content {
+  animation: likeContentOut 0.55s cubic-bezier(0.6, 0, 1, 0.5) both;
+}
+#like-overlay.active.dismissing .like-ring {
+  animation: likeRingShrink 0.5s cubic-bezier(0.6, 0, 1, 0.5) both;
+}
+@keyframes likeContentOut {
+  0% { transform: scale(1) rotate(0deg); opacity: 1; filter: blur(0); }
+  40% { transform: scale(1.08) rotate(3deg); opacity: 1; filter: blur(2px); }
+  100% { transform: scale(0.4) rotate(-8deg); opacity: 0; filter: blur(12px); }
+}
+@keyframes likeRingShrink {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(0.3); opacity: 0; }
+}
+#like-overlay.active .like-content { animation: likeContentIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+#like-overlay.active .like-ring { animation: likeRingExpand 1.2s cubic-bezier(0.22, 1, 0.36, 1) both; }
+#like-overlay.active .like-ring-1 { animation-delay: 0s; }
+#like-overlay.active .like-ring-2 { animation-delay: 0.15s; }
+#like-overlay.active .like-ring-3 { animation-delay: 0.3s; }
+#like-overlay.active .like-ring-4 { animation-delay: 0.45s; }
+
+@keyframes likeContentIn {
+  0% { transform: scale(0) rotate(-10deg); opacity: 0; filter: blur(15px); }
+  50% { transform: scale(1.18) rotate(2deg); opacity: 1; filter: blur(0); }
+  80% { transform: scale(0.97) rotate(-1deg); opacity: 1; filter: blur(0); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; filter: blur(0); }
+}
+
+.like-ring {
+  position: absolute; top: 50%; left: 50%;
+  width: 120px; height: 120px;
+  margin: -60px 0 0 -60px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  box-shadow: 0 0 30px rgba(255,45,85,0.3), inset 0 0 30px rgba(255,45,85,0.1);
+  opacity: 0;
+  pointer-events: none;
+}
+.like-ring::before {
+  content: '';
+  position: absolute; inset: -2px;
+  border-radius: 50%;
+  padding: 2px;
+  background: linear-gradient(135deg, #ff2d55, #ff6bff, #00d4ff);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+@keyframes likeRingExpand {
+  0% { transform: scale(1); opacity: 0.9; }
+  100% { transform: scale(12); opacity: 0; }
+}
+
+#like-canvas {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+}
+
+.like-content {
+  position: relative; z-index: 2;
+  text-align: center;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 6px;
+  filter: drop-shadow(0 0 60px rgba(255,45,85,0.4));
+  will-change: transform, opacity;
+}
+
+.like-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: likeIconBeat 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both;
+  filter: drop-shadow(0 0 40px rgba(255,23,68,0.7)) drop-shadow(0 0 80px rgba(255,20,147,0.35)) drop-shadow(0 0 140px rgba(255,0,50,0.2));
+}
+.like-icon svg {
+  width: 130px;
+  height: 130px;
+  display: block;
+}
+@keyframes likeIconBeat {
+  0% { transform: scale(0) rotate(-20deg); }
+  40% { transform: scale(1.4) rotate(5deg); }
+  70% { transform: scale(0.95) rotate(-2deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+.like-name {
+  font-size: 54px;
+  font-weight: 900;
+  font-family: 'Poppins', 'Inter', sans-serif;
+  background: linear-gradient(135deg, #fff 0%, #ffd9e5 30%, #ff9fae 60%, #fff 100%);
+  background-size: 200% 200%;
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -1px;
+  animation: likeNameReveal 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.5s both, likeNameShimmer 3s ease-in-out 0.5s infinite;
+  white-space: nowrap;
+  max-width: 80vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  filter: drop-shadow(0 0 30px rgba(255,45,85,0.3));
+}
+@keyframes likeNameReveal {
+  0% { transform: translateY(30px) scale(0.85); opacity: 0; clip-path: inset(0 100% 0 0); }
+  60% { transform: translateY(-4px) scale(1.02); opacity: 1; clip-path: inset(0 0 0 0); }
+  100% { transform: translateY(0) scale(1); opacity: 1; clip-path: inset(0 0 0 0); }
+}
+@keyframes likeNameShimmer {
+  0%,100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.like-label {
+  font-size: 28px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #ff2d55, #ff6bff, #00d4ff, #ff9f43, #ff2d55);
+  background-size: 300% 300%;
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  animation: likeLabelShimmer 1.5s ease-in-out infinite, likeNameReveal 0.4s ease 0.7s both;
+  filter: drop-shadow(0 0 20px rgba(255,45,85,0.4));
+}
+@keyframes likeLabelShimmer {
+  0%,100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.like-count {
+  font-size: 18px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.5);
+  letter-spacing: 3px;
+  margin-top: 6px;
+  animation: likeNameReveal 0.4s ease 0.9s both;
+  text-shadow: 0 0 20px rgba(255,255,255,0.1);
+}
+
+.like-particle {
+  position: absolute;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  pointer-events: none;
+  will-change: transform, opacity;
+  animation: likeParticleFly 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes likeParticleFly {
+  0% { transform: translate(0, 0); opacity: 1; }
+  100% { transform: translate(var(--px), var(--py)); opacity: 0; }
+}
+
+.like-spark {
+  position: absolute;
+  width: 3px; height: 14px;
+  border-radius: 3px;
+  pointer-events: none;
+  will-change: transform, opacity;
+  animation: likeSparkBurst 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes likeSparkBurst {
+  0% { transform: translate(0, 0); opacity: 1; }
+  100% { transform: translate(var(--sx), var(--sy)); opacity: 0; }
+}
+
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
@@ -1232,6 +1422,25 @@ body {
 <body>
 
 <!-- Camera passthrough — center area shows the video feed -->
+
+<div id="like-overlay">
+  <canvas id="like-canvas"></canvas>
+  <div class="like-ring like-ring-1"></div>
+  <div class="like-ring like-ring-2"></div>
+  <div class="like-ring like-ring-3"></div>
+  <div class="like-ring like-ring-4"></div>
+  <div class="like-content">
+    <div class="like-icon">
+      <svg viewBox="0 0 24 24" width="130" height="130" fill="#ff1744">
+        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+      </svg>
+    </div>
+    <div class="like-name" id="like-name">Someone</div>
+    <div class="like-label">Liked!</div>
+    <div class="like-count" id="like-count"></div>
+  </div>
+  <div class="like-particles" id="like-particles"></div>
+</div>
 
 <div id="brb-overlay">
   <div style="position:absolute;top:24px;right:24px;z-index:10">
@@ -1357,7 +1566,7 @@ body {
 const CONFIG = {
   maxMessages: 200,
   demoInterval: 4000,
-  wsUrl: 'ws://localhost:8765',
+  wsUrl: 'ws://localhost:8770',
   autoDismiss: 75000,
 };
 
@@ -2278,6 +2487,8 @@ function connectWS() {
           setScorecardVisible(d.data === '1');
         } else if (d.type === 'viewers') {
           setViewerCount(d.count);
+        } else if (d.type === 'like') {
+          triggerLikeAnimation(d.name || 'Someone', d.count);
         }
       } catch (err) { console.error('WS message error:', err); }
     };
@@ -2294,6 +2505,216 @@ function connectWS() {
   }
 }
 connectWS();
+
+/* ════════════════════════════════════════
+   LIKE ANIMATION — Futuristic Fullscreen
+   ════════════════════════════════════════ */
+let likeAnimTimer = null;
+let likeParticlesRunning = false;
+let likeCanvasCtx = null;
+let likeAnimFrame = null;
+
+function initLikeCanvas() {
+  const canvas = $('like-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width = 1920;
+  canvas.height = 1080;
+  likeCanvasCtx = ctx;
+}
+
+function spawnLikeParticles(count) {
+  const container = $('like-particles');
+  const colors = ['#ff2d55','#ff6b6b','#ff9f43','#ffd93d','#00d4ff','#4d96ff','#ff6bff','#fff'];
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('div');
+    const isSpark = Math.random() > 0.5;
+    el.className = isSpark ? 'like-spark' : 'like-particle';
+    const c = colors[Math.floor(Math.random() * colors.length)];
+    const s = 3 + Math.random() * 8;
+    if (isSpark) {
+      el.style.width = '3px';
+      el.style.height = (10 + Math.random() * 16) + 'px';
+      el.style.borderRadius = '3px';
+    } else {
+      el.style.width = s + 'px';
+      el.style.height = s + 'px';
+      el.style.borderRadius = '50%';
+    }
+    el.style.background = c;
+    el.style.boxShadow = '0 0 6px ' + c;
+    el.style.left = (50 + (Math.random() - 0.5) * 30) + '%';
+    el.style.top = (50 + (Math.random() - 0.5) * 20) + '%';
+    el.style.willChange = 'transform, opacity';
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 200 + Math.random() * 800;
+    const dur = 1.0 + Math.random() * 1.5;
+    if (isSpark) {
+      el.style.setProperty('--sx', Math.cos(angle) * dist + 'px');
+      el.style.setProperty('--sy', Math.sin(angle) * dist + 'px');
+      el.style.setProperty('--sr', (Math.random() * 360) + 'deg');
+    } else {
+      el.style.setProperty('--px', Math.cos(angle) * dist + 'px');
+      el.style.setProperty('--py', Math.sin(angle) * dist + 'px');
+    }
+    el.style.animationDuration = dur + 's';
+    container.appendChild(el);
+    setTimeout(() => el.remove(), dur * 1000 + 200);
+  }
+}
+
+function triggerLikeAnimation(name, count) {
+  if (likeAnimTimer) {
+    clearTimeout(likeAnimTimer);
+    dismissLikeAnimation(true);
+  }
+
+  const overlay = $('like-overlay');
+  const nameEl = $('like-name');
+  const countEl = $('like-count');
+
+  nameEl.textContent = name || 'Someone';
+  countEl.textContent = count ? formatCount(count) + ' likes' : '';
+
+  // Reset and show
+  overlay.classList.remove('active', 'dismissing');
+  void overlay.offsetWidth;
+  overlay.classList.add('active');
+
+  // Spawn canvas particles — two waves
+  initLikeCanvas();
+  if (likeCanvasCtx) {
+    if (likeAnimFrame) cancelAnimationFrame(likeAnimFrame);
+    const ctx = likeCanvasCtx;
+    const W = 1920, H = 1080;
+    const cx = W / 2, cy = H / 2;
+    const colors = ['#ff2d55','#ff6b6b','#ff9f43','#ffd93d','#00d4ff','#4d96ff','#ff6bff','#fff','#ff1744','#a29bfe'];
+    // Wave 1: burst outward
+    const N = 100;
+    const parts = new Array(N);
+    for (let i = 0; i < N; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const spd = 2 + Math.random() * 14;
+      parts[i] = {
+        x: cx + (Math.random() - 0.5) * 40,
+        y: cy + (Math.random() - 0.5) * 40,
+        vx: Math.cos(a) * spd,
+        vy: Math.sin(a) * spd - 5,
+        life: 1.2 + Math.random() * 1.8,
+        maxLife: 1.2 + Math.random() * 1.8,
+        size: 2 + Math.random() * 8,
+        col: colors[Math.floor(Math.random() * colors.length)],
+        decay: 0.98 + Math.random() * 0.015,
+        grav: 0.2 + Math.random() * 0.3,
+        wave: 1,
+      };
+    }
+    // Wave 2: secondary burst after 0.3s
+    const N2 = 40;
+    const parts2 = new Array(N2);
+    for (let i = 0; i < N2; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const spd = 4 + Math.random() * 10;
+      parts2[i] = {
+        x: cx, y: cy,
+        vx: Math.cos(a) * spd,
+        vy: Math.sin(a) * spd - 2,
+        life: 1.0 + Math.random() * 1.5,
+        maxLife: 1.0 + Math.random() * 1.5,
+        size: 3 + Math.random() * 6,
+        col: colors[Math.floor(Math.random() * colors.length)],
+        decay: 0.96 + Math.random() * 0.02,
+        grav: 0.3 + Math.random() * 0.4,
+        wave: 2,
+        delay: 0.3,
+      };
+    }
+    const allParts = parts.concat(parts2);
+    // Wave 3: confetti that spawns delayed (0.8s) — downward falling
+    let confettiSpawned = false;
+    let lastT = 0;
+    function draw(ts) {
+      const dt = lastT ? Math.min((ts - lastT) / 16.67, 3) : 1;
+      lastT = ts;
+      ctx.clearRect(0, 0, W, H);
+      let alive = false;
+      const elapsed = ts / 1000;
+      // Spawn confetti wave at 0.8s
+      if (!confettiSpawned && elapsed > 0.8) {
+        confettiSpawned = true;
+        for (let i = 0; i < 30; i++) {
+          allParts.push({
+            x: Math.random() * W,
+            y: -20 - Math.random() * 100,
+            vx: (Math.random() - 0.5) * 3,
+            vy: 1 + Math.random() * 3,
+            life: 2.5 + Math.random() * 1.5,
+            maxLife: 2.5 + Math.random() * 1.5,
+            size: 4 + Math.random() * 8,
+            col: colors[Math.floor(Math.random() * colors.length)],
+            decay: 0.999,
+            grav: 0.08 + Math.random() * 0.12,
+            wave: 3,
+          });
+        }
+      }
+      for (let i = 0; i < allParts.length; i++) {
+        const p = allParts[i];
+        if (p.life <= 0) continue;
+        if (p.delay && elapsed < p.delay) continue;
+        alive = true;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vx *= p.decay;
+        p.vy *= p.decay;
+        p.vy += p.grav * dt;
+        p.life -= 0.016 * dt;
+        const a = Math.max(0, p.life / p.maxLife);
+        const s = p.size * (0.3 + 0.7 * a);
+        ctx.globalAlpha = a * 0.85;
+        ctx.fillStyle = p.col;
+        ctx.shadowColor = p.col;
+        ctx.shadowBlur = p.wave === 3 ? 6 : 14;
+        if (p.wave === 3) {
+          ctx.fillRect(p.x, p.y, s * 1.2, s * 0.5);
+        } else {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, s, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+      if (alive) likeAnimFrame = requestAnimationFrame(draw);
+    }
+    likeAnimFrame = requestAnimationFrame(draw);
+  }
+
+  // Spawn DOM particles
+  spawnLikeParticles(30);
+
+  // Auto-dismiss
+  likeAnimTimer = setTimeout(() => {
+    dismissLikeAnimation(false);
+  }, 6500);
+}
+
+function dismissLikeAnimation(instant) {
+  const overlay = $('like-overlay');
+  if (instant) {
+    overlay.classList.remove('active', 'dismissing');
+    if (likeAnimFrame) { cancelAnimationFrame(likeAnimFrame); likeAnimFrame = null; }
+    if (likeCanvasCtx) likeCanvasCtx.clearRect(0, 0, likeCanvasCtx.canvas.width, likeCanvasCtx.canvas.height);
+  } else {
+    overlay.classList.add('dismissing');
+    setTimeout(() => {
+      overlay.classList.remove('active', 'dismissing');
+      if (likeAnimFrame) { cancelAnimationFrame(likeAnimFrame); likeAnimFrame = null; }
+      if (likeCanvasCtx) likeCanvasCtx.clearRect(0, 0, likeCanvasCtx.canvas.width, likeCanvasCtx.canvas.height);
+    }, 600);
+  }
+  likeAnimTimer = null;
+}
 
 const isAdmin = new URLSearchParams(window.location.search).get('mode') === 'admin';
 if (isAdmin) {

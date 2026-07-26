@@ -172,6 +172,20 @@ function scheduleChat() {
   }, delay);
 }
 
+// Like events: every 15–45 seconds
+let likeCount = 142;
+function scheduleLike() {
+  const delay = 15000 + Math.random() * 30000;
+  setTimeout(() => {
+    likeCount++;
+    const names = ['Rahul S.', 'Ankit Verma', 'CricketFan07', 'Priya K.', 'Vikram', 'Deepak M.', 'Neha T.', 'Arjun P.', 'Karan B.', 'Sunita R.'];
+    const name = names[Math.floor(Math.random() * names.length)];
+    broadcast({ type: 'like', count: likeCount, name });
+    scheduleLike();
+  }, delay);
+}
+setTimeout(scheduleLike, 8000);
+
 // Score updates: at 20s, 60s, 120s
 setTimeout(() => sendNextScore(), 20000);
 setTimeout(() => sendNextScore(), 60000);

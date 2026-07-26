@@ -259,6 +259,17 @@ async function pollChat() {
       const badge = d.msgType === 'superchat' ? ` [$${d.amount || 'SUPER'}]` :
                     d.msgType === 'membership' ? ' [MEMBER]' : '';
       console.log(`${d.name}${badge}: ${d.text}`);
+
+      // Track recent unique chatters for like-event name pairing
+      if (d.name && !recentChatters.includes(d.name)) {
+        recentChatters.push(d.name);
+        if (recentChatters.length > 10) recentChatters.shift();
+        // Expire old names after 60s
+        setTimeout(() => {
+          const idx = recentChatters.indexOf(d.name);
+          if (idx !== -1) recentChatters.splice(idx, 1);
+        }, 60000);
+      }
     }
     if (newMessages.length > 0) saveHistory();
 
@@ -289,6 +300,9 @@ async function pollChat() {
 }
 
 let currentViewers = 0;
+let currentLikeCount = 0;
+let likeCountInitialized = false;
+let recentChatters = [];
 
 function broadcastViewers() {
   const payload = JSON.stringify({ type: 'viewers', count: currentViewers });
@@ -297,7 +311,45 @@ function broadcastViewers() {
   });
 }
 
-async function fetchConcurrentViewers() {
+function extractLikeCount(html) {
+  try {
+    const dataMatch = html.match(/ytInitialData\s*=\s*({.+?});\s*(?:\n|<)/);
+    if (dataMatch) {
+      const data = JSON.parse(dataMatch[1]);
+      const contents = data?.contents?.twoColumnWatchNextResults?.results?.results?.contents || [];
+      for (const c of contents) {
+        const vip = c?.videoPrimaryInfoRenderer;
+        if (vip) {
+          const buttons = vip?.videoActions?.menuRenderer?.topLevelButtons || [];
+          for (const b of buttons) {
+            const tb = b?.segmentedLikeDislikeButtonRenderer?.likeButton?.toggleButtonRenderer;
+            if (tb) {
+              const label = tb?.defaultText?.accessibility?.accessibilityData?.label || '';
+              const num = label.match(/([\d,]+)/);
+              if (num) return parseInt(num[1].replace(/,/g, ''), 10);
+            }
+          }
+        }
+      }
+    }
+    const ariaMatch = html.match(/aria-label\s*=\s*"([^"]*(?:like|thumbs up)[^"]*?)"/i);
+    if (ariaMatch) {
+      const num = ariaMatch[1].match(/([\d,]+)/);
+      if (num) return parseInt(num[1].replace(/,/g, ''), 10);
+    }
+  } catch (e) { /* best effort */ }
+  return null;
+}
+
+function broadcastLike() {
+  const name = recentChatters.shift() || null;
+  const payload = JSON.stringify({ type: 'like', count: currentLikeCount, name });
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) client.send(payload);
+  });
+}
+
+async function fetchEngagementData() {
   try {
     const url = `https://www.youtube.com/watch?v=${VIDEO_ID}`;
     const res = await fetch(url, {
@@ -307,7 +359,8 @@ async function fetchConcurrentViewers() {
     if (!res.ok) throw new Error(`watch page ${res.status}`);
     const html = await res.text();
 
-    // Primary: parse ytInitialData for videoViewCountRenderer.originalViewCount
+    // ── Viewers ────────────────────────────────────────────────────────────
+    let viewersChanged = false;
     const dataMatch = html.match(/ytInitialData\s*=\s*({.+?});\s*(?:\n|<)/);
     if (dataMatch) {
       try {
@@ -316,42 +369,59 @@ async function fetchConcurrentViewers() {
         for (const c of contents) {
           const vc = c?.videoPrimaryInfoRenderer?.viewCount?.videoViewCountRenderer;
           if (vc?.isLive && vc?.originalViewCount) {
-            currentViewers = parseInt(vc.originalViewCount, 10) || 0;
-            broadcastViewers();
-            return;
+            const v = parseInt(vc.originalViewCount, 10) || 0;
+            if (v !== currentViewers) viewersChanged = true;
+            currentViewers = v;
+            break;
           }
         }
       } catch (e) { /* fall through */ }
     }
-
-    // Fallback 1: ytInitialPlayerResponse liveStreamingDetails.concurrentViewers
-    const playerMatch = html.match(/ytInitialPlayerResponse\s*=\s*({.+?});\s*(?:\n|<)/);
-    if (playerMatch) {
-      try {
-        const playerData = JSON.parse(playerMatch[1]);
-        const ld = playerData?.liveStreamingDetails;
-        if (ld?.concurrentViewers) {
-          currentViewers = parseInt(ld.concurrentViewers, 10) || 0;
-          broadcastViewers();
-          return;
-        }
-      } catch (e) { /* fall through */ }
+    if (!viewersChanged) {
+      const playerMatch = html.match(/ytInitialPlayerResponse\s*=\s*({.+?});\s*(?:\n|<)/);
+      if (playerMatch) {
+        try {
+          const playerData = JSON.parse(playerMatch[1]);
+          const ld = playerData?.liveStreamingDetails;
+          if (ld?.concurrentViewers) {
+            const v = parseInt(ld.concurrentViewers, 10) || 0;
+            if (v !== currentViewers) viewersChanged = true;
+            currentViewers = v;
+          }
+        } catch (e) { /* fall through */ }
+      }
     }
+    if (!viewersChanged) {
+      const cvMatch = html.match(/"concurrentViewers"\s*:\s*["']?(\d+)["']?/);
+      if (cvMatch) {
+        const v = parseInt(cvMatch[1], 10) || 0;
+        if (v !== currentViewers) viewersChanged = true;
+        currentViewers = v;
+      }
+    }
+    if (viewersChanged) broadcastViewers();
 
-    // Fallback 2: regex for raw concurrentViewers in HTML
-    const cvMatch = html.match(/"concurrentViewers"\s*:\s*["']?(\d+)["']?/);
-    if (cvMatch) {
-      currentViewers = parseInt(cvMatch[1], 10) || 0;
-      broadcastViewers();
+    // ── Like Count ─────────────────────────────────────────────────────────
+    const newCount = extractLikeCount(html);
+    if (newCount !== null) {
+      if (!likeCountInitialized) {
+        currentLikeCount = newCount;
+        likeCountInitialized = true;
+      } else if (newCount > currentLikeCount) {
+        currentLikeCount = newCount;
+        broadcastLike();
+      } else {
+        currentLikeCount = newCount;
+      }
     }
   } catch (err) {
     // stream might be offline — that's fine, just don't update
   }
 }
 
-function startViewerPolling() {
-  fetchConcurrentViewers();
-  setInterval(fetchConcurrentViewers, VIEWER_POLL_INTERVAL);
+function startEngagementPolling() {
+  fetchEngagementData();
+  setInterval(fetchEngagementData, VIEWER_POLL_INTERVAL);
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -456,7 +526,7 @@ async function connectOBS() {
 (async () => {
   console.log(`Chat server for video: ${VIDEO_ID}`);
   pollChat();
-  startViewerPolling();
+  startEngagementPolling();
   connectOBS();
 
   wss.on('connection', ws => {
