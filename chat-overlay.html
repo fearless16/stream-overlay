@@ -447,11 +447,6 @@ body {
   100% { transform: translateX(0) scale(1); opacity: 1; }
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
 @keyframes shimmer {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
@@ -526,12 +521,6 @@ body {
 /* ════════════════════════════════════════
     SCORECARD — State of the Art
     ════════════════════════════════════════ */
-@property --sc-angle {
-  syntax: '<angle>';
-  initial-value: 0deg;
-  inherits: false;
-}
-
 #scorecard {
   position: fixed; top: 92px; left: 24px;
   width: 480px;
@@ -1006,11 +995,11 @@ body {
 }
 
 /* ════════════════════════════════════════
-   CRICKET ANIMATIONS — 2s celebrations
+   CRICKET ANIMATIONS — 4s celebrations
    ════════════════════════════════════════ */
 #scorecard .sc-anim-layer {
   position: absolute; inset: 0;
-  pointer-events: none; z-index: 10;
+  pointer-events: none; z-index: 999;
   border-radius: 18px; overflow: hidden;
   opacity: 0;
   display: flex; align-items: center; justify-content: center;
@@ -1018,73 +1007,48 @@ body {
   will-change: opacity;
 }
 #scorecard .sc-anim-layer.active { opacity: 1; }
+#sc-canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
 #scorecard .sc-anim-item {
   display: none;
-  font-weight: 900; font-family: system-ui;
+  font-weight: 900;
+  font-family: 'Impact', 'Arial Black', system-ui, sans-serif;
   line-height: 1;
   max-width: 100%; max-height: 100%;
   box-sizing: border-box;
   will-change: transform, opacity;
 }
 
-/* ——— PARTICLE GROUP BASE ——— */
-.sc-pg { position: absolute; inset: 0; pointer-events: none; display: none; will-change: transform; }
-.sc-pg i { position: absolute; top: 50%; left: 50%; opacity: 0; will-change: transform, opacity; }
-
 /* ===== FOUR ===== */
 #scorecard.sc-cricket-4 .sc-anim-4 {
-  display: block; font-size: 100px; letter-spacing: 10px;
-  background: linear-gradient(135deg, #00d4ff 0%, #0066ff 50%, #00d4ff 100%);
+  display: block; font-size: 110px; letter-spacing: 5px;
+  background: linear-gradient(135deg, #ff2d95 0%, #ff66b2 40%, #ff3399 70%, #ff0066 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-  text-shadow: 0 0 15px rgba(0,212,255,0.8), 0 0 40px rgba(0,212,255,0.5), 0 0 80px rgba(0,102,255,0.3);
-  animation: a4 2s cubic-bezier(0.22,1,0.36,1) forwards;
+  text-shadow: 0 0 20px rgba(255,45,149,0.9), 0 0 50px rgba(255,51,153,0.5), 0 0 100px rgba(255,0,102,0.3);
+  animation: a4 4s cubic-bezier(0.16,1,0.3,1) forwards;
 }
 @keyframes a4 {
   0% { opacity: 0; transform: translate(60px,-40px) rotate(15deg) scale(0.3); letter-spacing: 30px; filter: blur(8px); }
-  15% { opacity: 1; transform: translate(-3px,0) rotate(-2deg) scale(1.06); letter-spacing: 6px; filter: blur(0); }
-  25% { transform: translate(1px,0) rotate(1deg) scale(1); }
-  55% { opacity: 1; }
-  100% { opacity: 0; transform: translateY(-12px) scale(0.98); filter: blur(3px); }
+  10% { opacity: 1; transform: translate(-3px,0) rotate(-2deg) scale(1.06); letter-spacing: 4px; filter: blur(0); }
+  16% { transform: translate(1px,0) rotate(1deg) scale(1); letter-spacing: 5px; filter: blur(0); }
+  70% { opacity: 1; transform: scale(1); filter: blur(0); }
+  100% { opacity: 0; transform: translateY(-16px) scale(0.92); filter: blur(6px); letter-spacing: 3px; }
 }
-#scorecard.sc-cricket-4 .sc-pg-4 { display: block; }
-#scorecard.sc-cricket-4 .sc-pg-4 i { width: 6px; height: 6px; margin: -3px; border-radius: 50%; background: #00d4ff; box-shadow: 0 0 6px rgba(0,212,255,0.8); animation: p4 2s ease-out forwards; }
-#scorecard.sc-cricket-4 .sc-pg-4 i:nth-child(1) { --a: 0deg; animation-delay: 0.03s; }
-#scorecard.sc-cricket-4 .sc-pg-4 i:nth-child(2) { --a: 90deg; animation-delay: 0.08s; }
-#scorecard.sc-cricket-4 .sc-pg-4 i:nth-child(3) { --a: 180deg; animation-delay: 0.13s; }
-#scorecard.sc-cricket-4 .sc-pg-4 i:nth-child(4) { --a: 270deg; animation-delay: 0.18s; }
-@keyframes p4 { 0% { transform: rotate(var(--a)) translateX(0); opacity: 1; } 55% { opacity: 0.9; } 100% { transform: rotate(var(--a)) translateX(100px); opacity: 0; } }
-
 /* ===== SIX ===== */
 #scorecard.sc-cricket-6 .sc-anim-6 {
-  display: block; font-size: 120px;
-  background: linear-gradient(135deg, #ffd700 0%, #ff8c00 50%, #ff4500 100%);
+  display: block; font-size: 130px;
+  background: linear-gradient(135deg, #00ff88 0%, #00e676 30%, #00c853 60%, #00a152 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-  text-shadow: 0 0 30px rgba(255,215,0,0.7), 0 0 60px rgba(255,215,0,0.4), 0 0 100px rgba(255,69,0,0.3), 0 0 160px rgba(255,215,0,0.15);
-  animation: a6 2s cubic-bezier(0.34,1.56,0.64,1) forwards;
+  text-shadow: 0 0 30px rgba(0,255,136,0.8), 0 0 70px rgba(0,230,118,0.5), 0 0 120px rgba(0,200,83,0.3), 0 0 180px rgba(0,161,82,0.15);
+  animation: a6 4s cubic-bezier(0.34,1.56,0.64,1) forwards;
 }
 @keyframes a6 {
   0% { opacity: 0; transform: scale(2.5) rotate(-15deg); filter: blur(10px); }
-  12% { opacity: 1; transform: scale(0.9) rotate(3deg); filter: blur(0); }
-  20% { transform: scale(1.04) rotate(-2deg); }
-  28% { transform: scale(1) rotate(0deg); }
-  55% { opacity: 1; }
-  100% { opacity: 0; transform: scale(1.06) rotate(4deg); filter: blur(6px); }
+  10% { opacity: 1; transform: scale(0.9) rotate(3deg); filter: blur(0); }
+  18% { transform: scale(1.04) rotate(-2deg); filter: blur(0); }
+  25% { transform: scale(1) rotate(0deg); filter: blur(0); }
+  70% { opacity: 1; filter: blur(0); }
+  100% { opacity: 0; transform: scale(1.08) rotate(5deg); filter: blur(8px); }
 }
-#scorecard.sc-cricket-6 .sc-pg-6 { display: block; }
-#scorecard.sc-cricket-6 .sc-pg-6 i.r { position: absolute; top: 50%; left: 50%; width: 50px; height: 50px; margin: -25px; border-radius: 50%; border: 3px solid rgba(255,215,0,0.5); opacity: 0; animation: r6 2s ease-out forwards; }
-#scorecard.sc-cricket-6 .sc-pg-6 i.r:nth-child(1) { animation-delay: 0s; }
-#scorecard.sc-cricket-6 .sc-pg-6 i.r:nth-child(2) { animation-delay: 0.12s; }
-#scorecard.sc-cricket-6 .sc-pg-6 i.r:nth-child(3) { animation-delay: 0.24s; }
-@keyframes r6 { 0% { transform: scale(0.1); opacity: 0.7; border-width: 3px; } 50% { opacity: 0.3; } 100% { transform: scale(4); opacity: 0; border-width: 1px; } }
-#scorecard.sc-cricket-6 .sc-pg-6 i.p { width: 6px; height: 6px; margin: -3px; border-radius: 50%; background: #ffd700; box-shadow: 0 0 8px rgba(255,215,0,0.9); animation: p6 2s ease-out forwards; }
-#scorecard.sc-cricket-6 .sc-pg-6 i.p:nth-child(4) { --a: 0deg; animation-delay: 0.04s; }
-#scorecard.sc-cricket-6 .sc-pg-6 i.p:nth-child(5) { --a: 60deg; animation-delay: 0.08s; }
-#scorecard.sc-cricket-6 .sc-pg-6 i.p:nth-child(6) { --a: 120deg; animation-delay: 0.12s; }
-#scorecard.sc-cricket-6 .sc-pg-6 i.p:nth-child(7) { --a: 180deg; animation-delay: 0.16s; }
-#scorecard.sc-cricket-6 .sc-pg-6 i.p:nth-child(8) { --a: 240deg; animation-delay: 0.2s; }
-#scorecard.sc-cricket-6 .sc-pg-6 i.p:nth-child(9) { --a: 300deg; animation-delay: 0.24s; }
-@keyframes p6 { 0% { transform: rotate(var(--a)) translateX(0); opacity: 1; } 55% { opacity: 0.9; } 100% { transform: rotate(var(--a)) translateX(120px); opacity: 0; } }
-
 /* ===== BOWLED ===== */
 #scorecard.sc-cricket-bold .sc-anim-bold {
   display: block; font-size: 80px; letter-spacing: 4px;
@@ -1092,28 +1056,16 @@ body {
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
   text-shadow: 0 0 20px rgba(255,45,85,0.6), 0 0 50px rgba(255,45,85,0.3);
   transform-origin: center center;
-  animation: ab 2s cubic-bezier(0.22,1,0.36,1) forwards;
+  animation: ab 4s cubic-bezier(0.22,1,0.36,1) forwards;
 }
 @keyframes ab {
-  0% { opacity: 0; transform: translateY(-80px) skewY(10deg) scale(0.3); letter-spacing: -10px; }
-  14% { opacity: 1; transform: translateY(3px) skewY(-3deg) scale(1.06); letter-spacing: 2px; }
-  20% { transform: translateY(-1px) skewY(1deg) scale(1.02); }
-  26% { transform: translateY(1px) skewY(0deg) scale(1); letter-spacing: 4px; }
-  55% { opacity: 1; }
-  100% { opacity: 0; transform: translateY(0) scale(0.95); letter-spacing: 20px; filter: blur(2px); }
+  0% { opacity: 0; transform: translateY(-80px) skewY(10deg) scale(0.3); letter-spacing: -10px; filter: blur(6px); }
+  12% { opacity: 1; transform: translateY(3px) skewY(-3deg) scale(1.06); letter-spacing: 2px; filter: blur(0); }
+  18% { transform: translateY(-1px) skewY(1deg) scale(1.02); filter: blur(0); }
+  24% { transform: translateY(1px) skewY(0deg) scale(1); letter-spacing: 4px; filter: blur(0); }
+  70% { opacity: 1; filter: blur(0); }
+  100% { opacity: 0; transform: translateY(10px) scale(0.9); letter-spacing: 25px; filter: blur(4px); }
 }
-#scorecard.sc-cricket-bold .sc-pg-b { display: block; }
-#scorecard.sc-cricket-bold .sc-pg-b i { width: 5px; height: 5px; margin: -2.5px; border-radius: 2px; background: #ff2d55; box-shadow: 0 0 6px rgba(255,45,85,0.8); animation: pb 2s ease-out forwards; }
-#scorecard.sc-cricket-bold .sc-pg-b i:nth-child(1) { --a: 0deg; animation-delay: 0.02s; }
-#scorecard.sc-cricket-bold .sc-pg-b i:nth-child(2) { --a: 45deg; animation-delay: 0.06s; }
-#scorecard.sc-cricket-bold .sc-pg-b i:nth-child(3) { --a: 90deg; animation-delay: 0.1s; }
-#scorecard.sc-cricket-bold .sc-pg-b i:nth-child(4) { --a: 135deg; animation-delay: 0.14s; }
-#scorecard.sc-cricket-bold .sc-pg-b i:nth-child(5) { --a: 180deg; animation-delay: 0.18s; }
-#scorecard.sc-cricket-bold .sc-pg-b i:nth-child(6) { --a: 225deg; animation-delay: 0.22s; }
-#scorecard.sc-cricket-bold .sc-pg-b i:nth-child(7) { --a: 270deg; animation-delay: 0.26s; }
-#scorecard.sc-cricket-bold .sc-pg-b i:nth-child(8) { --a: 315deg; animation-delay: 0.3s; }
-@keyframes pb { 0% { transform: rotate(var(--a)) translateX(0); opacity: 1; } 45% { opacity: 0.8; } 100% { transform: rotate(var(--a)) translateX(80px); opacity: 0; } }
-
 /* ===== CAUGHT ===== */
 #scorecard.sc-cricket-caught .sc-anim-caught {
   display: block; font-size: 72px; letter-spacing: 6px;
@@ -1121,110 +1073,70 @@ body {
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
   text-shadow: 0 0 15px rgba(255,71,87,0.6), 0 0 40px rgba(255,99,72,0.3);
   transform-origin: center center;
-  animation: ac 2s cubic-bezier(0.22,1,0.36,1) forwards;
+  animation: ac 4s cubic-bezier(0.22,1,0.36,1) forwards;
 }
 @keyframes ac {
   0% { opacity: 0; transform: translateY(-60px) scale(0.5); filter: blur(4px); }
-  22% { opacity: 1; transform: translateY(0) scale(1.15); filter: blur(0); }
-  34% { transform: translateY(-8px) scale(1.04); }
-  46% { transform: translateY(0) scale(0.97); }
-  56% { transform: translateY(-2px) scale(1.01); }
-  65% { transform: translateY(0) scale(1); }
-  100% { opacity: 0; transform: translateY(18px) scale(0.95); filter: blur(3px); }
+  16% { opacity: 1; transform: translateY(0) scale(1.15); filter: blur(0); }
+  26% { transform: translateY(-8px) scale(1.04); filter: blur(0); }
+  36% { transform: translateY(0) scale(0.97); filter: blur(0); }
+  46% { transform: translateY(-2px) scale(1.01); filter: blur(0); }
+  55% { transform: translateY(0) scale(1); filter: blur(0); }
+  70% { opacity: 1; filter: blur(0); }
+  100% { opacity: 0; transform: translateY(25px) scale(0.9); filter: blur(5px); }
 }
-#scorecard.sc-cricket-caught .sc-pg-c { display: block; }
-#scorecard.sc-cricket-caught .sc-pg-c i { width: 5px; height: 5px; margin: -2.5px; border-radius: 50%; background: #ff6348; box-shadow: 0 0 6px rgba(255,99,72,0.7); animation: pc 2s ease-out forwards; }
-#scorecard.sc-cricket-caught .sc-pg-c i:nth-child(1) { --a: -30deg; animation-delay: 0.04s; }
-#scorecard.sc-cricket-caught .sc-pg-c i:nth-child(2) { --a: -10deg; animation-delay: 0.1s; }
-#scorecard.sc-cricket-caught .sc-pg-c i:nth-child(3) { --a: 10deg; animation-delay: 0.16s; }
-#scorecard.sc-cricket-caught .sc-pg-c i:nth-child(4) { --a: 30deg; animation-delay: 0.22s; }
-#scorecard.sc-cricket-caught .sc-pg-c i:nth-child(5) { --a: 50deg; animation-delay: 0.28s; }
-#scorecard.sc-cricket-caught .sc-pg-c i:nth-child(6) { --a: 70deg; animation-delay: 0.34s; }
-@keyframes pc { 0% { transform: rotate(var(--a)) translateX(0); opacity: 1; } 40% { opacity: 0.8; } 100% { transform: rotate(var(--a)) translateX(40px) translateY(-70px); opacity: 0; } }
-
 /* ===== LBW ===== */
 #scorecard.sc-cricket-lbw .sc-anim-lbw {
   display: block; font-size: 85px; letter-spacing: 8px;
   background: linear-gradient(135deg, #ff6348 0%, #eab308 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
   text-shadow: 0 0 20px rgba(255,99,72,0.6), 0 0 50px rgba(234,179,8,0.3);
-  filter: blur(3px);
-  animation: al 2s cubic-bezier(0.22,1,0.36,1) forwards;
+  animation: al 4s cubic-bezier(0.22,1,0.36,1) forwards;
 }
 @keyframes al {
   0% { transform: translateX(100px) rotate(-15deg) scale(0.8); opacity: 0; filter: blur(5px); }
-  15% { opacity: 1; filter: blur(0); }
-  28% { transform: translateX(-5px) rotate(3deg) scale(1.08); }
-  45% { transform: translateX(1px) rotate(-1deg) scale(0.98); }
-  60% { transform: translateX(0) rotate(0deg) scale(1); }
-  100% { opacity: 0; transform: translateX(-15px) scale(0.95); filter: blur(0); }
+  12% { opacity: 1; filter: blur(0); }
+  22% { transform: translateX(-5px) rotate(3deg) scale(1.08); filter: blur(0); }
+  35% { transform: translateX(1px) rotate(-1deg) scale(0.98); filter: blur(0); }
+  50% { transform: translateX(0) rotate(0deg) scale(1); filter: blur(0); }
+  70% { opacity: 1; filter: blur(0); }
+  100% { opacity: 0; transform: translateX(-20px) scale(0.9); filter: blur(3px); }
 }
-#scorecard.sc-cricket-lbw .sc-pg-l { display: block; }
-#scorecard.sc-cricket-lbw .sc-pg-l i { width: 5px; height: 5px; margin: -2.5px; border-radius: 50%; background: #eab308; box-shadow: 0 0 8px rgba(234,179,8,0.8); animation: pl 2s ease-out forwards; }
-#scorecard.sc-cricket-lbw .sc-pg-l i:nth-child(1) { --a: -20deg; animation-delay: 0.03s; }
-#scorecard.sc-cricket-lbw .sc-pg-l i:nth-child(2) { --a: 0deg; animation-delay: 0.08s; }
-#scorecard.sc-cricket-lbw .sc-pg-l i:nth-child(3) { --a: 20deg; animation-delay: 0.13s; }
-#scorecard.sc-cricket-lbw .sc-pg-l i:nth-child(4) { --a: 40deg; animation-delay: 0.18s; }
-#scorecard.sc-cricket-lbw .sc-pg-l i:nth-child(5) { --a: 60deg; animation-delay: 0.23s; }
-#scorecard.sc-cricket-lbw .sc-pg-l i:nth-child(6) { --a: 80deg; animation-delay: 0.28s; }
-@keyframes pl { 0% { transform: rotate(var(--a)) translateX(0); opacity: 1; } 40% { opacity: 0.9; } 100% { transform: rotate(var(--a)) translateX(30px) translateY(-60px); opacity: 0; } }
-
 /* ===== RUN OUT ===== */
 #scorecard.sc-cricket-runout .sc-anim-runout {
   display: block; font-size: 65px; letter-spacing: 6px;
   background: linear-gradient(135deg, #ff2d55 0%, #ff6b35 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
   text-shadow: 0 0 15px rgba(255,45,85,0.7), 0 0 40px rgba(255,45,85,0.4), 0 0 70px rgba(255,107,53,0.3);
-  animation: ar 2s cubic-bezier(0.22,1,0.36,1) forwards;
+  animation: ar 4s cubic-bezier(0.22,1,0.36,1) forwards;
 }
 @keyframes ar {
   0% { transform: scale(0.2); opacity: 0; filter: brightness(2); }
-  10% { transform: scale(1.15); opacity: 1; filter: brightness(1.4); }
-  20% { transform: scale(1); filter: brightness(1); }
-  28% { transform: translate(2px,-2px); }
-  34% { transform: translate(-2px,1px); }
-  40% { transform: translate(0,0); }
-  55% { opacity: 1; }
-  100% { opacity: 0; transform: scale(1.05) translateY(6px); filter: brightness(1.3); }
+  8% { transform: scale(1.15); opacity: 1; filter: brightness(1.4); }
+  16% { transform: scale(1); filter: brightness(1); }
+  24% { transform: translate(2px,-2px); filter: brightness(1); }
+  30% { transform: translate(-2px,1px); filter: brightness(1); }
+  36% { transform: translate(0,0); filter: brightness(1); }
+  70% { opacity: 1; filter: brightness(1); }
+  100% { opacity: 0; transform: scale(1.08) translateY(10px); filter: brightness(1.5); }
 }
-#scorecard.sc-cricket-runout .sc-pg-r { display: block; }
-#scorecard.sc-cricket-runout .sc-pg-r i { width: 5px; height: 5px; margin: -2.5px; border-radius: 50%; background: #ff2d55; box-shadow: 0 0 8px rgba(255,45,85,0.8); animation: pr 2s ease-out forwards; }
-#scorecard.sc-cricket-runout .sc-pg-r i:nth-child(1) { --a: 0deg; animation-delay: 0.01s; }
-#scorecard.sc-cricket-runout .sc-pg-r i:nth-child(2) { --a: 45deg; animation-delay: 0.04s; }
-#scorecard.sc-cricket-runout .sc-pg-r i:nth-child(3) { --a: 90deg; animation-delay: 0.07s; }
-#scorecard.sc-cricket-runout .sc-pg-r i:nth-child(4) { --a: 135deg; animation-delay: 0.1s; }
-#scorecard.sc-cricket-runout .sc-pg-r i:nth-child(5) { --a: 180deg; animation-delay: 0.13s; }
-#scorecard.sc-cricket-runout .sc-pg-r i:nth-child(6) { --a: 225deg; animation-delay: 0.16s; }
-#scorecard.sc-cricket-runout .sc-pg-r i:nth-child(7) { --a: 270deg; animation-delay: 0.19s; }
-#scorecard.sc-cricket-runout .sc-pg-r i:nth-child(8) { --a: 315deg; animation-delay: 0.22s; }
-@keyframes pr { 0% { transform: rotate(var(--a)) translateX(0); opacity: 1; } 35% { opacity: 0.9; } 100% { transform: rotate(var(--a)) translateX(90px); opacity: 0; } }
-
 /* ===== DUCK ===== */
 #scorecard.sc-cricket-duck .sc-anim-duck {
   display: block; font-size: 72px; letter-spacing: 6px;
   background: linear-gradient(135deg, #ffa502 0%, #ff6348 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
   text-shadow: 0 0 20px rgba(255,165,2,0.6), 0 0 50px rgba(255,165,2,0.3);
-  animation: ad 2s cubic-bezier(0.22,1,0.36,1) forwards;
+  animation: ad 4s cubic-bezier(0.22,1,0.36,1) forwards;
 }
 @keyframes ad {
-  0% { opacity: 0; transform: translateX(-60px) rotate(-12deg) scale(0.4); letter-spacing: 20px; }
-  15% { opacity: 1; transform: translateX(3px) rotate(3deg) scale(1.06); letter-spacing: 4px; }
-  24% { transform: translateX(-2px) rotate(-2deg) scale(1); letter-spacing: 6px; }
-  34% { transform: translateX(1px) rotate(1deg) scale(1); }
-  45% { transform: translateX(0) rotate(0deg) scale(1); }
-  55% { opacity: 1; }
-  100% { opacity: 0; transform: translateX(20px) rotate(5deg) scale(0.92); filter: blur(2px); }
+  0% { opacity: 0; transform: translateX(-60px) rotate(-12deg) scale(0.4); letter-spacing: 20px; filter: blur(6px); }
+  12% { opacity: 1; transform: translateX(3px) rotate(3deg) scale(1.06); letter-spacing: 4px; filter: blur(0); }
+  20% { transform: translateX(-2px) rotate(-2deg) scale(1); letter-spacing: 6px; filter: blur(0); }
+  30% { transform: translateX(1px) rotate(1deg) scale(1); filter: blur(0); }
+  40% { transform: translateX(0) rotate(0deg) scale(1); filter: blur(0); }
+  70% { opacity: 1; filter: blur(0); }
+  100% { opacity: 0; transform: translateX(25px) rotate(6deg) scale(0.88); filter: blur(4px); }
 }
-#scorecard.sc-cricket-duck .sc-pg-d { display: block; }
-#scorecard.sc-cricket-duck .sc-pg-d i { width: 5px; height: 5px; margin: -2.5px; border-radius: 50%; background: #ffa502; box-shadow: 0 0 6px rgba(255,165,2,0.7); animation: pd 2s ease-out forwards; }
-#scorecard.sc-cricket-duck .sc-pg-d i:nth-child(1) { --a: 0deg; animation-delay: 0.02s; }
-#scorecard.sc-cricket-duck .sc-pg-d i:nth-child(2) { --a: 60deg; animation-delay: 0.06s; }
-#scorecard.sc-cricket-duck .sc-pg-d i:nth-child(3) { --a: 120deg; animation-delay: 0.1s; }
-#scorecard.sc-cricket-duck .sc-pg-d i:nth-child(4) { --a: 180deg; animation-delay: 0.14s; }
-#scorecard.sc-cricket-duck .sc-pg-d i:nth-child(5) { --a: 240deg; animation-delay: 0.18s; }
-#scorecard.sc-cricket-duck .sc-pg-d i:nth-child(6) { --a: 300deg; animation-delay: 0.22s; }
-@keyframes pd { 0% { transform: rotate(var(--a)) translateX(0); opacity: 1; } 40% { opacity: 0.9; } 100% { transform: rotate(var(--a)) translateX(70px) translateY(20px); opacity: 0; } }
 
 .sc-target {
   margin-top: 12px; padding-top: 12px;
@@ -1757,20 +1669,15 @@ body {
 
 <div id="scorecard" class="hidden">
   <div class="sc-anim-layer" id="sc-anim-layer">
-    <div class="sc-anim-item sc-anim-4">FOUR</div>
-    <div class="sc-anim-item sc-anim-6">SIX!</div>
+    <canvas id="sc-canvas"></canvas>
+    <div class="sc-anim-item sc-anim-4">4</div>
+    <div class="sc-anim-item sc-anim-6">6</div>
     <div class="sc-anim-item sc-anim-bold">BOWLED!</div>
     <div class="sc-anim-item sc-anim-caught">CAUGHT!</div>
     <div class="sc-anim-item sc-anim-lbw">LBW!</div>
     <div class="sc-anim-item sc-anim-runout">RUN OUT!</div>
     <div class="sc-anim-item sc-anim-duck">DUCK!</div>
-    <div class="sc-pg sc-pg-4"><i class="p"></i><i class="p"></i><i class="p"></i><i class="p"></i></div>
-    <div class="sc-pg sc-pg-6"><i class="r"></i><i class="r"></i><i class="r"></i><i class="p"></i><i class="p"></i><i class="p"></i><i class="p"></i><i class="p"></i><i class="p"></i></div>
-    <div class="sc-pg sc-pg-b"><i class="p"></i><i class="p"></i><i class="p"></i><i class="p"></i><i class="p"></i><i class="p"></i><i class="p"></i><i class="p"></i></div>
-    <div class="sc-pg sc-pg-c"><i class="p"></i><i class="p"></i><i class="p"></i><i class="p"></i><i class="p"></i><i class="p"></i></div>
-    <div class="sc-pg sc-pg-l"><i class="p"></i><i class="p"></i><i class="p"></i><i class="p"></i><i class="p"></i><i class="p"></i></div>
-    <div class="sc-pg sc-pg-r"><i class="p"></i><i class="p"></i><i class="p"></i><i class="p"></i><i class="p"></i><i class="p"></i><i class="p"></i><i class="p"></i></div>
-    <div class="sc-pg sc-pg-d"><i class="p"></i><i class="p"></i><i class="p"></i><i class="p"></i><i class="p"></i><i class="p"></i></div>
+
   </div>
   <div class="sc-hdr">
     <span class="sc-title">Live Score</span>
@@ -1840,8 +1747,6 @@ const CONFIG = {
 
 const state = {
   hasRealData: false,
-  demoTimer: null,
-  demoIndex: 0,
   wsReconnectAttempts: 0,
   ws: null,
   topDonator: { name: '—', amount: 0 },
@@ -2094,10 +1999,6 @@ function addMsg(data, options = {}) {
 
   if (!isDemo) {
     state.hasRealData = true;
-    if (state.demoTimer) {
-      clearTimeout(state.demoTimer);
-      state.demoTimer = null;
-    }
     state.msgHistory.push({ name, text, type, amount, profileImageUrl, segments, userColor: getUserColor(name) });
     if (state.msgHistory.length > 20) state.msgHistory.shift();
   }
@@ -2310,7 +2211,6 @@ function replayHistory() {
     SCORECARD — Diff-based, animated, state-of-the-art
     ════════════════════════════════════════ */
 let currentScore = null;
-let _prevRenderState = null;
 let _animFrameIds = new Map();
 
 const _teamColorMap = {};
@@ -2423,7 +2323,176 @@ function _detectEvents(prev, curr) {
   return events;
 }
 
+/* ════════════════════════════════════════
+   CRICKET CANVAS PARTICLE ENGINE
+   ════════════════════════════════════════ */
+let _scCtx = null;
+let _scW = 0, _scH = 0;
+let _scParts = [];
+let _scAnimFrame = null;
 let _cricketAnimTimer = null;
+
+function _scCanvasInit() {
+  const c = document.getElementById('sc-canvas');
+  if (!c) return;
+  const dpr = window.devicePixelRatio || 1;
+  const layer = document.getElementById('sc-anim-layer');
+  const r = layer.getBoundingClientRect();
+  c.width = r.width * dpr; c.height = r.height * dpr;
+  c.style.width = r.width + 'px'; c.style.height = r.height + 'px';
+  _scCtx = c.getContext('2d'); _scCtx.scale(dpr, dpr);
+  _scW = r.width; _scH = r.height;
+}
+
+function _scP(x, y, o) {
+  const a = o.a != null ? o.a + (Math.random() - 0.5) * 0.5 : Math.random() * 6.283;
+  const sp = o.sp != null ? o.sp * (0.5 + Math.random()) : 2 + Math.random() * 8;
+  const clr = Array.isArray(o.c) ? o.c[Math.floor(Math.random() * o.c.length)] : (o.c || '#fff');
+  const tArr = Array.isArray(o.t) ? o.t : [o.t || 0];
+  const scatter = o.scatter || 0;
+  return {
+    x: x + (Math.random() - 0.5) * scatter,
+    y: y + (Math.random() - 0.5) * scatter,
+    vx: Math.cos(a) * sp + (o.dx || 0) * (0.7 + Math.random() * 0.6),
+    vy: Math.sin(a) * sp + (o.dy || 0) * (0.7 + Math.random() * 0.6),
+    l: (o.l || 1.5) * (0.7 + Math.random() * 0.6),
+    ml: o.l || 1.5,
+    s: (o.s || (2 + Math.random() * 6)) * (0.4 + Math.random() * 1.2),
+    c: clr,
+    d: (o.d || 0.97) * (0.96 + Math.random() * 0.04),
+    g: (o.g || 0) * (0.5 + Math.random()),
+    gl: o.gl || 0, op: (o.op || 0.85) * (0.5 + Math.random() * 0.5),
+    t: tArr[Math.floor(Math.random() * tArr.length)],
+    rot: Math.random() * 6.283,
+    rotV: (Math.random() - 0.5) * 0.25,
+    txt: o.txt || '',
+  };
+}
+
+function _scSpawn(cx, cy, n, o) {
+  for (let i = 0; i < n; i++) _scParts.push(_scP(cx, cy, o));
+}
+
+function _scRender() {
+  const ctx = _scCtx;
+  if (!ctx) return;
+  ctx.clearRect(0, 0, _scW, _scH);
+  let alive = false;
+  for (let i = 0; i < _scParts.length; i++) {
+    const p = _scParts[i];
+    if (p.l <= 0) continue;
+    alive = true;
+    p.x += p.vx; p.y += p.vy;
+    p.vx *= p.d; p.vy *= p.d;
+    p.vy += p.g;
+    p.rot += p.rotV;
+    p.l -= 0.016;
+    if (p.x < -50 || p.x > _scW + 50 || p.y < -50 || p.y > _scH + 50) { p.vx *= 0.98; p.vy *= 0.98; }
+    const alpha = Math.max(0, p.l / p.ml);
+    const sz = p.s * (0.3 + 0.7 * alpha);
+    ctx.globalAlpha = alpha * p.op;
+    ctx.fillStyle = p.c;
+    if (p.gl) { ctx.shadowColor = p.c; ctx.shadowBlur = p.gl * alpha; }
+    if (p.t === 1) {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillRect(-sz, -sz * 0.3, sz * 2, sz * 0.6);
+      ctx.restore();
+    } else if (p.t === 2) {
+      ctx.strokeStyle = p.c;
+      ctx.lineWidth = 1.5 + 2 * alpha;
+      ctx.beginPath(); ctx.arc(p.x, p.y, sz, 0, 6.283); ctx.stroke();
+    } else if (p.t === 3) {
+      ctx.font = (sz * 2.5) + 'px Impact,system-ui';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = p.c;
+      ctx.shadowBlur = (p.gl || 10) * alpha;
+      ctx.fillText(p.txt || '✦', p.x, p.y);
+    } else if (p.t === 4) {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.beginPath();
+      ctx.moveTo(0, -sz);
+      ctx.lineTo(-sz * 0.866, sz * 0.5);
+      ctx.lineTo(sz * 0.866, sz * 0.5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    } else if (p.t === 5) {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.beginPath();
+      ctx.moveTo(0, -sz);
+      ctx.lineTo(sz * 0.7, 0);
+      ctx.lineTo(0, sz);
+      ctx.lineTo(-sz * 0.7, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    } else if (p.t === 6) {
+      const s2 = sz * 0.4;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillRect(-s2, -s2, s2 * 2, s2 * 2);
+      ctx.beginPath();
+      ctx.arc(s2 * 1.5, 0, s2 * 0.5, 0, 6.283);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(-s2 * 1.5, 0, s2 * 0.5, 0, 6.283);
+      ctx.fill();
+      ctx.restore();
+    } else {
+      ctx.beginPath(); ctx.arc(p.x, p.y, sz, 0, 6.283); ctx.fill();
+    }
+  }
+  ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+  if (alive) _scAnimFrame = requestAnimationFrame(_scRender);
+  else { _scParts = []; _scAnimFrame = null; }
+}
+
+function _scSpawnEvent(eventType) {
+  _scCanvasInit();
+  _scParts = [];
+  if (_scAnimFrame) { cancelAnimationFrame(_scAnimFrame); _scAnimFrame = null; }
+  const cx = _scW / 2, cy = _scH / 2;
+  if (eventType === '4') {
+    _scSpawn(cx, cy, 80, { c: ['#ff2d95','#ff66b2','#ff3399','#ff0066'], l: 3.5, sp: 3 + Math.random() * 12, scatter: 40, g: 0.05, d: 0.96, gl: 14, t: [0,0,0,0,1,4,5] });
+    setTimeout(() => _scSpawn(cx, cy, 80, { c: ['#ff2d95','#ff66b2','#ff3399','#ff0066'], l: 3.5, sp: 3 + Math.random() * 12, scatter: 40, g: 0.05, d: 0.96, gl: 14, t: [0,0,0,0,1,4,5] }), 250);
+    setTimeout(() => _scSpawn(cx, cy, 30, { c: '#ff66b2', l: 2.5, sp: 1 + Math.random() * 5, scatter: 20, g: 0.08, d: 0.97, gl: 8, t: [1,4,5] }), 500);
+  } else if (eventType === '6') {
+    const cols = ['#00ff88','#00e676','#00c853','#69f0ae','#a7ffb8'];
+    _scSpawn(cx, cy, 150, { c: cols, l: 3.8, sp: 4 + Math.random() * 14, scatter: 50, g: 0.03, d: 0.97, gl: 18, t: [0,0,0,0,1,4,5,6] });
+    setTimeout(() => _scSpawn(cx, cy, 60, { c: '#00ff88', l: 3, sp: 2 + Math.random() * 8, scatter: 30, g: 0.06, d: 0.97, gl: 22, t: [0,1,4,5,6] }), 250);
+    setTimeout(() => _scSpawn(cx, cy, 60, { c: ['#00ff88','#fff','#69f0ae'], l: 3, sp: 1 + Math.random() * 4, scatter: 60, g: 0.02, d: 0.99, gl: 10, t: 3, txt: '✦' }), 600);
+  } else if (eventType === 'bold') {
+    _scSpawn(cx, cy, 60, { c: ['#ff2d55','#cc0022','#ff6b6b','#ff1744'], l: 3 + Math.random(), sp: 2 + Math.random() * 10, scatter: 35, g: 0.06, d: 0.95, gl: 12, t: [0,0,0,1,4,4,5] });
+    setTimeout(() => _scSpawn(cx, cy, 60, { c: ['#ff2d55','#cc0022','#ff6b6b','#ff1744'], l: 3 + Math.random(), sp: 2 + Math.random() * 10, scatter: 35, g: 0.06, d: 0.95, gl: 12, t: [0,0,0,1,4,4,5] }), 150);
+    setTimeout(() => _scSpawn(cx, cy, 60, { c: ['#ff2d55','#cc0022','#ff6b6b','#ff1744'], l: 3 + Math.random(), sp: 2 + Math.random() * 10, scatter: 35, g: 0.06, d: 0.95, gl: 12, t: [0,0,0,1,4,4,5] }), 300);
+    setTimeout(() => _scSpawn(cx, cy, 30, { c: '#ff2d55', l: 2, sp: 4 + Math.random() * 8, scatter: 25, g: 0.1, d: 0.93, gl: 10, t: [1,4,5] }), 500);
+  } else if (eventType === 'caught') {
+    _scSpawn(cx, cy, 120, { c: ['#ff6348','#ff4757','#ff2d55','#ff9f43','#e17055'], l: 3.2, sp: 2 + Math.random() * 7, scatter: 45, g: 0.07, d: 0.97, gl: 10, t: [0,0,0,1,4,5], dy: -3 });
+    setTimeout(() => _scSpawn(cx, cy, 60, { c: '#ff6348', l: 2.8, sp: 1 + Math.random() * 4, scatter: 50, g: 0.04, d: 0.98, gl: 8, t: 3, txt: '⚡', dy: -4 }), 350);
+  } else if (eventType === 'lbw') {
+    _scSpawn(cx, cy, 110, { c: ['#eab308','#ff6348','#fbbf24','#fff','#f59e0b'], l: 3.5, sp: 3 + Math.random() * 10, scatter: 40, g: 0.06, d: 0.97, gl: 14, t: [0,0,0,1,4,5,5] });
+    setTimeout(() => _scSpawn(cx, cy, 40, { c: '#eab308', l: 2.5, sp: 2 + Math.random() * 6, scatter: 25, g: 0.06, d: 0.97, gl: 12, t: [0,1,4,5] }), 300);
+    setTimeout(() => _scSpawn(cx, cy, 20, { c: '#fff', l: 2, sp: 1 + Math.random() * 3, scatter: 40, g: 0.02, d: 0.99, gl: 22, t: 3, txt: '⚖' }), 500);
+  } else if (eventType === 'runout') {
+    _scSpawn(cx, cy, 150, { c: ['#ff2d55','#ff6b35','#cc0022','#ff1744','#ff8a80'], l: 3.2, sp: 3 + Math.random() * 12, scatter: 50, g: 0.05, d: 0.95, gl: 12, t: [0,0,0,1,4,4,5,6] });
+    setTimeout(() => _scSpawn(cx, cy, 50, { c: '#ff2d55', l: 2.5, sp: 1 + Math.random() * 5, scatter: 30, g: 0.07, d: 0.96, gl: 10, t: [1,4,5,6] }), 200);
+    setTimeout(() => _scSpawn(cx, cy, 30, { c: '#ff6b35', l: 2.5, sp: 3 + Math.random() * 8, scatter: 35, g: 0.1, d: 0.94, gl: 8, t: [1,4,5] }), 500);
+  } else if (eventType === 'duck') {
+    _scSpawn(cx, cy, 100, { c: ['#ffa502','#ff6348','#ff8c00','#f59e0b','#ffd93d'], l: 3.2, sp: 2 + Math.random() * 8, scatter: 40, g: 0.05, d: 0.97, gl: 10, t: [0,0,0,1,4,5], dy: -1 });
+    setTimeout(() => _scSpawn(cx, cy, 40, { c: '#ffa502', l: 2.5, sp: 1 + Math.random() * 4, scatter: 35, g: 0.04, d: 0.98, t: 3, txt: '🦆', dy: -3, gl: 8 }), 300);
+    setTimeout(() => _scSpawn(cx, cy, 30, { c: '#ff6348', l: 2, sp: 3 + Math.random() * 6, scatter: 30, g: 0.08, d: 0.95, gl: 8, t: [1,4,5] }), 600);
+  }
+  _scRender();
+}
+
 function _triggerCricketAnim(card, eventType) {
   const layer = $('sc-anim-layer');
   const cls = 'sc-cricket-' + eventType;
@@ -2442,7 +2511,7 @@ function _triggerCricketAnim(card, eventType) {
   } else {
     card.classList.add('sc-flash-boundary');
   }
-  const cleanupMs = 2200;
+  _scSpawnEvent(eventType);
   _cricketAnimTimer = setTimeout(() => {
     card.classList.remove(cls,
       'sc-cricket-4', 'sc-cricket-6',
@@ -2452,7 +2521,20 @@ function _triggerCricketAnim(card, eventType) {
       'sc-flash-wicket', 'sc-flash-boundary', 'sc-shake');
     layer.classList.remove('active');
     _cricketAnimTimer = null;
-  }, cleanupMs);
+  }, 4000);
+}
+
+function _scDemoLoop() {
+  const events = ['4','6','bold','caught','lbw','runout','duck'];
+  let i = 0;
+  function next() {
+    const card = document.getElementById('scorecard');
+    if (!card) return;
+    _triggerCricketAnim(card, events[i % events.length]);
+    i++;
+    setTimeout(next, 4200);
+  }
+  next();
 }
 
 const _teamFlags = {
@@ -2880,7 +2962,6 @@ function updateScore(data) {
     DOM.scContent.querySelectorAll('.sc-ball-pop').forEach(el => { el.classList.remove('sc-ball-pop'); el.style.animationDelay = ''; });
   }, 1200);
 
-  _prevRenderState = merged;
 }
 
 /* ════════════════════════════════════════
@@ -3060,7 +3141,6 @@ connectWS();
    LIKE ANIMATION — Futuristic Fullscreen
    ════════════════════════════════════════ */
 let likeAnimTimer = null;
-let likeParticlesRunning = false;
 let likeCanvasCtx = null;
 let likeAnimFrame = null;
 
@@ -3276,6 +3356,27 @@ if (isAdmin) {
 
 DOM.scorecard.classList.add('sc-enter');
 setTimeout(() => DOM.scorecard.classList.remove('sc-enter'), 900);
+setTimeout(() => {
+  DOM.scorecard.classList.remove('hidden');
+  updateScore({
+    teams: [
+      { name: 'India', score: '218/4', overs: '35.2' },
+      { name: 'Australia', score: '0/0', overs: '0.0' }
+    ],
+    batsmen: [
+      { name: 'Virat Kohli', runs: '86', balls: '92', striker: true },
+      { name: 'KL Rahul', runs: '42', balls: '51' }
+    ],
+    bowler: { name: 'Mitchell Starc', overs: '10.2', wickets: '2', runs: '47' },
+    currentOver: ['·', '4', '1', '·', '·', '6'],
+    crr: '6.17',
+    rrr: '7.45',
+    partnership: '94 (78)',
+    lastWicket: 'Rohit Sharma c Smith b Starc 67',
+    status: 'India batting'
+  });
+  _scDemoLoop();
+}, 8000);
 </script>
 </body>
 </html>
