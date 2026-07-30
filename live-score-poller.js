@@ -7,6 +7,27 @@ const POLL_INTERVAL = parseInt(process.env.SCORE_POLL_INTERVAL || process.env.PO
 const MAX_BACKOFF = 60000;
 const FETCH_TIMEOUT = 15000;
 
+// ── Cricbuzz team image lookup ─────────────────────────────────────────────
+let _cbTeamImages = null;
+try {
+  _cbTeamImages = require('./cricbuzz-team-images.json');
+} catch (_) { /* file may not exist */ }
+
+function _cbFlag(abbr, fullName) {
+  if (!_cbTeamImages) return null;
+  const key = (abbr || '').toLowerCase().trim();
+  if (_cbTeamImages.byAbbr[key]) return _cbTeamImages.byAbbr[key];
+  const name = (fullName || abbr || '').toLowerCase().trim();
+  if (_cbTeamImages.byName[name]) return _cbTeamImages.byName[name];
+  // try hyphenated form (if spaces present)
+  const slug = name.replace(/\s+/g, '-');
+  if (_cbTeamImages.byName[slug]) return _cbTeamImages.byName[slug];
+  // try stripping common suffixes
+  const noSuff = name.replace(/\s+(women|men|u19|u23|a|xi|legends)$/i, '').trim();
+  if (noSuff !== name && _cbTeamImages.byName[noSuff]) return _cbTeamImages.byName[noSuff];
+  return null;
+}
+
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
 let ws = null;
@@ -287,6 +308,8 @@ function extractCrexApiData(html, url) {
     team2Full: get('team2_f_n'),
     team1short: get('team1short'),
     team2short: get('team2short'),
+    team1Img: get('team1_img') || get('team1_logo') || get('t1_img'),
+    team2Img: get('team2_img') || get('team2_logo') || get('t2_img'),
     pname1: get('pname1'),
     pname2: get('pname2'),
     playerFull1: get('player_full_name1'),
@@ -694,8 +717,12 @@ function buildFromCrex(api, url) {
   matchState.innings[batAbbr] = { score: batScore, overs: batOvers, full: batFull };
   matchState.innings[oppAbbr] = { score: oppScore, overs: oppOvers, full: oppFull };
 
+  const batCb = _cbFlag(batAbbr, batFull);
   const batTeam = { name: batFull, score: batScore, overs: batOvers, abbr: batAbbr };
+  batTeam.flag = batCb || api.team1Img || null;
+  const oppCb = _cbFlag(oppAbbr, oppFull);
   const oppTeam = { name: oppFull, score: oppScore, overs: oppOvers, abbr: oppAbbr };
+  oppTeam.flag = oppCb || api.team2Img || null;
   if (!oppScore) oppTeam.note = 'Yet to bat';
 
   // Batsmen
@@ -794,6 +821,7 @@ function buildFromCrex(api, url) {
   if (currentOver.length > 0) result.currentOver = currentOver;
   if (target) result.target = target;
   if (fmt) result.format = fmt;
+  if (api.inning) result.inning = parseInt(api.inning, 10);
   if (api.day) result.day = api.day;
   if (api.session && api.session !== '--') result.session = api.session;
   if (api.session2 && api.session2 !== '--') result.session2 = api.session2;
@@ -839,10 +867,23 @@ function buildFromCricbuzz(parsed, url) {
   matchState.innings[batAbbr] = { score: batScore, overs: batOvers };
   if (oppAbbr) matchState.innings[oppAbbr] = { score: oppScore, overs: oppOvers };
 
+  // Infer innings number from teamRows count + status
+  let inning = null;
+  const rowCount = parsed.teamRows.length;
+  const statusL = (parsed.status || '').toLowerCase();
+  const oppBlank = !oppScore || /^(?:\s*|-|--|yet to bat|dnb)$/i.test(String(oppScore).trim());
+  if (rowCount >= 4) inning = 4;
+  else if (rowCount >= 3 && (statusL.includes('trail') || statusL.includes('lead'))) inning = 3;
+  else if (rowCount >= 3) inning = 3;
+  else if (rowCount >= 2 && /need\s+\d+\s+runs?/i.test(statusL)) inning = 2;
+  else if (rowCount >= 2 && !oppBlank) inning = 2;
+  else if (rowCount >= 2) inning = 1;
+  else inning = 1;
+
   const result = {
     teams: [
-      { name: batName, score: batScore, overs: batOvers, abbr: batAbbr },
-      { name: oppAbbr || 'Opponent', score: oppScore, overs: oppOvers, abbr: oppAbbr || '', note: oppScore ? '' : 'Yet to bat' },
+      { name: batName, score: batScore, overs: batOvers, abbr: batAbbr, flag: _cbFlag(batAbbr, batName) },
+      { name: oppAbbr || 'Opponent', score: oppScore, overs: oppOvers, abbr: oppAbbr || '', flag: _cbFlag(oppAbbr, oppAbbr || ''), note: oppScore ? '' : 'Yet to bat' },
     ],
     batsmen: (parsed.batsmen || []).slice(0, 2),
     status: cleanStatus(parsed.status, batAbbr, oppAbbr),
@@ -853,6 +894,7 @@ function buildFromCricbuzz(parsed, url) {
   if (parsed.partnership) result.partnership = parsed.partnership;
 
   if (fmt) result.format = fmt;
+  if (inning) result.inning = inning;
 
   const leadM = (parsed.status || '').match(/([A-Z][A-Za-z\s]+|[A-Z]{2,4})\s+(trail|lead)s?\s+by\s+(\d+)\s+runs?/i);
   if (leadM) result.leadTrail = `${leadM[1].trim()} ${leadM[2].toLowerCase()} by ${leadM[3]} runs`;
