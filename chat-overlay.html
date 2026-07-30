@@ -548,6 +548,8 @@ body {
   z-index: 20;
   pointer-events: none;
   transition: opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1), transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+#scorecard.sc-enter {
   animation: scCardEntry 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 #scorecard::before {
@@ -571,7 +573,6 @@ body {
   transform: translateY(-20px) scale(0.94);
   pointer-events: none;
 }
-
 @keyframes scCardEntry {
   0% { opacity: 0; transform: translateY(-30px) scale(0.92); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
@@ -1040,10 +1041,7 @@ body {
   position: fixed; bottom: 0; left: 0; right: 0;
   z-index: 50;
   pointer-events: all;
-  display: none; flex-direction: column; align-items: center;
-}
-#ctrl-panel.admin-mode {
-  display: flex;
+  display: flex; flex-direction: column; align-items: center;
 }
 #ctrl-tab {
   display: inline-flex; align-items: center; gap: 10px;
@@ -1587,7 +1585,7 @@ body {
 const CONFIG = {
   maxMessages: 200,
   demoInterval: 4000,
-  wsUrl: 'ws://localhost:8770',
+  wsUrl: new URLSearchParams(location.search).get('ws') || 'ws://localhost:8765',
   autoDismiss: 75000,
 };
 
@@ -2764,6 +2762,8 @@ if (isAdmin) {
   $('fToggle').textContent = 'Hide';
 }
 
+DOM.scorecard.classList.add('sc-enter');
+setTimeout(() => DOM.scorecard.classList.remove('sc-enter'), 900);
 </script>
 </body>
 </html>
