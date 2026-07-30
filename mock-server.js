@@ -73,6 +73,7 @@ const chatMessages = [
 ];
 
 const scoreSequence = [
+  // Score 1 — initial, shows a CAUGHT wicket in lastWicket, currentOver starts with 1 ball
   {
     teams: [
       { name: 'India', score: '142/3', overs: '22.4' },
@@ -83,46 +84,138 @@ const scoreSequence = [
       { name: 'Virat Kohli',  runs: '38', balls: '41' }
     ],
     bowler: { name: 'Pat Cummins', overs: '8.2', wickets: '2', runs: '34' },
-    currentOver: ['·', '1', '4', '·', 'W', '·'],
+    currentOver: ['·'],
     crr: '6.24',
     rrr: '8.50',
     partnership: '44 (38)',
     lastWicket: 'KL Rahul c Carey b Starc 12',
     status: 'India batting — need 58 runs to win'
   },
+  // Score 2 — extends to 2 balls, last ball = 4 → FOUR animation
   {
     teams: [
-      { name: 'India', score: '167/4', overs: '28.1' },
+      { name: 'India', score: '152/3', overs: '24.0' },
       { name: 'Australia', score: '0/0', overs: '0.0' }
     ],
     batsmen: [
-      { name: 'Virat Kohli',  runs: '55', balls: '62', striker: true },
-      { name: 'KL Rahul',     runs: '12', balls: '18' }
+      { name: 'Rohit Sharma', runs: '77', balls: '60', striker: true },
+      { name: 'Virat Kohli',  runs: '38', balls: '41' }
     ],
-    bowler: { name: 'Josh Hazlewood', overs: '6.0', wickets: '1', runs: '28' },
-    currentOver: ['2', '·', '4', '1', '·', '6'],
-    crr: '5.93',
-    rrr: '7.80',
-    partnership: '25 (22)',
-    lastWicket: 'Rohit Sharma c Smith b Cummins 67',
-    status: 'India need 13 runs off 22 balls'
+    bowler: { name: 'Pat Cummins', overs: '9.0', wickets: '2', runs: '40' },
+    currentOver: ['·', '4'],
+    crr: '6.33',
+    rrr: '7.50',
+    partnership: '55 (44)',
+    lastWicket: 'KL Rahul c Carey b Starc 12',
+    status: 'India need 52 runs in 36 balls'
   },
+  // Score 3 — extends to 3 balls, last ball = 6 → SIX animation
   {
     teams: [
-      { name: 'India', score: '180/4', overs: '31.0' },
+      { name: 'India', score: '167/3', overs: '28.1' },
       { name: 'Australia', score: '0/0', overs: '0.0' }
     ],
     batsmen: [
-      { name: 'Virat Kohli',  runs: '72', balls: '79', striker: true },
-      { name: 'KL Rahul',     runs: '18', balls: '24' }
+      { name: 'Rohit Sharma', runs: '92', balls: '72', striker: true },
+      { name: 'Virat Kohli',  runs: '38', balls: '41' }
     ],
-    bowler: { name: 'Mitchell Starc', overs: '9.0', wickets: '1', runs: '42' },
-    currentOver: ['6'],
-    crr: '5.81',
+    bowler: { name: 'Josh Hazlewood', overs: '6.1', wickets: '1', runs: '32' },
+    currentOver: ['·', '4', '6'],
+    crr: '5.93',
+    rrr: '6.80',
+    partnership: '68 (52)',
+    lastWicket: 'KL Rahul c Carey b Starc 12',
+    status: 'India need 37 runs in 22 balls'
+  },
+  // Score 4 — extends to 4 balls, last ball = W → BOWLED (lastWicket = "b ")
+  {
+    teams: [
+      { name: 'India', score: '175/4', overs: '29.3' },
+      { name: 'Australia', score: '0/0', overs: '0.0' }
+    ],
+    batsmen: [
+      { name: 'Rohit Sharma', runs: '98', balls: '78', striker: true },
+      { name: 'Hardik Pandya', runs: '4', balls: '3' }
+    ],
+    bowler: { name: 'Mitchell Starc', overs: '8.3', wickets: '2', runs: '44' },
+    currentOver: ['·', '4', '6', 'W'],
+    crr: '5.93',
+    rrr: '8.00',
+    partnership: '10 (7)',
+    lastWicket: 'Virat Kohli b Starc 38',
+    status: 'India need 29 runs in 15 balls'
+  },
+  // Score 5 — extends to 5 balls, last ball = W → CAUGHT (lastWicket = "c ... b ")
+  {
+    teams: [
+      { name: 'India', score: '180/5', overs: '30.2' },
+      { name: 'Australia', score: '0/0', overs: '0.0' }
+    ],
+    batsmen: [
+      { name: 'Rohit Sharma', runs: '100', balls: '82', striker: true },
+      { name: 'MS Dhoni', runs: '0', balls: '0' }
+    ],
+    bowler: { name: 'Josh Hazlewood', overs: '7.2', wickets: '2', runs: '38' },
+    currentOver: ['·', '4', '6', 'W', 'W'],
+    crr: '6.05',
+    rrr: '12.00',
+    partnership: '0 (0)',
+    lastWicket: 'Hardik Pandya c Maxwell b Zampa 4',
+    status: 'India need 24 runs in 10 balls'
+  },
+  // Score 6 — extends to 6 balls, last ball = W → LBW (batsmen change too)
+  {
+    teams: [
+      { name: 'India', score: '185/6', overs: '31.0' },
+      { name: 'Australia', score: '0/0', overs: '0.0' }
+    ],
+    batsmen: [
+      { name: 'Rohit Sharma', runs: '102', balls: '85', striker: true },
+      { name: 'Ravindra Jadeja', runs: '1', balls: '2' }
+    ],
+    bowler: { name: 'Pat Cummins', overs: '10.0', wickets: '3', runs: '52' },
+    currentOver: ['·', '4', '6', 'W', 'W', 'W'],
+    crr: '6.13',
+    rrr: '18.00',
+    partnership: '3 (4)',
+    lastWicket: 'MS Dhoni lbw b Cummins 0',
+    status: 'India need 19 runs in 6 balls'
+  },
+  // Score 7 — extends to 7 balls (new over), last ball = W → RUN OUT
+  {
+    teams: [
+      { name: 'India', score: '186/7', overs: '31.3' },
+      { name: 'Australia', score: '0/0', overs: '0.0' }
+    ],
+    batsmen: [
+      { name: 'Rohit Sharma', runs: '103', balls: '86', striker: true },
+      { name: 'Bhuvneshwar Kumar', runs: '0', balls: '1' }
+    ],
+    bowler: { name: 'Mitchell Starc', overs: '9.3', wickets: '2', runs: '48' },
+    currentOver: ['·', '4', '6', 'W', 'W', 'W', 'W'],
+    crr: '6.13',
+    rrr: '24.00',
+    partnership: '1 (2)',
+    lastWicket: 'Ravindra Jadeja run out (Maxwell) 1',
+    status: 'India need 18 runs in 3 balls'
+  },
+  // Score 8 — final over, 6,6,6 → SIX × 3, India win
+  {
+    teams: [
+      { name: 'India', score: '204/7', overs: '32.0' },
+      { name: 'Australia', score: '0/0', overs: '0.0' }
+    ],
+    batsmen: [
+      { name: 'Rohit Sharma', runs: '121', balls: '92', striker: true },
+      { name: 'Bhuvneshwar Kumar', runs: '0', balls: '1' }
+    ],
+    bowler: { name: 'Pat Cummins', overs: '11.0', wickets: '3', runs: '66' },
+    currentOver: ['·', '4', '6', 'W', 'W', 'W', 'W', '6', '6', '6'],
+    crr: '6.38',
     rrr: '-',
-    partnership: '38 (30)',
-    lastWicket: 'Rohit Sharma c Smith b Cummins 67',
-    status: '🏆 India win by 6 wickets!'
+    partnership: '18 (6)',
+    lastWicket: 'Ravindra Jadeja run out (Maxwell) 1',
+    status: '🏆 India win by 3 wickets with 0 balls remaining!'
   }
 ];
 
@@ -218,10 +311,15 @@ function scheduleLike() {
 }
 setTimeout(scheduleLike, 8000);
 
-// Score updates: at 20s, 60s, 120s
+// Score updates: at 20s, 35s, 50s, 65s, 80s, 95s, 110s, 125s
 setTimeout(() => sendNextScore(), 20000);
-setTimeout(() => sendNextScore(), 60000);
-setTimeout(() => sendNextScore(), 120000);
+setTimeout(() => sendNextScore(), 35000);
+setTimeout(() => sendNextScore(), 50000);
+setTimeout(() => sendNextScore(), 65000);
+setTimeout(() => sendNextScore(), 80000);
+setTimeout(() => sendNextScore(), 95000);
+setTimeout(() => sendNextScore(), 110000);
+setTimeout(() => sendNextScore(), 125000);
 
 // Goals update at 45s
 setTimeout(() => sendGoals({
@@ -231,10 +329,13 @@ setTimeout(() => sendGoals({
 }), 45000);
 
 console.log('Timeline:');
-console.log('  0s   — initial score + goals sent on connect');
+console.log('  0s   — initial score + goals sent on connect (CAUGHT in lastWicket)');
 console.log('  1s+  — chat messages every 3-6s');
 console.log('  10s+ — retraction events every 8-16s (random, ~50% chance)');
-console.log('  20s  — score update #2');
-console.log('  45s  — goals update');
-console.log('  60s  — score update #3');
-console.log('  120s — final score (India win)\n');
+console.log('  20s  — score #2: FOUR animation');
+console.log('  35s  — score #3: SIX animation');
+console.log('  50s  — score #4: BOWLED animation');
+console.log('  65s  — score #5: CAUGHT animation');
+console.log('  80s  — score #6: LBW animation');
+console.log('  95s  — score #7: RUN OUT animation');
+console.log('  110s — score #8: final score + 6\n');
