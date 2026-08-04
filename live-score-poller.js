@@ -33,20 +33,13 @@ const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (
 let ws = null;
 let lastData = '';
 let consecutiveFailures = 0;
-let activeUrlIdx = 0;
 let sourceLabel = '';
 
 // Per-URL state. The poller fans out across all configured URLs and
-// maintains cricket-aware state for each match separately.
+// maintains cricket-aware state for each match separately. lastMatchKey
+// detects match switches.
 const matchState = {
   lastMatchKey: null,
-  innings: {},        // keyed by team-abbr -> {score, overs, declared?}
-  batting: null,      // abbr of team currently batting
-  lastBallScore: null,// last seen "runs/wkts" string for the batting side
-  lastWicketAt: 0,    // runs at the time the previous wicket fell (for fallback)
-  history: [],        // rolling buffer of last 5 over-summaries for sanity
-  lastStatus: '',
-  urlState: {},       // per-URL running state for rotation scoring
 };
 
 function buildUrlChain(inputUrl) {
@@ -126,7 +119,24 @@ function detectFormat(url, title) {
   if (/\bt20i?\b|twenty20|t-?20\b/.test(s)) return 'T20';
   if (/\bodi\b|one[- ]?day|50[- ]?over/.test(s)) return 'ODI';
   if (/\btest\b/.test(s)) return 'Test';
+  // The Hundred: 100 balls per innings, 5 balls per over (matchFormat "HUN").
+  if (/\bthe[- ]?hundred\b|\bhundreds?\b|\.hun\b|\bhun\b/.test(s)) return 'HUN';
   return null;
+}
+
+// Every per-format rule lives here. Nothing in the poller (or the overlay)
+// may special-case a format inline — ask the config. This is what makes a
+// Test match, an ODI, a T20 and The Hundred all behave differently without
+// sprinkling `if (fmt === ...)` across the code.
+const FORMATS = {
+  T20:  { ballsPerOver: 6, maxBalls: 120, maxRpo: 30, rateMetric: 'crr', rateMax: 12, innings: 2, showOvers: true, chaseBalls: true, sessions: false },
+  ODI:  { ballsPerOver: 6, maxBalls: 300, maxRpo: 22, rateMetric: 'crr', rateMax: 10, innings: 2, showOvers: true, chaseBalls: true, sessions: false },
+  Test: { ballsPerOver: 6, maxBalls: Infinity, maxRpo: 14, rateMetric: 'crr', rateMax: 6, innings: 4, showOvers: true, chaseBalls: false, sessions: true },
+  HUN:  { ballsPerOver: 5, maxBalls: 100, maxRpo: 40, rateMetric: 'rpb', rateMax: 3, innings: 2, showOvers: false, chaseBalls: true, sessions: false },
+};
+
+function getFormatConfig(fmt) {
+  return FORMATS[fmt] || null;
 }
 
 /**
@@ -158,10 +168,20 @@ function isBlankScore(score) {
 }
 
 /**
- * "19.2" overs means 19 completed overs + 2 balls = 116 balls bowled.
- * Used to compute remaining balls in a limited-overs innings.
+ * "75b" / "10b" / "15b" → 75. The Hundred sources report exact balls
+ * bowled (per innings / per bowler) with a "b" suffix — no overs at all.
  */
-function oversToBalls(oversStr) {
+function parseBallsField(v) {
+  if (v == null) return null;
+  const m = String(v).match(/(\d+)/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+/**
+ * "19.2" overs means 19 completed overs + 2 balls = N balls bowled.
+ * The Hundred has 5-ball overs; all other formats use 6-ball overs.
+ */
+function oversToBalls(oversStr, fmt) {
   if (oversStr == null) return 0;
   const s = String(oversStr).trim();
   const m = s.match(/^(\d+)(?:\.(\d+))?$/);
@@ -169,19 +189,13 @@ function oversToBalls(oversStr) {
   const whole = parseInt(m[1], 10);
   const partial = parseInt((m[2] || '0').slice(0, 1), 10); // "19.2" = 2 balls, never 20
   if (isNaN(whole) || isNaN(partial)) return 0;
-  return whole * 6 + partial;
+  const perOver = (getFormatConfig(fmt) || FORMATS.ODI).ballsPerOver;
+  return whole * perOver + partial;
 }
 
 function maxBallsForFormat(fmt) {
-  if (fmt === 'T20') return 120;
-  if (fmt === 'ODI') return 300;
-  return Infinity; // Test – no over limit
-}
-
-function maxWicketsForInnings(fmt) {
-  // In a Test, 10 wickets per innings (1st/2nd/3rd/4th).
-  // Limited overs, also 10.
-  return 10;
+  const cfg = getFormatConfig(fmt);
+  return cfg ? cfg.maxBalls : Infinity;
 }
 
 /**
@@ -248,19 +262,22 @@ function parseFigures(fig) {
 function isPlausibleScore(score, overs, fmt) {
   const s = parseScoreString(score);
   if (!s) return false;
-  if (s.wkts > maxWicketsForInnings(fmt)) return false;
-  if (s.runs < 0) return false;
-  if (s.runs === 0 && s.wkts > 0) return false;
+  // Never reject a real score: an early collapse CAN read 0/1 (wicket off the
+  // first ball) and 0/0 (first over not yet bowled). Only impossible values
+  // are dropped — a score like 0/X where X>10, or a negative run count.
+  if (s.wkts > 10) return false;
+  if (s.runs < 0 || s.runs > 1000) return false;
 
+  const cfg = getFormatConfig(fmt);
+  const perOver = (cfg || FORMATS.ODI).ballsPerOver;
   const o = parseOversString(overs);
-  if (o.overs < 0 || o.balls < 0 || o.balls > 5) return false;
+  if (o.overs < 0 || o.balls < 0 || o.balls > perOver) return false;
 
   if (o.overs > 0 || o.balls > 0) {
-    const balls = o.overs * 6 + o.balls;
-    if (balls > 0) {
-      const rpo = (s.runs / balls) * 6;
-      const maxRpo = fmt === 'T20' ? 30 : fmt === 'ODI' ? 22 : 14;
-      if (rpo > maxRpo) return false;
+    const balls = o.overs * perOver + o.balls;
+    if (balls > 0 && cfg) {
+      const rpo = (s.runs / balls) * perOver;
+      if (rpo > cfg.maxRpo) return false;
     }
   }
   return true;
@@ -323,6 +340,13 @@ function extractCrexApiData(html, url) {
     bwr: get('bwr'),
     bover: get('bover'),
     beco: get('beco'),
+    // The Hundred: Crex reports exact balls bowled ("75b") and the Five
+    // labels ("15th Five"). There are no overs — just 100 balls.
+    hballs1: get('hballs1'),
+    hballs2: get('hballs2'),
+    bBalls: get('bBalls'),
+    over: get('over'),
+    hOver: get('hOver'),
     crr: get('crr'),
     rrr: get('rrr'),
     comment1: get('comment1'),
@@ -357,16 +381,150 @@ function extractCrexApiData(html, url) {
   };
 
   // Pull the lastovers block (per-over summary). It's an array of
-  // {over, overinfo, total} objects serialized as JSON.
-  const lastOversMatch = raw.match(/&q;lastovers&q;:\[([\s\S]*?)\],&q;/);
+  // {over, overinfo, total} objects serialized as JSON. The nested
+  // overinfo arrays make a naive `],&q;` lazy match stop too early —
+  // match up to the closing `}],&q;` of the whole array instead.
+  const lastOversMatch = raw.match(/&q;lastovers&q;:\[([\s\S]*?)\}],&q;/);
   if (lastOversMatch) {
     out.lastoversRaw = lastOversMatch[1];
+  }
+
+  // The authoritative ball-by-ball feed — fresh on every delivery, unlike
+  // lastovers which lags 3-6 balls behind. Drives currentOver, the last-ball
+  // sequence number, and dismissal-mode detection.
+  out.ballFeeds = parseCrexBallFeeds(html);
+  if (out.ballFeeds.length) {
+    const latest = out.ballFeeds[out.ballFeeds.length - 1];
+    if (latest.del != null) out.lastBallSeq = latest.del;
+  }
+
+  // Best-effort dismissal mode: the recent ball commentary ("TAKES THE
+  // CATCH!", "LBW!", "CLEAN BOWLED!") carries the HOW-OUT text the lastWicket
+  // fields omit. Only read inside the commentary block — a bare &q;c&q;:&q;…
+  // regex elsewhere matches unrelated short keys ("4.2.0.0", "2/13").
+  out.commentaryTexts = [];
+  const cmtStart = raw.indexOf('&q;commentary&q;:');
+  if (cmtStart >= 0) {
+    const cmtBlock = raw.substring(cmtStart, cmtStart + 60000);
+    const c2re = /&q;c2&q;:&q;((?:(?!&q;).)*)&q;/g;
+    let cm2;
+    while ((cm2 = c2re.exec(cmtBlock)) !== null) {
+      if (cm2[1].trim()) {
+        out.commentaryTexts.push(cm2[1].replace(/&a;/g, '&').replace(/&l;/g, '<').replace(/&g;/g, '>').replace(/&s;/g, "'"));
+      }
+    }
   }
 
   // If we couldn't pull the core identifiers, this isn't a valid payload.
   if (!out.team1 || !out.team2) return null;
 
   return out;
+}
+
+/**
+ * Extract Crex's authoritative ball-by-ball feed (getBallFeeds).
+ *
+ * The getSV3 payload embeds a `getBallFeeds` array (newest-first) of per-ball
+ * entries: {o:"14.5", s:"71/5", b:"4", c2:"…", delivery:73, type:"b"}.
+ * This feed is FRESH — it updates on every delivery — unlike the `lastovers`
+ * block, which lags 3-6 balls behind and makes the overlay show stale balls
+ * and fire (or miss) wicket/boundary animations late. We parse it raw (the
+ * JSON is `&q;`/`&a;`-escaped and the opening brace can be missing) so a
+ * single mismatched key never breaks the whole payload.
+ *
+ * Returns entries oldest → newest (raw payload is newest-first).
+ */
+function parseCrexBallFeeds(html) {
+  const sv3Idx = (html || '').indexOf('getSV3');
+  if (sv3Idx < 0) return [];
+  const raw = html.substring(sv3Idx, sv3Idx + 60000);
+  const keyIdx = raw.indexOf('getBallFeeds');
+  if (keyIdx < 0) return [];
+  let arrStart = raw.indexOf('&q;:[', keyIdx);
+  if (arrStart < 0) arrStart = raw.indexOf('":[', keyIdx);
+  if (arrStart < 0) return [];
+  arrStart += 4;
+
+  // Scan raw for the matching closing ] — &q; marks the start of a string
+  // (treat it like a quote; the payload never uses a plain ").
+  let depth = 0, inStr = false, end = -1;
+  for (let i = arrStart; i < raw.length; i++) {
+    if (inStr) {
+      if (raw.startsWith('&q;', i)) { inStr = false; i += 2; }
+      continue;
+    }
+    if (raw.startsWith('&q;', i)) { inStr = true; i += 2; continue; }
+    const ch = raw[i];
+    if (ch === '{' || ch === '[') depth++;
+    else if (ch === '}' || ch === ']') { depth--; if (depth <= 0) { end = i; break; } }
+  }
+  if (end < 0) return [];
+
+  const dec = raw.substring(arrStart, end)
+    .replace(/&q;/g, '"').replace(/&a;/g, '&').replace(/&s;/g, "'")
+    .replace(/&l;/g, '<').replace(/&g;/g, '>');
+
+  const feeds = [];
+  for (const chunk of dec.split(/\},\{/)) {
+    const ty = chunk.match(/"type":"([^"]*)"/);
+    if (!ty || ty[1] !== 'b') continue;
+    const o = chunk.match(/"o":"([\d.]+)"/);
+    const s = chunk.match(/"s":"([^"]+)"/);
+    const b = chunk.match(/"b":"([^"]*)"|"b":(\d+)/);
+    const del = chunk.match(/"delivery":(\d+)/);
+    const c2 = chunk.match(/"c2":"((?:\\.|[^"\\])*)"/);
+    const c1 = chunk.match(/"c1":"((?:\\.|[^"\\])*)"/);
+    const drop = chunk.match(/"is_catch_drop":(\w+)/);
+    if (!o) continue;
+    feeds.push({
+      del: del ? parseInt(del[1], 10) : null,
+      o: o[1],
+      s: s ? s[1] : null,
+      b: b ? (b[1] ?? b[2]) : null,
+      c2: c2 ? c2[1] : '',
+      c1: c1 ? c1[1] : '',
+      drop: drop ? drop[1] : null,
+    });
+  }
+  feeds.reverse(); // raw is newest-first
+  return feeds;
+}
+
+/**
+ * Build the current-over ball list from the getBallFeeds entries.
+ * A ball counts as a wicket when the score's wicket count rises vs the
+ * previous ball (crex never marks the delivery itself with a W). Falls back
+ * to the ball's own run value (4/6/dot/runs); wide/no-ball from the prose.
+ */
+function currentOverFromCrexFeeds(feeds) {
+  const balls = (feeds || []).filter(f => f && f.o);
+  if (balls.length < 1) return [];
+  const latest = balls[balls.length - 1];
+  const overBase = latest.o.match(/^(\d+)\./);
+  if (!overBase) return [];
+  const over = overBase[1];
+  const inOver = balls.filter(f => String(f.o).startsWith(over + '.'));
+  const tokens = [];
+  for (let i = 0; i < inOver.length; i++) {
+    const f = inOver[i];
+    const prev = i > 0 ? inOver[i - 1] : null;
+    tokens.push(tokenFromCrexBall(f, prev));
+  }
+  return tokens;
+}
+
+/**
+ * One feed entry → ball token. Wicket wins (score progression bump), then
+ * wide/no-ball (from the prose), then the run value.
+ */
+function tokenFromCrexBall(ball, prevBall) {
+  const prevW = prevBall && prevBall.s ? parseInt(String(prevBall.s).split('/')[1] || '0', 10) : null;
+  const curW = ball && ball.s ? parseInt(String(ball.s).split('/')[1] || '0', 10) : null;
+  if (prevW != null && curW != null && curW > prevW) return 'W';
+  const text = String((ball && (ball.c2 || ball.c1)) || '').toLowerCase();
+  if (/\bwide\b/.test(text)) return 'wd';
+  if (/\bno\s*-?\s*ball\b/.test(text)) return 'nb';
+  return normalizeBallToken(ball.b);
 }
 
 /**
@@ -380,7 +538,8 @@ function parseCrexLastOvers(raw) {
   const objStrings = raw.split(/\},\{/);
   const overs = [];
   for (const obj of objStrings) {
-    const overMatch = obj.match(/&q;over&q;:&q;Over\s+(\d+)&q;/i);
+    // The Hundred labels them "13th Five"; normal formats "Over 13".
+    const overMatch = obj.match(/&q;over&q;:&q;(?:Over\s+)?(\d+)/i);
     const infoMatch = obj.match(/&q;overinfo&q;:\[(.*?)\]/);
     if (!infoMatch) continue;
     const balls = infoMatch[1].match(/&q;([^&]*)&q;/g) || [];
@@ -399,9 +558,57 @@ function normalizeBallToken(token) {
   if (!t) return '';
   if (t === '0' || t === '.' || t === 'dot') return '·';
   if (t === 'w' || t === 'wk' || t === 'wicket') return 'W';
-  if (t === 'wd' || t === 'wide') return 'wd';
-  if (t === 'nb' || t === 'no ball' || t === 'noball') return 'nb';
+  if (t === 'wd' || t === 'wide' || /^(?:\d+)?wd/.test(t)) return 'wd';
+  if (t === 'nb' || t === 'no ball' || t === 'noball' || /^(?:\d+)?nb/.test(t)) return 'nb';
+  if (/^\d+lb$/.test(t)) return 'lb';
+  if (/^\d+by$/.test(t)) return 'by';
   return t;
+}
+
+/**
+ * Derive the current-over ball list from Cricbuzz's ball-by-ball commentary.
+ * The commentary rows carry a ball number + a W/6/4 marker. The Hundred uses
+ * 5-ball overs and a 100-ball innings; all other formats use 6-ball overs.
+ * rows = [{ num, marker, text }] with the page order (newest first); we keep
+ * only the balls that fall inside the current over bucket and order them
+ * oldest → newest.
+ *
+ * The bucket comes from the rows themselves, NOT from ballNbr: in a Test,
+ * Cricbuzz reports the COMPLETED innings' total balls (e.g. 634 after 105.4
+ * overs) while the live innings is on ball ~192 — trusting ballNbr zeroes the
+ * current over and kills every boundary/wicket animation.
+ */
+function currentOverFromCommentary({ ballNbr, format, rows }) {
+  if (!rows || !rows.length) return [];
+  const ballsPerOver = (getFormatConfig(format) || FORMATS.ODI).ballsPerOver;
+  const nums = rows.map(r => parseInt(r.num, 10)).filter(n => !isNaN(n));
+  if (!nums.length) return [];
+  const latestBall = Math.max(...nums);
+  const currentOverStart = Math.floor((latestBall - 1) / ballsPerOver) * ballsPerOver + 1;
+  const inOver = rows
+    .map(r => ({ n: parseInt(r.num, 10), r }))
+    .filter(x => !isNaN(x.n) && x.n >= currentOverStart && x.n <= latestBall)
+    .sort((a, b) => a.n - b.n)
+    .map(x => tokenFromCommentary(x.r));
+  return inOver;
+}
+
+function tokenFromCommentary(row) {
+  if (!row) return '';
+  const marker = String(row.marker || '').trim().toUpperCase();
+  if (marker === 'W' || marker === '6' || marker === '4') return marker === 'W' ? 'W' : marker;
+  const t = String(row.text || '').toLowerCase();
+  if (/out|wicket|batsman.*gone/i.test(t) && /\b(caught|bowled|lbw|run\s*out|stumped|hit\s*wicket)\b/i.test(t)) return 'W';
+  if (/\bsix\b/i.test(t)) return '6';
+  if (/\bfour\b/i.test(t)) return '4';
+  if (/\bwide\b/i.test(t)) return 'wd';
+  if (/\bno\s*-?\s*ball\b/i.test(t)) return 'nb';
+  if (/\bno\s*run\b/i.test(t)) return '·';
+  const m = t.match(/(\d+)\s+run/);
+  if (m) return m[1];
+  if (/\bleg\s*bye\b/i.test(t)) return 'lb';
+  if (/\bbye\b/i.test(t)) return 'by';
+  return '·';
 }
 
 /**
@@ -441,7 +648,10 @@ function parseCricbuzz(html, url) {
     return m ? [m[1].toUpperCase(), m[2].toUpperCase()] : [];
   })();
   const addTeamRow = (row) => {
-    const key = `${row.name}|${row.runs}|${row.wkts || ''}|${row.overs || ''}`;
+    // Dedupe by name+runs+wkts (NOT overs): the page repeats the same live
+    // innings in several places (desktop/mobile widgets, JSON blocks) and
+    // The Hundred renders "(20 Balls)" as if it were 20 overs.
+    const key = `${row.name}|${row.runs}|${row.wkts || ''}`;
     if (!teamRows.find(r => r.key === key)) teamRows.push({ key, ...row });
   };
 
@@ -451,9 +661,11 @@ function parseCricbuzz(html, url) {
   let status = '';
   $('div').each((_, el) => {
     const t = $(el).text().trim();
-    if (!t || t.length > 200) return;
+    // Skip live-commentary sentences (they contain commas) and anything that
+    // looks like a score line ("MSG 19-0 ..."), which is never a status.
+    if (!t || t.length > 200 || t.includes(',') || /\b\d{1,4}\s*[\/\-]\s*\d{1,2}\b/.test(t)) return;
     // "Day N: Session - …" or "won by N runs/wkts"
-    if (/^(Day\s+\d+[: ]|.*\bwon by\b|.*\bneed\b.*\bruns?\b.*\bballs?\b|.*\bInnings Break\b|.*\bLunch\b|.*\bTea\b|.*\bStumps\b|.*\bDrawn\b|.*\bTied\b|.*\bMatch ends\b)/i.test(t)) {
+    if (/^(Day\s+\d+[: ]|.*\bwon by\b|.*\bneed\b.*\bruns?\b.*\bballs?\b|.*\bInnings Break\b|.*\bLunch\b|.*\bTea\b|.*\bStumps\b|.*\bDrawn\b|.*\bTied\b|.*\bMatch ends\b|.*\bopt to (?:bat|bowl)\b)/i.test(t)) {
       if (!status || t.length < status.length) status = t;
     }
   });
@@ -463,8 +675,6 @@ function parseCricbuzz(html, url) {
 
   // 2. Score lines. Cricbuzz renders each team as a row with class names.
   //    We grab ALL "NNN/W" patterns and then pair them with team names.
-  const scoreRegex = /\b([A-Z]{2,4}|[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b\s*[:\-]?\s*(\d{1,4})\s*(?:\/\s*(\d{1,2})|-(\d{1,2}))?\s*(?:\(\s*(\d+(?:\.\d+)?)\s*\))?/g;
-  // That's too greedy. Simpler: walk the miniscore block.
   const teamRows = [];
   $('.miniscore-branding-container').find('div').each((_, el) => {
     const text = $(el).text().replace(/\s+/g, ' ').trim();
@@ -481,6 +691,44 @@ function parseCricbuzz(html, url) {
   });
 
   if (teamRows.length < 2) {
+    // Cricbuzz embeds the state as an "inningsScoreList" JSON array. Each
+    // innings has its own batTeamName/score. This is the most reliable
+    // source (correct overs, all innings), so try it before text fallbacks.
+    const arrStart = html.indexOf('inningsScoreList');
+    const innHtml = arrStart >= 0 ? html.substring(arrStart, arrStart + 20000) : html;
+    const inningsRe = /\{\\"inningsId\\":(\d+),\\"batTeamId\\":(\d+),\\"batTeamName\\":\\"([A-Za-z ]+)\\",\\"score\\":(\d+),\\"wickets\\":(\d+),\\"overs\\":([\d.]+)/g;
+    let m;
+    while ((m = inningsRe.exec(innHtml)) !== null) {
+      addTeamRow({
+        name: m[3],
+        runs: m[4],
+        wkts: m[5],
+        overs: m[6],
+      });
+      if (teamRows.length >= 2) break;
+    }
+  }
+
+  // The full innings history — every Test innings, deduped by inningsId (the
+  // page repeats rows; the first occurrence is the freshest). This powers the
+  // Test innings strip in the overlay. Parsed unconditionally: the miniscore
+  // text above only surfaces the live + last completed innings.
+  const inningsList = [];
+  {
+    const arrStart = html.indexOf('inningsScoreList');
+    const innHtml = arrStart >= 0 ? html.substring(arrStart, arrStart + 20000) : html;
+    const inningsRe = /\{\\"inningsId\\":(\d+),\\"batTeamId\\":(\d+),\\"batTeamName\\":\\"([A-Za-z ]+)\\",\\"score\\":(\d+),\\"wickets\\":(\d+),\\"overs\\":([\d.]+)/g;
+    const seen = new Set();
+    let m;
+    while ((m = inningsRe.exec(innHtml)) !== null) {
+      if (seen.has(m[1])) continue;
+      seen.add(m[1]);
+      inningsList.push({ inningsId: parseInt(m[1], 10), name: m[3], runs: m[4], wkts: m[5], overs: m[6] });
+      if (inningsList.length >= 6) break;
+    }
+  }
+
+  if (teamRows.length < 2) {
     const pageText = $('body').text().replace(/\s+/g, ' ').trim();
     const compactScoreRe = /\b([A-Z]{2,4})\s+(\d{1,4})(?:\s*[\/\-]\s*(\d{1,2}))?\s*(?:\(\s*(\d+(?:\.\d+)?)\s*\))/g;
     let m;
@@ -495,17 +743,15 @@ function parseCricbuzz(html, url) {
     }
   }
 
-  if (teamRows.length < 2) {
-    const inningsRe = /(?:batTeamName|teamName)\\":\\"([A-Z]{2,4})\\",\\"score\\":(\d+),\\"wickets\\":(\d+),\\"overs\\":([\d.]+)/g;
-    let m;
-    while ((m = inningsRe.exec(html)) !== null) {
-      addTeamRow({
-        name: m[1],
-        runs: m[2],
-        wkts: m[3],
-        overs: m[4],
-      });
-      if (teamRows.length >= 2) break;
+  // If we still don't have two distinct teams (e.g. the opponent hasn't
+  // batted yet), fall back to the URL slug ("msg-vs-tre" → MSG vs TRE).
+  if (slugTeams.length === 2 && new Set(teamRows.map(r => (r.name || '').toUpperCase())).size < 2) {
+    const have = new Set(teamRows.map(r => (r.name || '').toUpperCase()));
+    for (const s of slugTeams) {
+      if (!have.has(s)) {
+        addTeamRow({ name: s, runs: null, wkts: null, overs: null });
+        have.add(s);
+      }
     }
   }
 
@@ -529,49 +775,101 @@ function parseCricbuzz(html, url) {
 
   if (!batRow) return null;
 
-  // 3. Batsmen
-  //    Look for grid rows with name + R + B + 4s + 6s + SR columns.
+  // 3+4. Batsmen + Bowler. Cricbuzz's live widget reuses .scorecard-bat-grid
+  //    for both sections; "Batter"/"Bowler"/"Key Stats" header rows switch
+  //    the active section. Older layouts use dedicated grids — fall back below.
+  const fmt = detectFormat(url, html.match(/<title>([^<]*)<\/title>/)?.[1]);
   const batsmen = [];
+  let bowler = null;
+  let section = null;
   $('.scorecard-bat-grid').each((_, el) => {
-    if (batsmen.length >= 2) return;
     const cells = $(el).children();
     if (cells.length < 3) return;
-    const nameCell = $(cells[0]).text().replace(/\s+/g, ' ').trim();
-    // Strip " * " (striker marker) and trailing role
-    const name = nameCell.replace(/\s*\*\s*$/, '').replace(/\s*\((?:c|wk|†|&amp;c|&amp;wk)\)\s*$/i, '').trim();
-    if (!name) return;
-    const runs = $(cells[1]).text().trim();
-    const balls = $(cells[2]).text().trim();
-    if (!/^\d+$/.test(runs) || !/^\d+$/.test(balls)) return;
-    const isStriker = nameCell.includes('*');
-    batsmen.push({ name, runs, balls, striker: isStriker });
-  });
-
-  // 4. Bowler — first row of bowler-grid in the live page
-  let bowler = null;
-  // The bowler live widget renders "Bowler Name  ECO X.YY  W/R (Ovs)" inline
-  // or in a separate row. Look for the labelled "Bowler" or recent "this over".
-  $('.sc-bowler-grid, .scorecard-bowl-grid').each((_, el) => {
-    if (bowler) return;
-    const cells = $(el).children();
-    if (cells.length < 4) return;
-    const name = $(cells[0]).text().replace(/\s+/g, ' ').trim();
-    const wkts = $(cells[1]).text().trim();
-    const runs = $(cells[2]).text().trim();
-    const overs = $(cells[3]).text().trim();
-    if (name && /^\d+$/.test(wkts) && /^\d+$/.test(runs) && /^\d+(\.\d+)?$/.test(overs)) {
-      bowler = { name, wickets: wkts, runs, overs };
+    const first = $(cells[0]).text().replace(/\s+/g, ' ').trim();
+    const header = first.toLowerCase();
+    if (/^(batter|bowler|key\s*stats|fow|extras|did\s+not\s+bat|how\s+out)$/.test(header)) {
+      section = header;
+      return;
+    }
+    if (section === 'bowler' && !bowler) {
+      // Cricbuzz's live-widget columns depend on the format:
+      //   - The Hundred: [Bowler, B, D, R, W, RPB] (balls, dots, runs, wkts, runs-per-ball)
+      //   - everything else: [Bowler, O, M, R, W, ECO] (overs, maidens, runs, wkts, economy)
+      const name = first.replace(/\s*\*\s*$/, '').trim();
+      const c1 = $(cells[1]).text().trim(); // HUN: B(alls); else O(vers)
+      const c2 = $(cells[2]).text().trim(); // HUN: D(ots); else M(aidens)
+      const runs = $(cells[3]).text().trim(); // R
+      const wkts = $(cells[4]).text().trim(); // W
+      const c5 = $(cells[5]).text().trim();   // HUN: RPB; else ECO
+      if (name && /^\d+(\.\d+)?$/.test(c1) && /^\d+$/.test(runs) && /^\d+$/.test(wkts)) {
+        if (fmt === 'HUN') {
+          const b = parseInt(c1, 10);
+          bowler = { name, wickets: wkts, runs, balls: b, overs: `${Math.floor(b / 5)}.${b % 5}` };
+          if (c2 && /^\d+$/.test(c2)) bowler.dots = c2;
+          if (c5 && !isNaN(parseFloat(c5))) bowler.rpb = c5;
+        } else {
+          const o = parseOversString(c1);
+          bowler = { name, wickets: wkts, runs, overs: c1, balls: o.overs * 6 + o.balls };
+          if (c2 && /^\d+$/.test(c2)) bowler.maidens = c2;
+          if (c5 && !isNaN(parseFloat(c5))) bowler.eco = c5;
+        }
+      }
+      return;
+    }
+    if (section === 'batter' && batsmen.length < 2) {
+      // Strip " * " (striker marker) and trailing role
+      const name = first.replace(/\s*\*\s*$/, '').replace(/\s*\((?:c|wk|†|&amp;c|&amp;wk)\)\s*$/i, '').trim();
+      const runs = $(cells[1]).text().trim();
+      const balls = $(cells[2]).text().trim();
+      if (name && /^\d+$/.test(runs) && /^\d+$/.test(balls)) {
+        batsmen.push({ name, runs, balls, striker: first.includes('*') });
+      }
     }
   });
+
+  // Fallback for classic Cricbuzz layouts that don't use the shared grid.
+  if (batsmen.length === 0) {
+    $('.scorecard-bat-grid').each((_, el) => {
+      if (batsmen.length >= 2) return;
+      const cells = $(el).children();
+      if (cells.length < 3) return;
+      const nameCell = $(cells[0]).text().replace(/\s+/g, ' ').trim();
+      const name = nameCell.replace(/\s*\*\s*$/, '').replace(/\s*\((?:c|wk|†|&amp;c|&amp;wk)\)\s*$/i, '').trim();
+      if (!name) return;
+      const runs = $(cells[1]).text().trim();
+      const balls = $(cells[2]).text().trim();
+      if (!/^\d+$/.test(runs) || !/^\d+$/.test(balls)) return;
+      batsmen.push({ name, runs, balls, striker: nameCell.includes('*') });
+    });
+  }
+  if (!bowler) {
+    $('.sc-bowler-grid, .scorecard-bowl-grid').each((_, el) => {
+      if (bowler) return;
+      const cells = $(el).children();
+      if (cells.length < 4) return;
+      const name = $(cells[0]).text().replace(/\s+/g, ' ').trim();
+      const wkts = $(cells[1]).text().trim();
+      const runs = $(cells[2]).text().trim();
+      const overs = $(cells[3]).text().trim();
+      if (name && /^\d+$/.test(wkts) && /^\d+$/.test(runs) && /^\d+(\.\d+)?$/.test(overs)) {
+        bowler = { name, wickets: wkts, runs, overs };
+      }
+    });
+  }
 
   // 5. CRR / RRR — usually small labels next to the score
   let crr = '';
   let rrr = '';
+  let rpb = '';
   $('span').each((_, el) => {
     const t = $(el).text().trim();
     if (t === 'CRR:') {
       const next = $(el).next().text().trim();
       if (next) crr = next;
+    }
+    if (t === 'RPB:') {
+      const next = $(el).next().text().trim();
+      if (next) rpb = next;
     }
     if (t === 'REQ:' || t === 'RRR:') {
       const next = $(el).next().text().trim();
@@ -590,6 +888,40 @@ function parseCricbuzz(html, url) {
     }
   });
 
+  // 7. Last wicket — Cricbuzz embeds it in the match-state JSON
+  //    ("lastWicket":"Tim Seifert  c Tim David b Craig Overton 12(9)  - 39/1").
+  //    The overlay uses it to pick the right wicket animation type.
+  let lastWicket = '';
+  const lwJson = html.match(/\\"lastWicket\\":\\"([^\\"]*)\\"/);
+  if (lwJson && lwJson[1]) {
+    lastWicket = lwJson[1].replace(/\s+/g, ' ').trim();
+  } else {
+    // HTML fallback: "Last Wkt: </span>Heinrich Klaasen  c Finn Allen b Craig Overton 0(2)  - 56/3</div>"
+    const lwHtml = html.match(/Last Wkt:\s*<\/span>\s*([^<]*)/i);
+    if (lwHtml && lwHtml[1]) {
+      lastWicket = lwHtml[1].replace(/\s+/g, ' ').trim();
+    }
+  }
+
+  // 8. Current over — rebuilt from the ball-by-ball commentary. The innings
+  //    JSON gives the latest ball number; the commentary rows carry the ball
+  //    number + a W/6/4 marker, which lets the overlay fire wicket/boundary
+  //    animations on the live page (The Hundred = 5-ball overs, others = 6).
+  const ballNbrMatch = html.match(/\\"ballNbr\\":(\d+)/);
+  const ballNbr = ballNbrMatch ? parseInt(ballNbrMatch[1], 10) : null;
+  const commentaryRows = [];
+  const cmtRe = /<div class="font-bold text-center(?: !min-w-\[1\.5rem\])?">([^<]*)<\/div>(?:<div class="bg-cbLive[^"]*">W<\/div>|<div class="bg-cbSix[^"]*">6<\/div>|<div class="bg-cbFour[^"]*">4<\/div>)?<\/div><div>([^<]*(?:<[^>]*>[^<]*<\/[^>]*>[^<]*)*)<\/div>/g;
+  let cm;
+  while ((cm = cmtRe.exec(html)) !== null) {
+    const num = cm[1].trim();
+    const text = cm[2].replace(/<[^>]+>/g, '').trim();
+    if (!text) continue;
+    const markerMatch = cm[0].match(/bg-cb(?:Live|Six|Four)[^>]*>(W|6|4)<\/div>/);
+    commentaryRows.push({ num, marker: markerMatch ? markerMatch[1] : '', text });
+    if (commentaryRows.length >= 40) break;
+  }
+  const currentOver = currentOverFromCommentary({ ballNbr, format: fmt, rows: commentaryRows });
+
   return {
     source: 'cricbuzz',
     batRow,
@@ -599,7 +931,12 @@ function parseCricbuzz(html, url) {
     status,
     crr,
     rrr,
+    rpb,
     partnership,
+    lastWicket,
+    currentOver,
+    ballNbr,
+    inningsList,
     html,
   };
 }
@@ -646,19 +983,6 @@ function cleanStatus(raw, batTeamAbbr, oppTeamAbbr) {
   return s;
 }
 
-/**
- * Compute a lead/trail phrase from two innings lines.
- *   battingRuns  = 61,  firstInningsRuns = 140 → "trail by 79"
- *   firstInningsRuns = 250,  battingRuns = 280 → "lead by 30"
- * Only used in Tests (limited-overs have explicit "need N runs" status).
- */
-function leadOrTrail(battingRuns, firstInningsRuns) {
-  const diff = battingRuns - firstInningsRuns;
-  if (diff === 0) return 'level';
-  if (diff > 0) return `lead by ${diff}`;
-  return `trail by ${-diff}`;
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Per-source data-builder
 // ─────────────────────────────────────────────────────────────────────────────
@@ -668,6 +992,7 @@ function leadOrTrail(battingRuns, firstInningsRuns) {
  */
 function buildFromCrex(api, url) {
   const fmt = detectFormat(url) || 'Test';
+  const cfg = getFormatConfig(fmt);
   const team1 = api.team1;          // currently batting (abbreviation)
   const team2 = api.team2;          // other side
   const team1Full = api.team1Full || team1;
@@ -707,15 +1032,9 @@ function buildFromCrex(api, url) {
   if (matchState.lastMatchKey && matchState.lastMatchKey !== matchKey) {
     if (!matchState.lastMatchKey.startsWith(`${oppAbbr}-${batAbbr}`)) {
       console.log(`[Poll] Crex: new match detected (${matchState.lastMatchKey} → ${matchKey})`);
-      matchState.innings = {};
-      matchState.history = [];
     }
   }
   matchState.lastMatchKey = matchKey;
-
-  // Update innings ledger
-  matchState.innings[batAbbr] = { score: batScore, overs: batOvers, full: batFull };
-  matchState.innings[oppAbbr] = { score: oppScore, overs: oppOvers, full: oppFull };
 
   const batCb = _cbFlag(batAbbr, batFull);
   const batTeam = { name: batFull, score: batScore, overs: batOvers, abbr: batAbbr };
@@ -724,6 +1043,14 @@ function buildFromCrex(api, url) {
   const oppTeam = { name: oppFull, score: oppScore, overs: oppOvers, abbr: oppAbbr };
   oppTeam.flag = oppCb || api.team2Img || null;
   if (!oppScore) oppTeam.note = 'Yet to bat';
+
+  // The Hundred: no overs — report exact balls bowled ("75b").
+  if (cfg && !cfg.showOvers) {
+    const batBalls = parseBallsField(api.hballs1);
+    if (batBalls != null) batTeam.balls = batBalls;
+    const oppBalls = parseBallsField(api.hballs2);
+    if (oppBalls != null) oppTeam.balls = oppBalls;
+  }
 
   // Batsmen
   const batsmen = [];
@@ -763,15 +1090,29 @@ function buildFromCrex(api, url) {
       runs: figs?.runs || '0',
       overs: api.bover || '0.0',
     };
+    if (fmt === 'HUN') {
+      const bowlBalls = parseBallsField(api.bBalls);
+      if (bowlBalls != null) bowler.balls = bowlBalls;
+      const bowlRuns = parseInt(figs?.runs || '0', 10);
+      if (bowlBalls > 0 && !isNaN(bowlRuns)) bowler.rpb = (bowlRuns / bowlBalls).toFixed(2);
+    }
   }
 
-  // Current over (this over) – prefer the explicit lastovers array
+  // Current over (this over) – prefer the fresh ball-by-ball feed; the
+  // explicit lastovers block lags 3-6 balls behind, so a feed-driven list is
+  // used first and lastovers only as a fallback when the feed is missing.
   let currentOver = [];
-  const lastOvers = parseCrexLastOvers(api.lastoversRaw);
-  currentOver = currentOverFromLastOvers(lastOvers, batOvers) || [];
+  const feedOver = currentOverFromCrexFeeds(api.ballFeeds);
+  if (feedOver.length > 0) {
+    currentOver = feedOver;
+  } else {
+    const lastOvers = parseCrexLastOvers(api.lastoversRaw);
+    currentOver = currentOverFromLastOvers(lastOvers, batOvers) || [];
+  }
 
-  // Status — prefer the rich comment1 ("NZ trail by 79 runs") but trim the
-  // session/lead/trail suffix into a separate "leadTrail" field.
+  // Status — crex's only trustworthy status TEXT is comment1 ("WF opt to
+  // Bowl", "NZ trail by 79 runs", ...). The B/session fields are numeric IDs
+  // or overloaded placeholders ("0", "Over", "Spin Bowler") — never shown.
   let leadTrail = '';
   let status = api.comment1 || '';
   if (status) {
@@ -781,9 +1122,9 @@ function buildFromCrex(api, url) {
       status = cleanStatus(status, batAbbr, oppAbbr);
     }
   }
-  if (api.B && api.B !== '--') {
-    status = `${api.day ? 'Day ' + api.day + ': ' : ''}${api.B}`;
-  }
+  // Crex pads comment1 with placeholder tokens when there's no live status
+  // text ("0", "Over", "Ball") — don't surface them as the status line.
+  if (/^(?:\d+|Over|Ball|Overs?|Balls?)$/i.test(status || '')) status = '';
 
   // Build "Target" / "Need" math. In Tests, Crex can expose a first-innings
   // reference total as `target`; only show it as a target in an actual chase.
@@ -799,8 +1140,11 @@ function buildFromCrex(api, url) {
       total: String(tgt),
       need: String(need),
     };
-    if (fmt !== 'Test') {
-      const ballsBowled = oversToBalls(batOvers);
+    if (cfg && cfg.chaseBalls) {
+      // The Hundred reports exact balls bowled ("51b"); deriving them from
+      // overs is wrong (Crex reports "0.0" overs). Fall back to overs only
+      // when no exact ball count exists.
+      const ballsBowled = batTeam.balls != null ? batTeam.balls : oversToBalls(batOvers, fmt);
       const remaining = maxBallsForFormat(fmt) - ballsBowled;
       target.balls = String(Math.max(0, remaining));
     }
@@ -813,14 +1157,37 @@ function buildFromCrex(api, url) {
     status: status || '',
   };
   if (bowler) result.bowler = bowler;
-  if (api.crr && api.crr !== '--') result.crr = api.crr;
-  if (api.rrr && api.rrr !== '--') result.rrr = api.rrr;
+  // The Hundred has no run rate — its official scoring metric is RPB (runs
+  // per ball), so it replaces CRR/RRR on every display. Other formats keep
+  // CRR (and RRR when a chase target is live).
+  if (cfg && cfg.rateMetric === 'rpb') {
+    const batRuns = parseScoreString(batScore)?.runs;
+    const balls = batTeam.balls;
+    if (balls > 0 && batRuns != null) result.rpb = (batRuns / balls).toFixed(2);
+  } else {
+    if (api.crr && api.crr !== '--') result.crr = api.crr;
+    if (api.rrr && api.rrr !== '--') result.rrr = api.rrr;
+  }
   if (api.partnerruns) result.partnership = `${api.partnerruns}${api.partnerballs ? ' (' + api.partnerballs + ')' : ''}`;
-  if (api.lwname1) result.lastWicket = `${api.lwname1} ${api.lwrun1 || 0}${api.lwball1 ? ' (' + String(api.lwball1).replace(/[()]/g, '') + ')' : ''}`;
+  if (api.lwname1) {
+    // Prepend the how-out mode when the recent commentary disclosed it, so the
+    // overlay can pick the right wicket animation (CAUGHT!/LBW!/RUN OUT!/…).
+    // Unknown mode → the overlay shows a neutral WICKET! burst.
+    const mode = detectCrexDismissalMode(api.commentaryTexts, api.ballFeeds);
+    result.lastWicket = `${api.lwname1}${mode ? ' ' + mode : ''} ${api.lwrun1 || 0}${api.lwball1 ? ' (' + String(api.lwball1).replace(/[()]/g, '') + ')' : ''}`;
+  }
   if (leadTrail) result.leadTrail = leadTrail;
   if (currentOver.length > 0) result.currentOver = currentOver;
+  if (api.lastBallSeq != null) result.lastBallSeq = api.lastBallSeq;
   if (target) result.target = target;
   if (fmt) result.format = fmt;
+  if (cfg) {
+    // The overlay never special-cases a format; it renders from these stamped
+    // flags so the poller's FORMATS config stays the single source of truth.
+    result.showBalls = !cfg.showOvers;
+    result.rateMetric = cfg.rateMetric;
+    result.rateMax = cfg.rateMax;
+  }
   if (api.inning) result.inning = parseInt(api.inning, 10);
   if (api.day) result.day = api.day;
   if (api.session && api.session !== '--') result.session = api.session;
@@ -833,39 +1200,59 @@ function buildFromCrex(api, url) {
  */
 function buildFromCricbuzz(parsed, url) {
   if (!parsed) return null;
-  const fmt = detectFormat(url);
+  // Never silently default an unknown match to ODI: a Test whose URL/title
+  // omits the word "test" must still behave like a Test. Infer it from the
+  // live status when the URL is silent.
+  let fmt = detectFormat(url);
+  if (!fmt && parsed.status && /\b(?:Day\s+\d|Stumps|Lunch|Tea|trail\s+by|lead\s+by)\b/i.test(parsed.status)) {
+    fmt = 'Test';
+  }
+  const cfg = getFormatConfig(fmt);
 
   // Use the teamRows to figure out the batting side and the other side.
   // The teamRows in cricbuzz are in the order they appear on the page
   // (bowled-out team first, then batting team, in 2nd-innings layout).
   // We have already picked batRow; pair it with the other row.
   const bat = parsed.batRow;
-  const other = parsed.teamRows.find(r => r.key !== bat.key);
+  // Pick the opponent by NAME, not row key — duplicate names (same innings
+  // scraped from two JSON blocks) used to pair a team with itself.
+  const other = parsed.teamRows.find(r => (r.name || '').toUpperCase() !== (bat.name || '').toUpperCase());
   if (!bat) return null;
 
   const batAbbr = bat.name;
   const batScore = formatScore(bat.runs, bat.wkts, { assumeNoWicket: true });
   const batOvers = bat.overs || '0.0';
-  const batName = (() => {
-    // If we have a longer name from elsewhere, use that; otherwise abbr
-    return batAbbr;
-  })();
+  const batName = batAbbr;
   const oppAbbr = other?.name || '';
   const oppScore = other ? formatScore(other.runs, other.wkts, { completed: other.key !== bat.key }) : '';
   const oppOvers = oppScore ? (other?.overs || '0.0') : '';
 
-  if (!isPlausibleScore(bat.wkts ? batScore : `${batScore}/0`, batOvers, fmt || 'ODI')) return null;
+  // Pre-match state (toss done, play not started): both sides scoreless. Hand
+  // a minimal payload so the overlay switches to the new match immediately and
+  // shows a "Waiting" badge instead of keeping the previous match on screen.
+  // Gated on a not-started status so a live scorecard page that the parser
+  // can't fully read never masquerades as "Waiting".
+  const preMatchStatus = /(opt(?:ing)?\s+to\s+(?:bat|bowl|field)|won\s+the\s+toss|toss|not\s+started|yet\s+to\s+start|start\s+time)/i.test(parsed.status || '');
+  if (preMatchStatus && isBlankScore(batScore) && isBlankScore(oppScore)) {
+    const result = {
+      teams: [
+        { name: batName, score: '', overs: '', abbr: batAbbr, flag: _cbFlag(batAbbr, batName) },
+        { name: oppAbbr || 'Opponent', score: '', overs: '', abbr: oppAbbr || '', flag: _cbFlag(oppAbbr, oppAbbr || ''), note: 'Yet to bat' },
+      ],
+      batsmen: [],
+      status: cleanStatus(parsed.status, batAbbr, oppAbbr),
+    };
+    if (fmt) result.format = fmt;
+    return result;
+  }
+
+  if (!isPlausibleScore(batScore, batOvers, fmt)) return null;
 
   const matchKey = `${batAbbr}-${oppAbbr}`;
   if (matchState.lastMatchKey && matchState.lastMatchKey !== matchKey && !matchState.lastMatchKey.startsWith(`${oppAbbr}-${batAbbr}`)) {
     console.log(`[Poll] Cricbuzz: new match detected (${matchState.lastMatchKey} → ${matchKey})`);
-    matchState.innings = {};
-    matchState.history = [];
   }
   matchState.lastMatchKey = matchKey;
-
-  matchState.innings[batAbbr] = { score: batScore, overs: batOvers };
-  if (oppAbbr) matchState.innings[oppAbbr] = { score: oppScore, overs: oppOvers };
 
   // Infer innings number from teamRows count + status
   let inning = null;
@@ -888,29 +1275,68 @@ function buildFromCricbuzz(parsed, url) {
     batsmen: (parsed.batsmen || []).slice(0, 2),
     status: cleanStatus(parsed.status, batAbbr, oppAbbr),
   };
+
+  // The Hundred: no overs — Cricbuzz's "ballNbr" is the exact balls bowled.
+  if (cfg && !cfg.showOvers && parsed.ballNbr != null) {
+    result.teams[0].balls = parsed.ballNbr;
+  }
   if (parsed.bowler) result.bowler = parsed.bowler;
-  if (parsed.crr) result.crr = parsed.crr;
-  if (parsed.rrr) result.rrr = parsed.rrr;
+  // Formats with a per-ball metric report RPB; formats with a per-over metric
+  // report CRR (and RRR while a chase target is live).
+  if (cfg && cfg.rateMetric === 'rpb') {
+    if (parsed.rpb) {
+      result.rpb = parsed.rpb;
+    } else {
+      const batRuns = parseScoreString(batScore)?.runs;
+      const balls = parsed.ballNbr;
+      if (balls > 0 && batRuns != null) result.rpb = (batRuns / balls).toFixed(2);
+    }
+  } else {
+    if (parsed.crr) result.crr = parsed.crr;
+    if (parsed.rrr) result.rrr = parsed.rrr;
+  }
   if (parsed.partnership) result.partnership = parsed.partnership;
+  if (parsed.lastWicket) result.lastWicket = parsed.lastWicket;
+  if (parsed.currentOver?.length) result.currentOver = parsed.currentOver;
+  if (parsed.ballNbr != null) result.lastBallSeq = parsed.ballNbr;
+
+  // A Test's innings strip: every innings so far, with the last one flagged
+  // live. The overlay renders this instead of guessing from two team rows.
+  if (fmt === 'Test' && Array.isArray(parsed.inningsList) && parsed.inningsList.length) {
+    result.innings = parsed.inningsList.map((inn, i, arr) => ({
+      name: inn.name,
+      score: formatScore(inn.runs, inn.wkts, { completed: parseInt(inn.wkts, 10) >= 10 }),
+      overs: inn.overs,
+      live: i === arr.length - 1,
+    }));
+  }
 
   if (fmt) result.format = fmt;
+  if (cfg) {
+    result.showBalls = !cfg.showOvers;
+    result.rateMetric = cfg.rateMetric;
+    result.rateMax = cfg.rateMax;
+  }
   if (inning) result.inning = inning;
 
   const leadM = (parsed.status || '').match(/([A-Z][A-Za-z\s]+|[A-Z]{2,4})\s+(trail|lead)s?\s+by\s+(\d+)\s+runs?/i);
   if (leadM) result.leadTrail = `${leadM[1].trim()} ${leadM[2].toLowerCase()} by ${leadM[3]} runs`;
 
-  // Try to build a target from the status text ("X need N runs in M balls")
+  // Try to build a target from the status text ("X need N runs in M balls").
+  // In a Test the "in M balls" part never appears — a bare "need N runs" is a
+  // 4th-innings chase and must produce a target too (with no ball count).
   if (parsed.status) {
-    const needM = parsed.status.match(/need\s+(\d+)\s+runs?\s+in\s+(\d+)\s+balls/i);
+    const needM = parsed.status.match(/need\s+(\d+)\s+runs?(?:\s+in\s+(\d+)\s+balls)?/i);
     if (needM) {
       const batting = parseScoreString(batScore);
       const total = (batting?.runs || 0) + parseInt(needM[1], 10);
-      result.target = {
+      const targetObj = {
         current: String(batting?.runs || 0),
         total: String(total),
         need: needM[1],
-        balls: needM[2],
       };
+      if (needM[2]) targetObj.balls = needM[2];
+      result.target = targetObj;
     }
   }
 
@@ -957,6 +1383,44 @@ function buildFromCFLL(parsed, url) {
   return result;
 }
 
+function detectCrexDismissalMode(texts, feeds) {
+  // 1. The authoritative getBallFeeds window (oldest → newest): find the
+  //    NEWEST ball whose score shows a wicket falling, and read THAT ball's
+  //    prose. Crex writes "TOP EDGE … TAKES THE CATCH!", "LBW!", "CLEAN
+  //    BOWLED!", "RUN OUT!" there — this is fresh and aligned with the moment
+  //    the W enters currentOver, unlike commentaryTexts which can scroll past
+  //    the wicket before the lagging lastovers ever surface it.
+  if (Array.isArray(feeds) && feeds.length) {
+    const balls = feeds.filter(f => f && f.o && f.s);
+    for (let i = balls.length - 1; i >= 1; i--) {
+      const prevW = parseInt(String(balls[i - 1].s).split('/')[1] || '0', 10);
+      const curW = parseInt(String(balls[i].s).split('/')[1] || '0', 10);
+      if (curW > prevW) {
+        const prose = (balls[i].c2 || balls[i].c1 || '') + ' ' + (balls[i - 1].c2 || balls[i - 1].c1 || '');
+        const mode = matchDismissalMode(prose);
+        if (mode) return mode;
+        break;
+      }
+    }
+  }
+
+  // 2. Fallback: the commentary text window (only the freshest entries — a
+  //    wicket's how-out text is among the newest balls, and scanning the whole
+  //    window risks a stale match from dropped catches, "off the stump" prose).
+  if (!Array.isArray(texts)) return null;
+  const recent = texts.slice(0, 4).join(' ');
+  return matchDismissalMode(recent);
+}
+
+function matchDismissalMode(prose) {
+  if (!prose) return null;
+  if (/\brun\s*out\b/i.test(prose)) return 'runout';
+  if (/\blbw\b|\bplumb\b/i.test(prose)) return 'lbw';
+  if (/\bcaught\b|\bcatch\b|\btakes?\s+(?:a\s+|the\s+)?catch\b/i.test(prose)) return 'caught';
+  if (/\bbowled\b|\bclean\s*bowled\b|\bcleaned?\s+up\b|\bclean(?:ed)?\s+(?:him|her)\s+up\b/i.test(prose)) return 'bold';
+  return null;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Dispatcher
 // ─────────────────────────────────────────────────────────────────────────────
@@ -995,14 +1459,24 @@ function getBackoff() {
   return Math.min(POLL_INTERVAL * Math.pow(2, consecutiveFailures), MAX_BACKOFF);
 }
 
+// Source stability: once one URL wins, stick with it so the overlay's
+// currentOver / lastBallSeq stay coherent. Without this, a single crex hiccup
+// hands the poll to cricbuzz and the very next poll hands it back — each flip
+// re-derives a different currentOver array and can re-trigger animations.
+let preferredUrl = URLS[0];
+let preferredFailures = 0;
+const SOURCE_SWITCH_THRESHOLD = 2;
+
 async function poll() {
   // Try every URL in order; use the first one that yields a plausible result.
+  // The previously-winning URL is tried first, and only after two consecutive
+  // failures does another source take over (hysteresis).
   let data = null;
   let winnerLabel = '';
   let winnerUrl = '';
+  const order = [preferredUrl, ...URLS.filter(u => u !== preferredUrl)];
 
-  for (let i = 0; i < URLS.length; i++) {
-    const url = URLS[i];
+  for (const url of order) {
     const label = labelForUrl(url);
     try {
       const html = await fetchPage(url);
@@ -1030,6 +1504,17 @@ async function poll() {
   consecutiveFailures = 0;
   sourceLabel = winnerLabel;
 
+  if (winnerUrl === preferredUrl) {
+    preferredFailures = 0;
+  } else {
+    preferredFailures++;
+    if (preferredFailures >= SOURCE_SWITCH_THRESHOLD) {
+      console.log(`[Poll] Switching preferred source to ${winnerLabel}`);
+      preferredUrl = winnerUrl;
+      preferredFailures = 0;
+    }
+  }
+
   const dataStr = JSON.stringify(data);
   if (dataStr !== lastData && ws && ws.readyState === WebSocket.OPEN) {
     lastData = dataStr;
@@ -1038,10 +1523,11 @@ async function poll() {
     } catch (e) {
       console.error('[WS] Send failed:', e.message);
     }
-    const info = data.teams.map(t => `${t.name} ${t.score} (${t.overs} ov)`).join(' vs ');
+    const isHun = data.format === 'HUN';
+    const info = data.teams.map(t => `${t.name} ${t.score} (${isHun && t.balls != null ? `${t.balls}b` : `${t.overs} ov`})`).join(' vs ');
     const extras = [
       data.status,
-      data.crr ? `CRR ${data.crr}` : '',
+      data.rpb ? `RPB ${data.rpb}` : (data.crr ? `CRR ${data.crr}` : ''),
       data.rrr ? `RRR ${data.rrr}` : '',
       data.leadTrail,
       data.target ? `Target ${data.target.current}/${data.target.total} (need ${data.target.need})` : '',
@@ -1058,19 +1544,28 @@ module.exports = {
   buildFromCricbuzz,
   buildUrlChain,
   cleanStatus,
+  currentOverFromCommentary,
+  currentOverFromCrexFeeds,
   currentOverFromLastOvers,
+  detectCrexDismissalMode,
   detectFormat,
   extractCrexApiData,
   extractTitle,
+  getFormatConfig,
   isPlausibleScore,
+  matchDismissalMode,
   normalizeBallToken,
   normalizeScore,
+  oversToBalls,
+  parseBallsField,
   parseBatsmenList,
   parseCFLL,
+  parseCrexBallFeeds,
   parseCrexLastOvers,
   parseCricbuzz,
   parseOversString,
   parseScoreString,
+  tokenFromCrexBall,
   tryParse,
 };
 

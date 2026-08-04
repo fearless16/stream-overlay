@@ -112,6 +112,78 @@ async function run() {
     } catch (e) { fail(`format badge "${fmt}"`, e.message); }
   }
 
+  // ====== FORMAT DISPLAY CONTRACT ======
+  // Each supported format has a deliberately different display contract:
+  // limited-overs matches show overs + CRR/RRR, The Hundred shows balls +
+  // RPB, and Tests show innings/session context without a balls-to-chase UI.
+  const formatCases = [
+    {
+      name: 'T20',
+      data: {
+        format: 'T20',
+        teams: [{ name: 'India', score: '150/3', overs: '15.0' }, { name: 'Australia', score: '160/6', overs: '20.0' }],
+        rateMetric: 'crr', crr: '10.00', rrr: '9.50',
+        bowler: { name: 'Starc', overs: '3.0', runs: '28', wickets: '1' }
+      },
+      mustHave: ['CRR10.00', 'RRR9.50', '3.0 ov'],
+      mustNotHave: ['RPB', 'balls)']
+    },
+    {
+      name: 'ODI',
+      data: {
+        format: 'ODI',
+        teams: [{ name: 'India', score: '275/6', overs: '47.2' }, { name: 'Australia', score: '274/9', overs: '50.0' }],
+        rateMetric: 'crr', crr: '5.80', rrr: '2.10',
+        bowler: { name: 'Starc', overs: '8.2', runs: '42', wickets: '2' }
+      },
+      mustHave: ['CRR5.80', 'RRR2.10', '8.2 ov'],
+      mustNotHave: ['RPB', 'balls)']
+    },
+    {
+      name: 'Test',
+      data: {
+        format: 'Test', inning: 3, day: '3', session: 'Tea',
+        teams: [{ name: 'India', score: '245/4', overs: '78.3' }, { name: 'Australia', score: '311/10', overs: '95.0' }],
+        crr: '3.12', innings: [
+          { name: 'Australia', score: '311/10', overs: '95.0', live: false },
+          { name: 'India', score: '245/4', overs: '78.3', live: true }
+        ],
+        bowler: { name: 'Starc', overs: '12.0', runs: '30', wickets: '2' }
+      },
+      mustHave: ['Day 3', 'Tea', '3rd Inn', '311/10'],
+      mustNotHave: ['from 120 balls', 'balls-to-chase']
+    },
+    {
+      name: '100',
+      data: {
+        format: 'HUN', rateMetric: 'rpb', rpb: '1.21',
+        teams: [{ name: 'Welsh Fire', score: '91/3', balls: 75 }, { name: 'Southern Brave', score: '100/5', balls: 100 }],
+        bowler: { name: 'Archer', balls: 10, runs: '12', wickets: '1' }
+      },
+      mustHave: ['RPB1.21', '10 balls', '75 balls'],
+      mustNotHave: ['CRR', ' ov)']
+    }
+  ];
+  for (const testCase of formatCases) {
+    try {
+      await resetScorecard();
+      await callUpdate(testCase.data);
+      const rendered = await page.evaluate(() => document.getElementById('sc-content').textContent.replace(/\s+/g, ' ').trim());
+      for (const expected of testCase.mustHave) assert.ok(rendered.includes(expected), `${testCase.name} should render ${expected}; got: ${rendered}`);
+      for (const unexpected of testCase.mustNotHave) assert.ok(!rendered.includes(unexpected), `${testCase.name} must not render ${unexpected}; got: ${rendered}`);
+      pass(`${testCase.name} scorecard display contract`);
+    } catch (e) { fail(`${testCase.name} scorecard display contract`, e.message); }
+  }
+
+  // ====== CHAT HOVER MUST NOT MOVE MESSAGE HIT AREAS ======
+  try {
+    await page.evaluate(() => { clearChat(); addMsg({ name: 'A', text: 'first', msgType: 'chat' }, { noAnim: true }); });
+    await page.hover('#chat-container .msg');
+    const transform = await page.evaluate(() => getComputedStyle(document.querySelector('#chat-container .msg')).transform);
+    assert.equal(transform, 'none', 'hovering a chat message must not translate it under the cursor');
+    pass('chat hover keeps message hit area stable');
+  } catch (e) { fail('chat hover keeps message hit area stable', e.message); }
+
   // ====== FORMAT BADGE HIDDEN WHEN NO FORMAT ======
   try {
     await resetScorecard();

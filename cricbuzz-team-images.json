@@ -119,6 +119,7 @@
     "sw": "https://static.cricbuzz.com/a/img/v1/72x54/i1/c825010/sharjah-warriorz.jpg",
     "gg": "https://static.cricbuzz.com/a/img/v1/72x54/i1/c825009/gulf-giants.jpg",
     "wf": "https://static.cricbuzz.com/a/img/v1/72x54/i1/c825100/welsh-fire.jpg",
+    "wef": "https://static.cricbuzz.com/a/img/v1/72x54/i1/c825100/welsh-fire.jpg",
     "so": "https://static.cricbuzz.com/a/img/v1/72x54/i1/c825030/seattle-orcas.jpg",
     "galle gallants": "https://static.cricbuzz.com/a/img/v1/72x54/i1/c484924/galle-gallants.jpg",
     "morrisville unity": "https://static.cricbuzz.com/a/img/v1/72x54/i1/c338369/morrisville-unity.jpg",
@@ -343,6 +344,8 @@
     "chittagong vikings": "https://static.cricbuzz.com/a/img/v1/72x54/i1/c172371/chittagong-vikings.jpg",
     "cape town knight riders": "https://static.cricbuzz.com/a/img/v1/72x54/i1/c172478/cape-town-knight-riders.jpg",
     "sou": "https://static.cricbuzz.com/a/img/v1/72x54/i1/c825073/southern-brave.jpg",
+    "ldn": "https://static.cricbuzz.com/a/img/v1/72x54/i1/c825046/london-spirit.jpg",
+    "london spirit": "https://static.cricbuzz.com/a/img/v1/72x54/i1/c825046/london-spirit.jpg",
     "swift gallopers": "https://static.cricbuzz.com/a/img/v1/72x54/i1/c174284/swift-gallopers.jpg",
     "india legends": "https://static.cricbuzz.com/a/img/v1/72x54/i1/c202784/india-legends.jpg",
     "west indies legends": "https://static.cricbuzz.com/a/img/v1/72x54/i1/c202785/west-indies-legends.jpg",
@@ -960,7 +963,8 @@
     "oman women": "https://static.cricbuzz.com/a/img/v1/72x54/i1/c776330/oman-women.jpg",
     "germany women": "https://static.cricbuzz.com/a/img/v1/72x54/i1/c776262/germany-women.jpg",
     "namibia women": "https://static.cricbuzz.com/a/img/v1/72x54/i1/c776329/namibia-women.jpg",
-    "sierra leone women": "https://static.cricbuzz.com/a/img/v1/72x54/i1/c172538/sierra-leone-women.jpg"
+    "sierra leone women": "https://static.cricbuzz.com/a/img/v1/72x54/i1/c172538/sierra-leone-women.jpg",
+    "msg": "https://static.cricbuzz.com/a/img/v1/72x54/i1/c839374/manchester-super-giants.jpg"
   },
   "byName": {
     "india": "https://static.cricbuzz.com/a/img/v1/72x54/i1/c776162/india.jpg",
