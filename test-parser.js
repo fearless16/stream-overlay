@@ -2,6 +2,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const poller = require('./live-score-poller.js');
+const chatBootstrap = require('./chat-bootstrap.js');
 
 const URL = 'https://www.cricbuzz.com/live-cricket-scores/144794/msg-vs-tre-14th-match-the-hundred-mens-competition-2026';
 
@@ -11,6 +12,31 @@ function test(name, fn) {
   try { fn(); passed++; console.log('PASS:', name); }
   catch (e) { failed++; console.log('FAIL:', name, '-', e.message); }
 }
+
+test('chat bootstrap extracts current nested YouTube live-chat continuation', () => {
+  const html = `var ytInitialData = ${JSON.stringify({ contents: {
+    twoColumnWatchNextResults: { conversationBar: { liveChatRenderer: {
+      continuations: [{ reloadContinuationData: { continuation: 'nested-token', timeoutMs: 1500 } }]
+    } } }
+  } })};</script>`;
+  const data = chatBootstrap.extractInitialData(html);
+  const continuations = chatBootstrap.getLiveChatContinuations(data);
+  assert.strictEqual(chatBootstrap.getContinuationToken(continuations), 'nested-token');
+  assert.strictEqual(chatBootstrap.getContinuationTimeout(continuations), 1500);
+});
+
+test('chat bootstrap keeps legacy root liveChatRenderer support', () => {
+  const data = { contents: { liveChatRenderer: {
+    continuations: [{ timedContinuationData: { continuation: 'root-token', timeoutMs: 900 } }]
+  } } };
+  const continuations = chatBootstrap.getLiveChatContinuations(data);
+  assert.strictEqual(chatBootstrap.getContinuationToken(continuations), 'root-token');
+  assert.strictEqual(chatBootstrap.getContinuationTimeout(continuations), 900);
+});
+
+test('chat bootstrap returns no token for disabled/offline chat', () => {
+  assert.strictEqual(chatBootstrap.getContinuationToken(chatBootstrap.getLiveChatContinuations({})), null);
+});
 
 test('parseCricbuzz extracts lastWicket from embedded JSON', () => {
   const html = fs.readFileSync(path.join(__dirname, '_cb-live.html'), 'utf8');

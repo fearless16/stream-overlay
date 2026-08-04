@@ -3,6 +3,12 @@ const WebSocket = require('ws');
 const http = require('http');
 const path = require('path');
 const fs = require('fs');
+const {
+  extractInitialData,
+  getLiveChatContinuations,
+  getContinuationToken,
+  getContinuationTimeout,
+} = require('./chat-bootstrap.js');
 
 // ── Crash safety ───────────────────────────────────────────────────────────
 // Log fatal errors and exit(1) so the supervisor (run.ps1) restarts us.
@@ -110,20 +116,6 @@ const FETCH_HEADERS = withCookies({
   'Referer': `https://www.youtube.com/live_chat?v=${VIDEO_ID}`,
 });
 
-function getContinuationToken(continuations) {
-  if (!continuations || !continuations.length) return null;
-  const cont = continuations[0];
-  const key = Object.keys(cont)[0];
-  return cont[key]?.continuation || null;
-}
-
-function getContinuationTimeout(continuations) {
-  if (!continuations || !continuations.length) return POLL_INTERVAL;
-  const cont = continuations[0];
-  const key = Object.keys(cont)[0];
-  return cont[key]?.timeoutMs || POLL_INTERVAL;
-}
-
 async function bootstrapInnertube() {
   let html, watchHtml;
 
@@ -152,16 +144,12 @@ async function bootstrapInnertube() {
     innertubeContext = JSON.parse(ctxMatch[1]);
   }
 
-  // Try to get continuation token from liveChatRenderer
-  const dataMatch = source.match(/(?:window\[")?ytInitialData(?:"\])?\s*=\s*({[\s\S]+?});\s*(?:\n|<)/);
-  if (dataMatch) {
-    try {
-      const data = JSON.parse(dataMatch[1]);
-      const continuations = data?.contents?.liveChatRenderer?.continuations;
-      const token = getContinuationToken(continuations);
-      if (token) return token;
-    } catch (e) { /* fall through */ }
-  }
+  // YouTube has used both the legacy root renderer and the nested watch-page
+  // conversationBar renderer. Keep shape handling in a pure, tested helper.
+  const data = extractInitialData(source);
+  const continuations = getLiveChatContinuations(data);
+  const token = getContinuationToken(continuations);
+  if (token) return token;
 
   // No token found — could be offline or chat disabled; InnerTube key/context still set for viewer polling
   throw new Error('No chat continuation token');
@@ -441,6 +429,11 @@ function extractLikeCount(html) {
       const num = ariaMatch[1].match(/([\d,]+)/);
       if (num) return parseInt(num[1].replace(/,/g, ''), 10);
     }
+    // YouTube's newer layout drops the aria-label/button DOM and only embeds
+    // the raw "likeCount" field in ytInitialData. Regex it out as a fallback.
+    // Tolerate both "likeCount":"9" and likeCount:9 forms.
+    const lcMatch = html.match(/"likeCount"\s*:\s*"?(\d+)"?/);
+    if (lcMatch) return parseInt(lcMatch[1], 10);
   } catch (e) { /* best effort */ }
   return null;
 }
