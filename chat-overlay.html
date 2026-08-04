@@ -2920,6 +2920,7 @@ const _cbImg = {
   'st': 'https://static.cricbuzz.com/a/img/v1/72x54/i1/c808188/sylhet-titans.jpg',
   'rw': 'https://static.cricbuzz.com/a/img/v1/72x54/i1/c808189/rajshahi-warriors.jpg',
   'dd': 'https://static.cricbuzz.com/a/img/v1/72x54/i1/c373877/durdanto-dhaka.jpg',
+  'dindigul dragons': 'https://static.cricbuzz.com/a/img/v1/72x54/i1/c172424/dindigul-dragons.jpg',
   'dr': 'https://static.cricbuzz.com/a/img/v1/72x54/i1/c592543/durbar-rajshahi.jpg',
   'namibia': 'https://static.cricbuzz.com/a/img/v1/72x54/i1/c776326/namibia.jpg',
   'nam': 'https://static.cricbuzz.com/a/img/v1/72x54/i1/c776326/namibia.jpg',
@@ -2967,19 +2968,20 @@ const _cbImg = {
 for (const [k, v] of Object.entries(_cbImg)) {
   _teamFlags[k] = v;
 }
-function _flag(name, flagUrl) {
+function _flag(name, flagUrl, abbreviation) {
   if (flagUrl) return `<img src="${esc(flagUrl)}" alt="" class="sc-t-img-flag">`;
-  if (!name) return '🏳️';
-  const key = name.trim().toLowerCase();
-  const val = _teamFlags[key];
-  if (val != null) {
-    return typeof val === 'string' && (val.startsWith('http://') || val.startsWith('https://') || val.startsWith('//'))
-      ? `<img src="${esc(val)}" alt="" class="sc-t-img-flag">` : val;
-  }
-  for (const [k, v] of Object.entries(_teamFlags)) {
-    if (key.startsWith(k)) {
-      return typeof v === 'string' && (v.startsWith('http://') || v.startsWith('https://') || v.startsWith('//'))
-        ? `<img src="${esc(v)}" alt="" class="sc-t-img-flag">` : v;
+  const candidates = [name, abbreviation].filter(Boolean).map(v => String(v).trim().toLowerCase());
+  for (const key of candidates) {
+    const val = _teamFlags[key];
+    if (val != null) {
+      return typeof val === 'string' && (val.startsWith('http://') || val.startsWith('https://') || val.startsWith('//'))
+        ? `<img src="${esc(val)}" alt="" class="sc-t-img-flag">` : val;
+    }
+    for (const [k, v] of Object.entries(_teamFlags)) {
+      if (key.startsWith(k)) {
+        return typeof v === 'string' && (v.startsWith('http://') || v.startsWith('https://') || v.startsWith('//'))
+          ? `<img src="${esc(v)}" alt="" class="sc-t-img-flag">` : v;
+      }
     }
   }
   return '🏳️';
@@ -3062,14 +3064,14 @@ function updateScore(data, source) {
   const t1ScoreChanged = _changed('teams.0.score');
   const t1Parsed = _parseScore(t1.score);
   const t1Badge = _inningLabel(inning);
-  h += `<div class="sc-t active${t1ScoreChanged ? ' sc-score-changed' : ''}"><div class="sc-t-badge">${t1Badge}</div><div class="sc-t-flag">${_flag(t1.abbr || t1.name, t1.flag)}</div><div class="sc-t-name" title="${esc(t1.name || 'T1')}">${esc(t1.name || 'T1')}</div>${_teamScoreBlock(t1, t1Parsed)}<div class="sc-t-ov">${_teamMeta(t1, showBalls)}</div></div>`;
+  h += `<div class="sc-t active${t1ScoreChanged ? ' sc-score-changed' : ''}"><div class="sc-t-badge">${t1Badge}</div><div class="sc-t-flag">${_flag(t1.name, t1.flag, t1.abbr)}</div><div class="sc-t-name" title="${esc(t1.name || 'T1')}">${esc(t1.name || 'T1')}</div>${_teamScoreBlock(t1, t1Parsed)}<div class="sc-t-ov">${_teamMeta(t1, showBalls)}</div></div>`;
 
   h += `<div class="sc-vs">${fmt ? `<span class="sc-format-badge">${esc(fmt)}</span>` : ''}VS</div>`;
 
   const t2ScoreChanged = _changed('teams.1.score');
   const t2Parsed = _parseScore(t2.score);
   const t2Badge = _isBlankScore(t2.score) ? 'Waiting' : _inningLabel(inning ? inning - 1 : null);
-  h += `<div class="sc-t${t2ScoreChanged ? ' sc-score-changed' : ''}"><div class="sc-t-badge">${t2Badge}</div><div class="sc-t-flag">${_flag(t2.abbr || t2.name, t2.flag)}</div><div class="sc-t-name" title="${esc(t2.name || 'T2')}">${esc(t2.name || 'T2')}</div>${_teamScoreBlock(t2, t2Parsed)}<div class="sc-t-ov">${_teamMeta(t2, showBalls)}</div></div>`;
+  h += `<div class="sc-t${t2ScoreChanged ? ' sc-score-changed' : ''}"><div class="sc-t-badge">${t2Badge}</div><div class="sc-t-flag">${_flag(t2.name, t2.flag, t2.abbr)}</div><div class="sc-t-name" title="${esc(t2.name || 'T2')}">${esc(t2.name || 'T2')}</div>${_teamScoreBlock(t2, t2Parsed)}<div class="sc-t-ov">${_teamMeta(t2, showBalls)}</div></div>`;
   h += '</div>';
 
   if (bm.length) {

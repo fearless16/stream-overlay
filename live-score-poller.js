@@ -15,8 +15,6 @@ try {
 
 function _cbFlag(abbr, fullName) {
   if (!_cbTeamImages) return null;
-  const key = (abbr || '').toLowerCase().trim();
-  if (_cbTeamImages.byAbbr[key]) return _cbTeamImages.byAbbr[key];
   const name = (fullName || abbr || '').toLowerCase().trim();
   if (_cbTeamImages.byName[name]) return _cbTeamImages.byName[name];
   // try hyphenated form (if spaces present)
@@ -25,6 +23,10 @@ function _cbFlag(abbr, fullName) {
   // try stripping common suffixes
   const noSuff = name.replace(/\s+(women|men|u19|u23|a|xi|legends)$/i, '').trim();
   if (noSuff !== name && _cbTeamImages.byName[noSuff]) return _cbTeamImages.byName[noSuff];
+  // Abbreviations are fallback-only: DD is ambiguous across competitions,
+  // while the full provider team name identifies Dindigul Dragons correctly.
+  const key = (abbr || '').toLowerCase().trim();
+  if (_cbTeamImages.byAbbr[key]) return _cbTeamImages.byAbbr[key];
   return null;
 }
 
@@ -314,7 +316,13 @@ function extractCrexApiData(html, url) {
     return null;
   };
 
+  const metadataTitles = [...html.matchAll(/"(?:headline|name|description)"\s*:\s*"([^"]+)"/gi)].map(m => m[1]);
+  const formatMetadata = metadataTitles.find(t => /\bt20i?\b|twenty20|t-?20|\bodi\b|one[- ]?day|50[- ]?over|\btest\b|the[- ]?hundred/i.test(t));
+  const sourceTitle = formatMetadata || metadataTitles[0] || '';
   const out = {
+    // Crex's JSON-LD headline is often the only reliable format marker. The
+    // visible <title> may omit T20/ODI, while a later metadata field says it.
+    sourceTitle,
     score1: get('score1'),
     over1: get('over1'),
     score2: get('score2'),
@@ -974,10 +982,24 @@ function parseCFLL(title, url) {
  */
 function cleanStatus(raw, batTeamAbbr, oppTeamAbbr) {
   if (!raw) return '';
+  // Crex uses custom escapes (&s;, &l;, &g;) around inline HTML in comment1.
+  // Decode those markers, remove provider markup, then normalize whitespace so
+  // the overlay receives display text rather than escaped HTML.
+  let s = String(raw)
+    .replace(/&s;/gi, "'")
+    .replace(/&q;/gi, '"')
+    .replace(/&l;/gi, '<')
+    .replace(/&g;/gi, '>')
+    .replace(/&a;/gi, '&')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
   // Reject anything that names a team that isn't either of our two
   // participating teams, unless it's a generic "X won by Y".
   // First pass: shorten "Day N: Stumps - X trail/lead by Y runs" → "Day N: Stumps"
-  let s = raw.replace(/\s+[—-]\s+[A-Z][\w\s]+?\s+(trail|lead)s?\s+by\s+\d+\s+runs?\s*$/i, '').trim();
+  s = s.replace(/\s+[—-]\s+[A-Z][\w\s]+?\s+(trail|lead)s?\s+by\s+\d+\s+runs?\s*$/i, '').trim();
   // Also strip "X won by N runs/wkts" appendages if they don't match our teams
   s = s.replace(/\s+[A-Z][\w\s]+?\s+won\s+by\s+\d+\s+(runs?|wkts?|wickets?)\s*$/i, '').trim();
   return s;
@@ -990,8 +1012,19 @@ function cleanStatus(raw, batTeamAbbr, oppTeamAbbr) {
 /**
  * Take a Crex-API dump and build the final scorecard payload.
  */
-function buildFromCrex(api, url) {
-  const fmt = detectFormat(url) || 'Test';
+function resolveCrexFormat(api, url, title = '') {
+  const hints = [url, title, api?.sourceTitle].filter(Boolean).join(' ');
+  const detected = detectFormat(hints);
+  if (detected) return detected;
+  // Exact balls are a provider-level invariant for The Hundred.
+  if (api?.hballs1 || api?.hballs2 || api?.bBalls) return 'HUN';
+  // Unknown is intentionally left unknown; silently treating it as Test
+  // changes innings, rate, and target semantics with no evidence.
+  return null;
+}
+
+function buildFromCrex(api, url, title = '') {
+  const fmt = resolveCrexFormat(api, url, title);
   const cfg = getFormatConfig(fmt);
   const team1 = api.team1;          // currently batting (abbreviation)
   const team2 = api.team2;          // other side
@@ -1114,12 +1147,11 @@ function buildFromCrex(api, url) {
   // Bowl", "NZ trail by 79 runs", ...). The B/session fields are numeric IDs
   // or overloaded placeholders ("0", "Over", "Spin Bowler") — never shown.
   let leadTrail = '';
-  let status = api.comment1 || '';
+  let status = cleanStatus(api.comment1 || '', batAbbr, oppAbbr);
   if (status) {
     const m = status.match(/·?([A-Z][\w\s]+?)\s+(trail|lead)s?\s+by\s+(\d+)\s+runs?/i);
     if (m) {
       leadTrail = `${m[1].trim()} ${m[2].toLowerCase()} by ${m[3]} runs`;
-      status = cleanStatus(status, batAbbr, oppAbbr);
     }
   }
   // Crex pads comment1 with placeholder tokens when there's no live status
@@ -1189,9 +1221,13 @@ function buildFromCrex(api, url) {
     result.rateMax = cfg.rateMax;
   }
   if (api.inning) result.inning = parseInt(api.inning, 10);
-  if (api.day) result.day = api.day;
-  if (api.session && api.session !== '--') result.session = api.session;
-  if (api.session2 && api.session2 !== '--') result.session2 = api.session2;
+  // Crex sends numeric session placeholders for limited-overs matches too;
+  // only Test format may expose day/session context to the overlay.
+  if (fmt === 'Test') {
+    if (api.day) result.day = api.day;
+    if (api.session && api.session !== '--') result.session = api.session;
+    if (api.session2 && api.session2 !== '--') result.session2 = api.session2;
+  }
   return result;
 }
 
@@ -1428,7 +1464,7 @@ function matchDismissalMode(prose) {
 function tryParse(html, url, title = extractTitle(html || '')) {
   if (url.includes('crex.com')) {
     const api = extractCrexApiData(html, url);
-    if (api) return buildFromCrex(api, url);
+    if (api) return buildFromCrex(api, url, title);
   }
   if (url.includes('cricbuzz.com')) {
     const cb = parseCricbuzz(html, url);

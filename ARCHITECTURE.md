@@ -24,8 +24,11 @@ provides the chat WebSocket bridge and static overlay server.
   balls-to-chase value.
 
 Format-specific rules live in the `FORMATS` table in
-`live-score-poller.js`. The overlay consumes stamped hints (`showBalls`,
-`rateMetric`, `rateMax`) and only has legacy fallbacks for older payloads.
+`live-score-poller.js`. Crex format resolution checks the URL plus page
+metadata/headline; it must never silently default an unknown match to Test.
+The overlay consumes stamped hints (`showBalls`, `rateMetric`, `rateMax`) and
+only has legacy fallbacks for older payloads. Test-only day/session fields are
+emitted only when the resolved format is `Test`.
 
 ## Chat interaction contract
 

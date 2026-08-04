@@ -350,6 +350,37 @@ test('T20: buildFromCricbuzz still carries CRR/RRR', () => {
   assert.ok(!built.rpb, 'T20 must not report RPB');
 });
 
+test('Crex: T20 format comes from the page title when URL omits t20', () => {
+  const api = {
+    team1: 'DD', team1Full: 'Dindigul Dragons', team2: 'ITT', team2Full: 'IDream Tiruppur Tamizhans',
+    score1: '2-0', over1: '1.0', score2: '107-10', over2: '15.4', inning: '2',
+    crr: '2.00', rrr: '5.58', target: '108', session: '42', session2: '43', comment1: 'DD need <b style=&s;font-family: $font-DM;&s;>106 runs </b> in <b>114 balls </b>'
+  };
+  const url = 'https://crex.com/cricket-live-score/dd-vs-itt-1st-match-tamil-nadu-premier-league-2026-match-updates-12YV';
+  const built = poller.buildFromCrex(api, url, 'DD 2-0 (1.0) vs IDream Tiruppur Tamizhans 107-10 1st T20, Tamil Nadu Premier League 2026');
+  assert.strictEqual(built.format, 'T20', 'title metadata must win over the unsafe Test fallback');
+  assert.strictEqual(built.rateMax, 12, 'T20 rate ceiling must be stamped');
+  assert.strictEqual(built.showBalls, false, 'T20 uses overs');
+  assert.ok(!built.session && !built.session2, 'T20 must not expose Test sessions');
+  assert.ok(built.teams[0].flag?.includes('dindigul-dragons.jpg'), 'full team name must beat ambiguous DD abbreviation');
+});
+
+test('Crex: cleanStatus removes provider markup without losing chase text', () => {
+  const raw = "DD need <b style=&s;font-family: $font-DM; color: #cecece;&s;>106 runs </b> in <b>114 balls </b>";
+  assert.strictEqual(poller.cleanStatus(raw, 'DD', 'ITT'), 'DD need 106 runs in 114 balls');
+});
+
+test('Crex: chase status is sanitized in the final payload too', () => {
+  const api = {
+    team1: 'DD', team1Full: 'Dindigul Dragons', team2: 'ITT', team2Full: 'IDream Tiruppur Tamizhans',
+    score1: '2-0', over1: '1.0', score2: '107-10', over2: '15.4', inning: '2', target: '108',
+    session: '42', session2: '43', comment1: 'DD need <b style=&s;font-family: $font-DM;&s;>106 runs </b> in <b>114 balls </b>'
+  };
+  const built = poller.buildFromCrex(api, 'https://crex.com/cricket-live-score/dd-vs-itt-1st-match-tamil-nadu-premier-league-2026-match-updates-12YV', 'DD T20');
+  assert.strictEqual(built.status, 'DD need 106 runs in 114 balls');
+  assert.ok(!built.session && !built.session2, 'T20 must not expose provider session placeholders');
+});
+
 test('CRITICAL: isPlausibleScore accepts 0/1 early-collapse and 0/0 scores', () => {
   assert.ok(poller.isPlausibleScore('0/1', '0.1', 'Test'), '0/1 after a wicket off the first ball is a REAL score (Test)');
   assert.ok(poller.isPlausibleScore('0/0', '0.0', 'T20'), '0/0 before the first ball is a real score');

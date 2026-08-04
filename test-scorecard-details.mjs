@@ -283,6 +283,21 @@ async function run() {
     pass('franchise flags render as emoji');
   } catch (e) { fail('franchise flags', e.message); }
 
+  // ====== FULL TEAM NAME MUST BEAT AMBIGUOUS ABBREVIATION ======
+  try {
+    await resetScorecard();
+    await callUpdate({
+      format: 'T20',
+      teams: [
+        { name: 'Dindigul Dragons', abbr: 'DD', score: '2/0', overs: '1.0' },
+        { name: 'IDream Tiruppur Tamizhans', abbr: 'ITT', score: '107/10', overs: '15.4' }
+      ]
+    });
+    const srcs = await page.evaluate(() => [...document.querySelectorAll('.sc-t-flag img')].map(img => img.getAttribute('src')));
+    assert.ok(srcs[0]?.includes('dindigul-dragons.jpg'), `DD must use Dindigul Dragons logo, got ${srcs[0]}`);
+    pass('full team name resolves ambiguous DD logo');
+  } catch (e) { fail('full team name resolves ambiguous DD logo', e.message); }
+
   // ====== SUMMARY ======
   const passed = results.filter(r => r.ok).length;
   const failed = results.filter(r => !r.ok).length;
