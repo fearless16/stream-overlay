@@ -32,6 +32,14 @@ Set in `.env` (`MODE=mock` or `MODE=real`). Switch any time with option `3` in t
 - **mock** — fake chat messages on a timer. No YouTube account required. Good for testing the overlay.
 - **real** — polls the YouTube live chat via the Data API v3 (`YOUTUBE_API_KEY`) and broadcasts to the overlay.
 
+## One-command local test
+
+Run `npm run local-test`. It starts the opt-in fake feed on port 8770, points a
+headless browser at the overlay with that WebSocket URL, verifies score and
+chat delivery, runs parser and browser contract tests, and stops only the
+process it started. It does not touch YouTube, OBS, `.env`, or the real server
+ports.
+
 ## Real-mode setup
 
 1. Get a YouTube Data API v3 key: https://console.cloud.google.com/apis/credentials

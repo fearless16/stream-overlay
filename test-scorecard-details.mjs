@@ -8,7 +8,9 @@ async function run() {
   const browser = await chromium.launch({ headless: true });
   const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
   const page = await ctx.newPage();
-  await page.goto(HTML_PATH, { waitUntil: 'networkidle', timeout: 15000 });
+  // The overlay is self-contained; waiting for remote team/avatar assets to
+  // become idle makes the local suite slow and flaky when the network is off.
+  await page.goto(HTML_PATH, { waitUntil: 'domcontentloaded', timeout: 15000 });
 
   const results = [];
   function pass(name) { results.push({ name, ok: true }); console.log('PASS:', name); }
