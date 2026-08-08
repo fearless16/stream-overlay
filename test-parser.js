@@ -541,4 +541,151 @@ window.__INITIAL_STATE__={"seriesInfo":{"inningsScoreList":[{\\"inningsId\\":1,\
   assert.ok(names.includes('Sri Lanka U19'), `second team survives, got: ${JSON.stringify(names)}`);
 });
 
+// ── Crex snapshot coherence: the getSV3 blob fuses separately-cached upstream
+// payloads (top-level score/players vs the getBallFeeds array), so the three
+// data groups (team score, ball feed, batter/bowler stats) can disagree within
+// one page. The poller must never broadcast such a torn snapshot.
+
+const CREX_FIXTURE = path.join(__dirname, '_crex-live-current.html');
+const CREX_URL = 'https://crex.com/cricket-live-score/ind-vs-sl-x';
+
+function crexApiFixture() {
+  const html = fs.readFileSync(CREX_FIXTURE, 'utf8');
+  return poller.extractCrexApiData(html, CREX_URL);
+}
+
+test('crexScoreCoherent: feed and top-level score agree in the fixture', () => {
+  assert.ok(poller.crexScoreCoherent, 'crexScoreCoherent helper should be exported');
+  const api = crexApiFixture();
+  assert.deepStrictEqual(poller.crexScoreCoherent(api), { ok: true });
+});
+
+test('crexScoreCoherent: rejects when the ball feed is ahead of the team score', () => {
+  const api = crexApiFixture();
+  api.score1 = '81-5'; // feed's newest ball already shows 83/5
+  const r = poller.crexScoreCoherent(api);
+  assert.strictEqual(r.ok, false);
+  assert.match(r.reason, /83\/5/);
+});
+
+test('crexScoreCoherent: rejects when the team score regressed vs the feed', () => {
+  const api = crexApiFixture();
+  api.score1 = '85-5'; // log evidence: provider regressed 245/5 → 243/5
+  assert.strictEqual(poller.crexScoreCoherent(api).ok, false);
+});
+
+test('crexScoreCoherent: passes when there is no ball feed (fallback path)', () => {
+  const api = crexApiFixture();
+  api.ballFeeds = [];
+  assert.deepStrictEqual(poller.crexScoreCoherent(api), { ok: true });
+});
+
+test('buildFromCrex: marks a torn snapshot with _hold instead of emitting it', () => {
+  const api = crexApiFixture();
+  api.score1 = '81-5';
+  const built = poller.buildFromCrex(api, CREX_URL);
+  assert.ok(built, 'still builds a payload (so the source stays preferred)');
+  assert.strictEqual(built._hold, true, 'torn snapshot must be held back');
+});
+
+test('buildFromCrex: coherent snapshot is not held', () => {
+  const api = crexApiFixture();
+  const built = poller.buildFromCrex(api, CREX_URL);
+  assert.ok(built);
+  assert.ok(!built._hold, 'coherent snapshot must broadcast');
+});
+
+test('Crex players: missing player data on the SAME delivery reuses the last set', () => {
+  poller._resetCrexPlayers();
+  const api = crexApiFixture();
+  const built1 = poller.buildFromCrex({ ...api }, CREX_URL);
+  assert.ok(built1.batsmen && built1.batsmen.length === 2, 'baseline payload carries players');
+  const apiNoPlayers = { ...api, playerFull1: null, playerFull2: null, run1: null, run2: null, ball1: null, ball2: null, bname: null, bowlerFull: null, bwr: null, bover: null };
+  const built2 = poller.buildFromCrex(apiNoPlayers, CREX_URL);
+  assert.ok(!built2._hold, 'same-delivery omission is not torn');
+  assert.strictEqual(built2.batsmen.length, 2, 'reuses the last coherent player set');
+});
+
+test('Crex players: delivery advanced but player data missing → _hold', () => {
+  poller._resetCrexPlayers();
+  const api = crexApiFixture();
+  poller.buildFromCrex({ ...api }, CREX_URL);
+  const apiNoPlayers = { ...api, playerFull1: null, playerFull2: null, run1: null, run2: null, ball1: null, ball2: null, bname: null, bowlerFull: null, bwr: null, bover: null, lastBallSeq: api.lastBallSeq + 1 };
+  const built = poller.buildFromCrex(apiNoPlayers, CREX_URL);
+  assert.strictEqual(built._hold, true, 'new delivery with stale/missing players must hold');
+});
+
+test('Crex players: seq is derived from the feed del when lastBallSeq is missing', () => {
+  poller._resetCrexPlayers();
+  const api = crexApiFixture();
+  delete api.lastBallSeq; // feed hiccup: top-level marker gone, feed still there
+  const built1 = poller.buildFromCrex({ ...api }, CREX_URL);
+  assert.ok(built1 && !built1._hold, 'coherent snapshot with feed-derived seq broadcasts');
+  const apiNoPlayers = { ...api, playerFull1: null, playerFull2: null, run1: null, run2: null, ball1: null, ball2: null, bname: null, bowlerFull: null, bwr: null, bover: null };
+  const built2 = poller.buildFromCrex(apiNoPlayers, CREX_URL);
+  assert.ok(!built2._hold, 'same feed-derived delivery reuses the stored set');
+  assert.strictEqual(built2.batsmen.length, 2, 'reuses the last coherent player set');
+});
+
+test('Crex players: unprovable delivery identity (missing seq) holds instead of gluing', () => {
+  poller._resetCrexPlayers();
+  const api = crexApiFixture();
+  poller.buildFromCrex({ ...api }, CREX_URL);
+  // New payload has no delivery marker on either the top level OR the feed,
+  // and no players. Identity cannot be proven → gluing stale players onto a
+  // possibly-advanced ball would re-create the sync bug → hold.
+  const apiNoPlayers = { ...api, lastBallSeq: null, ballFeeds: [], playerFull1: null, playerFull2: null, run1: null, run2: null, ball1: null, ball2: null, bname: null, bowlerFull: null, bwr: null, bover: null };
+  const built = poller.buildFromCrex(apiNoPlayers, CREX_URL);
+  assert.strictEqual(built._hold, true, 'cannot prove same delivery → never glue stale players');
+});
+
+test('Crex players: no stored set + missing players on a new delivery → _hold', () => {
+  poller._resetCrexPlayers();
+  const api = crexApiFixture();
+  // Poller restarted mid-innings: the stored player set is gone, and Crex
+  // lags the player fields for a poll or two (DRS review / innings break).
+  // Broadcasting this empty-player payload would make the overlay glue its
+  // stale figures onto a fresh score → must hold, never broadcast.
+  const apiNoPlayers = { ...api, lastBallSeq: api.lastBallSeq + 1, playerFull1: null, playerFull2: null, run1: null, run2: null, ball1: null, ball2: null, bname: null, bowlerFull: null, bwr: null, bover: null };
+  const built = poller.buildFromCrex(apiNoPlayers, CREX_URL);
+  assert.strictEqual(built._hold, true, 'missing players with no stored set must hold');
+});
+
+test('Crex players: a torn poll must not poison the stored set', () => {
+  poller._resetCrexPlayers();
+  const api = crexApiFixture();
+  poller.buildFromCrex({ ...api }, CREX_URL); // stores the coherent seq-79 set
+  // Poll A: feed advanced to 80, top-level score lags (torn 81-5), but the
+  // top-level player fields are still present — they lag the feed just like
+  // score1 does. Held for this poll, yet the store is overwritten below.
+  const tornWithPlayers = { ...api, lastBallSeq: api.lastBallSeq + 1, score1: '81-5' };
+  const a = poller.buildFromCrex(tornWithPlayers, CREX_URL);
+  assert.strictEqual(a._hold, true, 'torn page must hold');
+  // Poll B: same feed seq 80, score coherent again (83/5), but player fields
+  // now dropped. Reusing the set poisoned by Poll A would glue delivery-79
+  // figures onto a fresh 83/5 score → must hold, never broadcast.
+  const coherentNoPlayers = { ...api, lastBallSeq: api.lastBallSeq + 1, playerFull1: null, playerFull2: null, run1: null, run2: null, ball1: null, ball2: null, bname: null, bowlerFull: null, bwr: null, bover: null };
+  const b = poller.buildFromCrex(coherentNoPlayers, CREX_URL);
+  assert.strictEqual(b._hold, true, 'must not glue players taken from a torn poll');
+});
+
+test('Crex players: a PARTIAL set (single batter) does not overwrite the stored pair', () => {
+  poller._resetCrexPlayers();
+  const api = crexApiFixture();
+  poller.buildFromCrex({ ...api }, CREX_URL);
+  const partial = { ...api, playerFull2: null, run2: null, ball2: null };
+  const built1 = poller.buildFromCrex(partial, CREX_URL);
+  assert.ok(!built1._hold, 'same-delivery partial set is not torn');
+  assert.strictEqual(built1.batsmen.length, 2, 'partial set did not drop the stored batter');
+  const apiNoPlayers = { ...api, lastBallSeq: api.lastBallSeq + 1, playerFull1: null, playerFull2: null, run1: null, run2: null, ball1: null, ball2: null, bname: null, bowlerFull: null, bwr: null, bover: null };
+  const built2 = poller.buildFromCrex(apiNoPlayers, CREX_URL);
+  assert.strictEqual(built2._hold, true, 'advanced delivery + incomplete set must hold');
+});
+
+test('_shouldBroadcast: held snapshots never broadcast, everything else does', () => {
+  assert.strictEqual(poller._shouldBroadcast({ _hold: true, teams: [] }), false);
+  assert.strictEqual(poller._shouldBroadcast({ teams: [] }), true);
+  assert.strictEqual(poller._shouldBroadcast(null), true);
+});
+
 console.log(`\n${passed} passed, ${failed} failed`);

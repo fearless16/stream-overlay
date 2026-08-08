@@ -36,13 +36,23 @@ let ws = null;
 let lastData = '';
 let consecutiveFailures = 0;
 let sourceLabel = '';
+let consecutiveHolds = 0;
 
 // Per-URL state. The poller fans out across all configured URLs and
 // maintains cricket-aware state for each match separately. lastMatchKey
 // detects match switches.
 const matchState = {
   lastMatchKey: null,
+  // Last coherent Crex player set (batsmen + bowler) per delivery. Crex's
+  // getSV3 blob fuses separately-cached upstream payloads, so the top-level
+  // player fields can lag the fresh ball feed. Reused only on the same
+  // delivery; a delivery advance without player data holds the snapshot.
+  crexPlayers: null,
 };
+
+function _resetCrexPlayers() {
+  matchState.crexPlayers = null;
+}
 
 function buildUrlChain(inputUrl) {
   if (!inputUrl || !inputUrl.trim()) return [];
@@ -1055,6 +1065,25 @@ function resolveCrexFormat(api, url, title = '') {
   return null;
 }
 
+/**
+ * Coherence gate for the getSV3 blob. The page fuses separately-cached
+ * upstream payloads, so the top-level team score can lag (or even regress —
+ * observed 245/5 → 243/5) versus the fresh getBallFeeds array. The newest
+ * feed entry carries the score after its ball; when that disagrees with
+ * score1, the page is a torn snapshot and must not be broadcast.
+ */
+function crexScoreCoherent(api) {
+  const feeds = Array.isArray(api?.ballFeeds) ? api.ballFeeds : null;
+  if (!feeds || feeds.length === 0) return { ok: true };
+  const latest = feeds[feeds.length - 1];
+  if (!latest || !latest.s) return { ok: true };
+  const feedScore = normalizeScore(latest.s);
+  const topScore = normalizeScore(api.score1 || '');
+  if (!feedScore || !topScore) return { ok: true };
+  if (feedScore === topScore) return { ok: true };
+  return { ok: false, reason: `ball feed ${feedScore} vs top-level ${topScore}` };
+}
+
 function buildFromCrex(api, url, title = '') {
   const fmt = resolveCrexFormat(api, url, title);
   const cfg = getFormatConfig(fmt);
@@ -1098,6 +1127,7 @@ function buildFromCrex(api, url, title = '') {
     if (!matchState.lastMatchKey.startsWith(`${oppAbbr}-${batAbbr}`)) {
       console.log(`[Poll] Crex: new match detected (${matchState.lastMatchKey} → ${matchKey})`);
     }
+    matchState.crexPlayers = null;
   }
   matchState.lastMatchKey = matchKey;
 
@@ -1118,7 +1148,7 @@ function buildFromCrex(api, url, title = '') {
   }
 
   // Batsmen
-  const batsmen = [];
+  let batsmen = [];
   // The `os1`/`os2` fields encode who is on strike: 1 = on strike, 0 = off.
   // Fall back to the `strikker1`/`strikker2` boolean if present, then to
   // the `*` marker in pname1/pname2.
@@ -1214,6 +1244,54 @@ function buildFromCrex(api, url, title = '') {
     }
   }
 
+  // Player-stat coherence: Crex's top-level player fields can lag the fresh
+  // ball feed (a DRS review or innings break drops them for a poll or two).
+  // Reuse the last coherent set on the SAME delivery; hold the snapshot when
+  // a new delivery arrived but the players didn't — otherwise the overlay
+  // would render a fresh team score glued to stale batter/bowler figures.
+  let playerHold = false;
+  let holdReason = '';
+  const scoreCoherent = crexScoreCoherent(api);
+  if (!scoreCoherent.ok) {
+    playerHold = true;
+    holdReason = scoreCoherent.reason || 'score mismatch';
+  }
+  const seq = api.lastBallSeq != null
+    ? api.lastBallSeq
+    : (Array.isArray(api.ballFeeds) && api.ballFeeds.length > 0 && api.ballFeeds[api.ballFeeds.length - 1].del != null
+        ? api.ballFeeds[api.ballFeeds.length - 1].del
+        : null);
+  // Only a COMPLETE set (both current batters + the bowler) may replace the
+  // stored coherent set; a partial set is indistinguishable from a lagging
+  // payload and must not overwrite a good one.
+  const playersPresent = batsmen.length >= 2 && bowler != null;
+  if (playersPresent && !playerHold) {
+    // Only a COHERENT poll may update the stored set. A torn (score-mismatched)
+    // page has top-level player fields that lag the feed just like score1 does;
+    // stamping those with the feed's seq would let the next poll reuse stale
+    // figures and glue them onto a fresh score. Never poison the store.
+    matchState.crexPlayers = { seq, batsmen: batsmen.slice(0, 2), bowler };
+  } else if (matchState.crexPlayers) {
+    // Reuse only when we can PROVE it is the same delivery. When either side
+    // has no delivery marker we cannot prove identity, and gluing stale
+    // players onto an advanced ball re-creates the sync bug — hold instead.
+    const storedSeq = matchState.crexPlayers.seq;
+    const sameDelivery = storedSeq != null && seq != null && Number(seq) === Number(storedSeq);
+    if (sameDelivery) {
+      batsmen = matchState.crexPlayers.batsmen.slice();
+      bowler = matchState.crexPlayers.bowler;
+    } else {
+      playerHold = true;
+    }
+  } else {
+    // No stored set (fresh process / match change) AND player data is
+    // incomplete. Identity is unprovable, and broadcasting this empty-player
+    // payload would let the overlay glue its stale figures onto a fresh score
+    // after a poller restart — hold until a complete set arrives.
+    playerHold = true;
+    holdReason = holdReason || 'missing player data (no stored set)';
+  }
+
   // Result construction
   const result = {
     teams: [batTeam, oppTeam],
@@ -1221,6 +1299,10 @@ function buildFromCrex(api, url, title = '') {
     status: status || '',
   };
   if (bowler) result.bowler = bowler;
+  if (playerHold) {
+    result._hold = true;
+    result._holdReason = holdReason;
+  }
   // The Hundred has no run rate — its official scoring metric is RPB (runs
   // per ball), so it replaces CRR/RRR on every display. Other formats keep
   // CRR (and RRR when a chase target is live).
@@ -1535,6 +1617,11 @@ let preferredUrl = URLS[0];
 let preferredFailures = 0;
 const SOURCE_SWITCH_THRESHOLD = 2;
 
+// A held (torn) Crex snapshot must never be broadcast to the overlay.
+function _shouldBroadcast(data) {
+  return !(data && data._hold);
+}
+
 async function poll() {
   // Try every URL in order; use the first one that yields a plausible result.
   // The previously-winning URL is tried first, and only after two consecutive
@@ -1551,6 +1638,17 @@ async function poll() {
       const title = extractTitle(html);
       const parsed = tryParse(html, url, title);
       if (parsed && parsed.teams && parsed.teams.length >= 2) {
+        if (parsed._hold) {
+          // Torn Crex snapshot (feed vs top-level score disagree, or a new
+          // delivery arrived without player stats). Not a usable winner:
+          // skip this source so a healthy fallback gets its turn, and count
+          // the hold so a permanently-torn source escalates like a failure.
+          consecutiveHolds++;
+          if (consecutiveHolds === 1 || consecutiveHolds % 10 === 0) {
+            console.warn(`[Poll] ${label}: holding torn snapshot (${consecutiveHolds} consecutive) ${parsed._holdReason ? '- ' + parsed._holdReason : ''}`);
+          }
+          continue;
+        }
         data = parsed;
         winnerLabel = label;
         winnerUrl = url;
@@ -1570,6 +1668,7 @@ async function poll() {
   }
 
   consecutiveFailures = 0;
+  consecutiveHolds = 0;
   sourceLabel = winnerLabel;
 
   if (winnerUrl === preferredUrl) {
@@ -1584,6 +1683,16 @@ async function poll() {
   }
 
   const dataStr = JSON.stringify(data);
+  if (!_shouldBroadcast(data)) {
+    // A held (torn) snapshot is never broadcast and must not move lastData,
+    // so the next coherent snapshot is still delivered to the overlay.
+    consecutiveHolds++;
+    if (consecutiveHolds === 1 || consecutiveHolds % 10 === 0) {
+      console.warn(`[Poll] holding torn snapshot (${consecutiveHolds} consecutive)`);
+    }
+    setTimeout(poll, getBackoff());
+    return;
+  }
   if (dataStr !== lastData && ws && ws.readyState === WebSocket.OPEN) {
     lastData = dataStr;
     try {
@@ -1607,11 +1716,14 @@ async function poll() {
 }
 
 module.exports = {
+  _resetCrexPlayers,
+  _shouldBroadcast,
   buildFromCFLL,
   buildFromCrex,
   buildFromCricbuzz,
   buildUrlChain,
   cleanStatus,
+  crexScoreCoherent,
   currentOverFromCommentary,
   currentOverFromCrexFeeds,
   currentOverFromLastOvers,

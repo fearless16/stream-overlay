@@ -2434,7 +2434,11 @@ function _detectEvents(prev, curr) {
     if (prevNames !== currNames && prev.batsmen.length > 0 && curr.batsmen.length > 0) events.wicket = true;
   }
   if (events.wicket) {
-    const lw = curr.lastWicket != null ? curr.lastWicket : (prev ? prev.lastWicket : null);
+    // Only the CURRENT payload's how-out text may type this wicket. Falling
+    // back to prev.lastWicket would type a fresh dismissal with the PREVIOUS
+    // wicket's mode (how-out text lags the W-ball by 1-2 polls by design) and
+    // fire the wrong animation before the real text arrives.
+    const lw = curr.lastWicket != null ? curr.lastWicket : null;
     events.wicketType = _detectWicketType(lw);
     events.duck = _detectDuck(curr);
   }
@@ -2447,7 +2451,20 @@ function _detectEvents(prev, curr) {
 // "wicket" again, which used to re-fire the full animation 2-3 times. This
 // tracks the last wicket we animated and suppresses the repeat echoes.
 const WICKET_ANIM_COOLDOWN = 20000;
-let _wicketFire = { team: '', count: -1, at: 0 };
+let _wicketFire = { team: '', count: -1, at: 0, lw: '', seq: null, source: '' };
+
+// A wicket's how-out text (Crex lastWicket) lags the 'W' ball by 1-2 polls,
+// so firing the instant the count bumps shows a neutral "WICKET!" and the
+// cooldown then swallows the typed correction (CAUGHT!/LBW!/…). Instead,
+// when the type is unknown at detection time, park the animation in a grace
+// window and let the late how-out text upgrade it to the typed burst. The
+// window must cover at least 2 poll cycles (default SCORE_POLL_INTERVAL is
+// 6000ms) or the typed text still arrives after the neutral fired.
+let WICKET_TYPE_GRACE_MS = 12000;
+let _pendingWicket = null;
+
+// Test/instrumentation surface only — counts every _triggerCricketAnim call.
+let __animFireCount = 0;
 
 function _shouldFireWicketAnim(merged, prev) {
   const team = ((merged.teams?.[0]?.abbr) || (merged.teams?.[0]?.name) || '').trim();
@@ -2464,7 +2481,7 @@ function _shouldFireWicketAnim(merged, prev) {
   if (f.team === '' && f.count === -1) {
     const prevCount = prev ? _countWickets(prev) : -1;
     const bumped = prevCount >= 0 && total > prevCount;
-    _wicketFire = { team, count: total, at: now, lw, source: merged.source };
+    _wicketFire = { team, count: total, at: now, lw, seq: merged.lastBallSeq, source: merged.source };
     return bumped;
   }
 
@@ -2474,20 +2491,20 @@ function _shouldFireWicketAnim(merged, prev) {
   // silently so it can't re-fire. Only an unambiguous score-count rise fires.
   if (f.team !== team) {
     const realWicket = total > f.count;
-    _wicketFire = { team, count: total, at: now, lw, source: merged.source };
+    _wicketFire = { team, count: total, at: now, lw, seq: merged.lastBallSeq, source: merged.source };
     return realWicket;
   }
 
   // A count drop means a new innings started — never fire for that.
   if (total < f.count - 2) {
-    _wicketFire = { team, count: total, at: now, lw, source: merged.source };
+    _wicketFire = { team, count: total, at: now, lw, seq: merged.lastBallSeq, source: merged.source };
     return false;
   }
 
   // Count strictly rose since the last fire → an unambiguous new wicket.
   // This also covers back-to-back wickets inside the cooldown window.
   if (total > f.count) {
-    _wicketFire = { team, count: total, at: now, lw, source: merged.source };
+    _wicketFire = { team, count: total, at: now, lw, seq: merged.lastBallSeq, source: merged.source };
     return true;
   }
 
@@ -2498,14 +2515,87 @@ function _shouldFireWicketAnim(merged, prev) {
   }
 
   // Same count but older than the cooldown: a W-ball here is a new wicket
-  // whose score is lagging the commentary — BUT only when the last-wicket
-  // string actually changed. A persistent stale W (Crex marks a ball W that
-  // isn't a dismissal yet, or echoes an old one) must stay quiet forever.
-  if (lw && lw !== f.lw) {
-    _wicketFire = { team, count: total + 1, at: now, lw, source: merged.source };
+  // whose score is lagging the commentary — BUT only when the how-out text
+  // changed AND the ball is not provably the same one we already animated.
+  // A persistent stale W (Crex marks a ball W that isn't a dismissal yet, or
+  // echoes an old one) must stay quiet, and the same ball with a late-arriving
+  // how-out text must not re-fire once the type already animated via the grace
+  // window. When the seq is absent/stale on either side (Cricbuzz/CFLL Test
+  // path), we cannot prove identity, so a changed how-out text is allowed to
+  // fire — otherwise genuine wickets there would be silently swallowed.
+  const sameSeqProven = f.seq != null && merged.lastBallSeq != null && Number(merged.lastBallSeq) === Number(f.seq);
+  if (lw && lw !== f.lw && !sameSeqProven) {
+    _wicketFire = { team, count: total + 1, at: now, lw, seq: merged.lastBallSeq, source: merged.source };
     return true;
   }
   return false;
+}
+
+function _teamAbbrOf(score) {
+  return ((score?.teams?.[0]?.abbr) || (score?.teams?.[0]?.name) || '').trim();
+}
+
+// Check the dismissal type before animating a wicket. When the how-out text
+// is already known (or a duck is detectable) fire the typed burst right away.
+// When it is unknown, defer: hold the animation in _pendingWicket until the
+// late lastWicket text lands (typed upgrade) or the grace window expires
+// (neutral "WICKET!"). Returns true whenever the update was wicket-handled,
+// so the caller skips the generic sc-update border flash.
+function _handleWicketAnim(card, merged, prev, events) {
+  const team = _teamAbbrOf(merged);
+  const total = _countWickets(merged);
+  const pending = _pendingWicket;
+
+  if (pending && pending.team === team && pending.count === total) {
+    // Same wicket, still waiting on its how-out text. Only the CURRENT
+    // payload's lastWicket may type it — a fallback to prev.lastWicket would
+    // be the PREVIOUS wicket's text and fire the wrong mode.
+    const lw = merged.lastWicket != null ? merged.lastWicket : null;
+    const wtype = _detectWicketType(lw);
+    const duck = _detectDuck(merged);
+    if (wtype || duck) {
+      clearTimeout(pending.timer);
+      _pendingWicket = null;
+      _triggerCricketAnim(card, duck ? 'duck' : wtype);
+    }
+    // Pending wicket owns the flash whether it fired or is still waiting —
+    // suppress the generic border flash for every poll until it resolves.
+    return true;
+  }
+  if (pending) {
+    clearTimeout(pending.timer);
+    if (pending.team === team && total > pending.count) {
+      // A second wicket landed before the first one's text resolved (e.g. a
+      // Test collapse). The pending one can't wait any longer — resolve it as
+      // neutral so a real dismissal is never silently dropped.
+      _triggerCricketAnim(card, 'wicket');
+    } else if (pending.team !== team) {
+      // The pending wicket's side is gone (all out / new innings). That
+      // dismissal DID happen — show it as neutral instead of dropping it.
+      _triggerCricketAnim(card, 'wicket');
+    }
+    _pendingWicket = null;
+  }
+
+  if (!events.wicket) return false;
+  if (!_shouldFireWicketAnim(merged, prev)) return false;
+
+  const type = events.duck ? 'duck' : events.wicketType;
+  if (type) {
+    _triggerCricketAnim(card, type);
+    return true;
+  }
+  _pendingWicket = {
+    team,
+    count: total,
+    timer: setTimeout(() => {
+      if (_pendingWicket) {
+        _pendingWicket = null;
+        _triggerCricketAnim(card, 'wicket');
+      }
+    }, WICKET_TYPE_GRACE_MS),
+  };
+  return true;
 }
 
 // One boundary = one animation. The same 4/6 ball can re-arrive across several
@@ -2518,12 +2608,14 @@ function _shouldFireWicketAnim(merged, prev) {
 const BOUNDARY_ANIM_COOLDOWN = 12000;
 let _lastBoundaryAnim = { key: '', type: '', at: 0 };
 
-function _shouldFireBoundaryAnim(type, currOver, seq, source) {
+function _shouldFireBoundaryAnim(type, currOver, seq) {
   const now = Date.now();
-  // Key on the whole currentOver + the ball's absolute seq + the source, so
-  // that a shrunken Crex feed window, a stale echo, or a source flip can never
-  // re-fire the same boundary a second time.
-  const key = JSON.stringify(currOver || []) + '|' + type + '|seq:' + (seq == null ? '' : seq) + '|src:' + (source || '');
+  // Key on the whole currentOver + the ball's absolute seq, so that a shrunken
+  // Crex feed window, a stale echo, or a source flip can never re-fire the same
+  // boundary a second time. Deliberately NOT source-suffixed: the same live
+  // boundary arriving via WS, localStorage, or a re-derived over must map to
+  // ONE key, or the cooldown can't match across channels and it fires twice.
+  const key = JSON.stringify(currOver || []) + '|' + type + '|seq:' + (seq == null ? '' : seq);
   const f = _lastBoundaryAnim;
   if (f.key === key && (now - f.at) < BOUNDARY_ANIM_COOLDOWN) return false;
   _lastBoundaryAnim = { key, type, at: now };
@@ -2706,10 +2798,11 @@ function _scSpawnEvent(eventType) {
 }
 
 function _triggerCricketAnim(card, eventType) {
+  __animFireCount++;
   const layer = $('sc-anim-layer');
   const cls = 'sc-cricket-' + eventType;
   if (_cricketAnimTimer) { clearTimeout(_cricketAnimTimer); _cricketAnimTimer = null; }
-  card.classList.remove('sc-flash-boundary', 'sc-flash-wicket', 'sc-shake',
+  card.classList.remove('sc-flash-boundary', 'sc-flash-wicket', 'sc-shake', 'sc-update',
     'sc-cricket-4', 'sc-cricket-6',
     'sc-cricket-bold', 'sc-cricket-caught',
     'sc-cricket-lbw', 'sc-cricket-runout',
@@ -3025,14 +3118,29 @@ function updateScore(data, source) {
   const merged = { ...data };
   if (source) merged.source = source;
   if (currentScore) {
-    const sameBattingSide = (currentScore.teams?.[0]?.abbr || currentScore.teams?.[0]?.name) === (merged.teams?.[0]?.abbr || merged.teams?.[0]?.name);
-    if (!merged.batsmen && currentScore.batsmen) merged.batsmen = currentScore.batsmen;
-    if (!merged.bowler && currentScore.bowler) merged.bowler = currentScore.bowler;
-    if (sameBattingSide && !merged.currentOver && currentScore.currentOver) merged.currentOver = currentScore.currentOver;
-    if (sameBattingSide && !merged.partnership && currentScore.partnership) merged.partnership = currentScore.partnership;
-    if (sameBattingSide && !merged.lastWicket && currentScore.lastWicket) merged.lastWicket = currentScore.lastWicket;
-    if (sameBattingSide && !merged.lastBallSeq && currentScore.lastBallSeq != null) merged.lastBallSeq = currentScore.lastBallSeq;
-    if (sameBattingSide && !merged.target && currentScore.target) merged.target = currentScore.target;
+    // A backfill may only bridge fields a provider transiently omitted on the
+    // SAME delivery. Delivery identity is the lastBallSeq (absolute ball
+    // number); when it is missing on either side we CANNOT prove identity, so
+    // no backfill happens — showing a partial scorecard is safer than gluing
+    // a fresh team score to stale batter/bowler/over/wicket state.
+    const seqA = currentScore.lastBallSeq;
+    const seqB = merged.lastBallSeq;
+    const sameDelivery = seqA != null && seqB != null && Number(seqA) === Number(seqB);
+    if (sameDelivery) {
+      if (!merged.batsmen && currentScore.batsmen) merged.batsmen = currentScore.batsmen;
+      if (!merged.bowler && currentScore.bowler) merged.bowler = currentScore.bowler;
+      if (!merged.currentOver && currentScore.currentOver) merged.currentOver = currentScore.currentOver;
+      if (!merged.partnership && currentScore.partnership) merged.partnership = currentScore.partnership;
+      if (!merged.lastWicket && currentScore.lastWicket &&
+          _countWickets(currentScore) === _countWickets(merged)) {
+        // lastWicket names ONE dismissal. Backfilling is only safe when no new
+        // wicket fell between the two states — otherwise the PREVIOUS wicket's
+        // how-out text would be typed onto a fresh dismissal (and a frozen
+        // ballNbr on Test/Cricbuzz can't prove the delivery changed either).
+        merged.lastWicket = currentScore.lastWicket;
+      }
+      if (!merged.target && currentScore.target) merged.target = currentScore.target;
+    }
   }
 
   const prev = currentScore;
@@ -3234,11 +3342,25 @@ function updateScore(data, source) {
     }
   }
 
-  if (events.wicket && _shouldFireWicketAnim(merged, prev)) {
-    _triggerCricketAnim(DOM.scorecard, events.duck ? 'duck' : (events.wicketType || 'wicket'));
-  } else if (events.boundary && _shouldFireBoundaryAnim(events.boundary, merged.currentOver, merged.lastBallSeq, source)) {
+  // Animation dispatch: wickets check their dismissal type first (and defer
+  // while it is still unknown), boundaries dedup on a source-agnostic key, and
+  // the generic border flash is skipped whenever a cricket animation ran —
+  // otherwise sc-update would overlap the moving ball/field graphic.
+  const wicketHandled = _handleWicketAnim(DOM.scorecard, merged, prev, events);
+  let animHandled = wicketHandled;
+  // A wicket that is merely PARKED (still waiting on its how-out text) does
+  // not block a boundary — the pending wicket owns only the sc-update flash,
+  // not the whole screen. A running cricket animation does block it.
+  if (events.boundary && !_cricketAnimTimer && _shouldFireBoundaryAnim(events.boundary, merged.currentOver, merged.lastBallSeq)) {
     _triggerCricketAnim(DOM.scorecard, events.boundary === '6' ? '6' : '4');
-  } else {
+    animHandled = true;
+  }
+  if (animHandled) {
+    // A cricket animation (or a deferred wicket still waiting on its how-out
+    // text) owns the flash — drop any border-flash class left behind so the
+    // scorecard stays clean for the graphic.
+    DOM.scorecard.classList.remove('sc-update');
+  } else if (!_cricketAnimTimer) {
     DOM.scorecard.classList.remove('sc-update');
     void DOM.scorecard.offsetWidth;
     DOM.scorecard.classList.add('sc-update');
@@ -3317,6 +3439,11 @@ function resetAll(e) {
   DOM.dName.textContent = '—';
   DOM.dAmt.textContent = '$0';
   currentScore = null;
+  if (_pendingWicket) { clearTimeout(_pendingWicket.timer); _pendingWicket = null; }
+  _wicketFire = { team: '', count: -1, at: 0, lw: '', seq: null, source: '' };
+  _lastBoundaryAnim = { key: '', type: '', at: 0 };
+  if (_cricketAnimTimer) { clearTimeout(_cricketAnimTimer); _cricketAnimTimer = null; }
+  __animFireCount = 0;
   DOM.scContent.innerHTML = '<div class="sc-empty">No match data</div>';
   setScorecardVisible(false);
   hideComment();
