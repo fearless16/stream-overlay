@@ -117,41 +117,42 @@ const FETCH_HEADERS = withCookies({
 });
 
 async function bootstrapInnertube() {
-  let html, watchHtml;
-
-  // Try live_chat page first
-  try {
-    const res = await fetch(`https://www.youtube.com/live_chat?v=${VIDEO_ID}`, { headers: FETCH_HEADERS, signal: AbortSignal.timeout(10000) });
-    if (res.ok) html = await res.text();
-  } catch (e) { /* fall through to watch page */ }
-
-  // Fallback: try watch page for InnerTube config + chat token
-  if (!html) {
+  const fetchPage = async (url) => {
     try {
-      const res = await fetch(`https://www.youtube.com/watch?v=${VIDEO_ID}`, { headers: FETCH_HEADERS, signal: AbortSignal.timeout(10000) });
-      if (res.ok) watchHtml = await res.text();
-    } catch (e) { /* fall through */ }
+      const res = await fetch(url, { headers: FETCH_HEADERS, signal: AbortSignal.timeout(10000) });
+      return res.ok ? await res.text() : null;
+    } catch (e) { return null; }
+  };
+
+  // Returns the continuation token if the page carries a live chat renderer,
+  // and (re)sets the InnerTube API key/context from that same page.
+  const tokenFromSource = (source) => {
+    if (!source) return null;
+    const keyMatch = source.match(/"INNERTUBE_API_KEY"\s*:\s*"([^"]+)"/);
+    const ctxMatch = source.match(/"INNERTUBE_CONTEXT"\s*:\s*({[\s\S]+?}),\s*"INNERTUBE_/);
+    if (keyMatch && ctxMatch) {
+      innertubeApiKey = keyMatch[1];
+      try { innertubeContext = JSON.parse(ctxMatch[1]); } catch (e) { /* keep old context */ }
+    }
+    const continuations = getLiveChatContinuations(extractInitialData(source));
+    return getContinuationToken(continuations);
+  };
+
+  // The live_chat page has become a JS shell that no longer embeds the chat
+  // renderer, so a *successful* fetch there no longer guarantees a token.
+  // Try it first (cheaper), but fall through to the watch page — which still
+  // carries the nested conversationBar.liveChatRenderer — whenever no token
+  // comes out. Only a page that yields a continuation is usable.
+  const html = await fetchPage(`https://www.youtube.com/live_chat?v=${VIDEO_ID}`);
+  let token = tokenFromSource(html);
+  if (!token) {
+    const watchHtml = await fetchPage(`https://www.youtube.com/watch?v=${VIDEO_ID}`);
+    token = tokenFromSource(watchHtml);
   }
 
-  const source = html || watchHtml;
-  if (!source) throw new Error('Could not fetch YouTube page');
-
-  // Extract InnerTube API key and context from either page
-  const keyMatch = source.match(/"INNERTUBE_API_KEY"\s*:\s*"([^"]+)"/);
-  const ctxMatch = source.match(/"INNERTUBE_CONTEXT"\s*:\s*({[\s\S]+?}),\s*"INNERTUBE_/);
-  if (keyMatch && ctxMatch) {
-    innertubeApiKey = keyMatch[1];
-    innertubeContext = JSON.parse(ctxMatch[1]);
-  }
-
-  // YouTube has used both the legacy root renderer and the nested watch-page
-  // conversationBar renderer. Keep shape handling in a pure, tested helper.
-  const data = extractInitialData(source);
-  const continuations = getLiveChatContinuations(data);
-  const token = getContinuationToken(continuations);
   if (token) return token;
-
-  // No token found — could be offline or chat disabled; InnerTube key/context still set for viewer polling
+  // No token found — could be offline or chat disabled; InnerTube key/context
+  // may still be set for viewer polling.
   throw new Error('No chat continuation token');
 }
 
@@ -388,11 +389,20 @@ function broadcastViewers() {
   });
 }
 
+// The Data API costs 1 quota unit per call (10k/day free) and can lag a live
+// stream's like count by minutes, so it's used ONLY as a fallback when the
+// free HTML scrape fails — and never more often than once a minute.
+const LIKE_API_MIN_GAP_MS = 60000;
+let lastLikeApiCall = 0;
+
 async function fetchLikeCountFromAPI() {
   if (!YOUTUBE_API_KEY) return null;
+  const now = Date.now();
+  if (now - lastLikeApiCall < LIKE_API_MIN_GAP_MS) return null;
   try {
     const url = `https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${VIDEO_ID}&key=${YOUTUBE_API_KEY}`;
     const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    lastLikeApiCall = Date.now();
     if (!res.ok) throw new Error(`API ${res.status}`);
     const data = await res.json();
     const count = data?.items?.[0]?.statistics?.likeCount;
@@ -403,8 +413,37 @@ async function fetchLikeCountFromAPI() {
   }
 }
 
+// Parse a like-count string in YouTube's formats: "2", "1,234", "49K", "1.2M".
+function parseLikeCountString(s) {
+  if (!s) return null;
+  const t = s.trim().toUpperCase();
+  const m = t.match(/^([\d.,]+)\s*([KMB])?$/);
+  if (!m) return null;
+  let n = parseFloat(m[1].replace(/,/g, ''));
+  if (isNaN(n)) return null;
+  if (m[2] === 'K') n *= 1000;
+  else if (m[2] === 'M') n *= 1000000;
+  else if (m[2] === 'B') n *= 1000000000;
+  return Math.round(n);
+}
+
 function extractLikeCount(html) {
   try {
+    // Precise counter first: the watch page embeds the exact like count in
+    // ytInitialData / player response as "likeCount". It appears once on the
+    // page, so the raw regex is exact — and exact numbers keep the animation
+    // reactive on single-digit increments (the button's display title below is
+    // rounded, e.g. "1.2K", and only moves every 100 likes).
+    const lcMatch = html.match(/"likeCount"\s*:\s*"?(\d+)"?/);
+    if (lcMatch) return parseInt(lcMatch[1], 10);
+    // NEW button layout (2024+): the like count also lives in the button's own
+    // title, e.g. segmentedLikeDislikeButtonViewModel > likeButtonViewModel >
+    // ... > buttonViewModel { "iconName":"LIKE", "title":"49K", ... }.
+    const newBtn = html.match(/"iconName"\s*:\s*"LIKE"\s*,\s*"title"\s*:\s*"([^"]+)"/);
+    if (newBtn) {
+      const n = parseLikeCountString(newBtn[1]);
+      if (n != null) return n;
+    }
     const dataMatch = html.match(/ytInitialData\s*=\s*({.+?});\s*(?:\n|<)/);
     if (dataMatch) {
       const data = JSON.parse(dataMatch[1]);
@@ -429,11 +468,6 @@ function extractLikeCount(html) {
       const num = ariaMatch[1].match(/([\d,]+)/);
       if (num) return parseInt(num[1].replace(/,/g, ''), 10);
     }
-    // YouTube's newer layout drops the aria-label/button DOM and only embeds
-    // the raw "likeCount" field in ytInitialData. Regex it out as a fallback.
-    // Tolerate both "likeCount":"9" and likeCount:9 forms.
-    const lcMatch = html.match(/"likeCount"\s*:\s*"?(\d+)"?/);
-    if (lcMatch) return parseInt(lcMatch[1], 10);
   } catch (e) { /* best effort */ }
   return null;
 }
@@ -499,12 +533,12 @@ async function fetchEngagementData() {
     if (viewersChanged) broadcastViewers();
 
     // ── Like Count ─────────────────────────────────────────────────────────
-    let newCount = null;
-    if (YOUTUBE_API_KEY) {
+    // HTML scrape first: it's free and near-real-time (the raw "likeCount"
+    // field is exact). The Data API only steps in when the scrape fails, at
+    // most once a minute, so quota stays untouched in normal operation.
+    let newCount = extractLikeCount(html);
+    if (newCount === null && YOUTUBE_API_KEY) {
       newCount = await fetchLikeCountFromAPI();
-    }
-    if (newCount === null) {
-      newCount = extractLikeCount(html);
     }
     if (newCount !== null) {
       if (!likeCountInitialized) {

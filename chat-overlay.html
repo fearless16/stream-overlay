@@ -34,7 +34,7 @@ body {
   width: 1920px; height: 1080px;
   overflow: hidden;
   color: var(--text);
-  font-size: 14px;
+  font-size: 17px;
   line-height: 1.5;
 }
 
@@ -77,12 +77,12 @@ body {
   box-shadow: 0 4px 20px rgba(255,215,0,0.08);
 }
 .donator-label {
-  font-size: 12px; font-weight: 700; color: var(--muted);
+  font-size: 14px; font-weight: 700; color: var(--muted);
   text-transform: uppercase; letter-spacing: 1.5px;
   margin-bottom: 4px;
 }
 .donator-name {
-  font-size: 24px; font-weight: 900; color: var(--gold);
+  font-size: 28px; font-weight: 900; color: var(--gold);
   letter-spacing: -0.5px;
   transition: transform 0.3s var(--ease-out-back), text-shadow 0.3s ease;
 }
@@ -92,7 +92,7 @@ body {
   50% { transform: scale(1.05); text-shadow: 0 0 20px rgba(255,215,0,0.5); }
 }
 .donator-amt {
-  font-size: 13px; font-weight: 700;
+  font-size: 15px; font-weight: 700;
   color: var(--gold); margin-top: 4px;
   opacity: 0.7;
 }
@@ -127,7 +127,7 @@ body {
   flex-shrink: 0;
 }
 .chat-hdr .title {
-  font-size: 13px; font-weight: 900;
+  font-size: 15px; font-weight: 900;
   text-transform: uppercase; letter-spacing: 3px;
   color: rgba(255,255,255,0.85);
   display: flex; align-items: center; gap: 10px;
@@ -144,7 +144,7 @@ body {
   color: rgba(255,255,255,0.35);
   border: 1px solid rgba(255,45,85,0.12);
   padding: 4px 12px; border-radius: 999px;
-  font-size: 12px; font-weight: 800;
+  font-size: 14px; font-weight: 800;
   transition: all 0.3s;
 }
 .chat-hdr .count.pulse {
@@ -212,7 +212,7 @@ body {
   border: none;
   background: rgba(255,255,255,0.1);
   color: var(--text2);
-  font-size: 11px;
+  font-size: 13px;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   transition: all 0.15s;
@@ -226,26 +226,26 @@ body {
   padding-right: 50px;
 }
 .msg .badge {
-  font-size: 10px; font-weight: 800;
+  font-size: 12px; font-weight: 800;
   padding: 3px 9px; border-radius: 999px;
   text-transform: uppercase; letter-spacing: 0.8px;
   flex-shrink: 0;
   border: 1px solid transparent;
 }
 .msg .name {
-  font-size: 16px; font-weight: 800;
+  font-size: 19px; font-weight: 800;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   max-width: 280px;
   letter-spacing: -0.2px;
 }
 .msg .msg-time {
-  font-size: 11px; color: var(--muted);
+  font-size: 13px; color: var(--muted);
   margin-left: auto;
   font-weight: 600;
   flex-shrink: 0;
 }
 .msg .text {
-  font-size: 16px; color: rgba(240,236,228,0.75);
+  font-size: 19px; color: rgba(240,236,228,0.75);
   font-weight: 500; line-height: 1.45;
   word-break: break-word;
   padding-right: 20px;
@@ -279,7 +279,7 @@ body {
 .msg.retracted::after {
   content: 'RETRACTED';
   position: absolute; top: 4px; right: 34px;
-  font-size: 9px; font-weight: 900;
+  font-size: 11px; font-weight: 900;
   color: #ff1744;
   letter-spacing: 1.5px;
   opacity: 0.7;
@@ -318,7 +318,7 @@ body {
   pointer-events: auto;
 }
 .sp-hdr {
-  font-size: 11px; font-weight: 800; color: var(--muted);
+  font-size: 13px; font-weight: 800; color: var(--muted);
   text-transform: uppercase; letter-spacing: 2px;
   margin-bottom: 8px;
   display: flex; align-items: center; gap: 8px;
@@ -329,14 +329,14 @@ body {
 }
 .sp-item {
   display: flex; align-items: center; gap: 8px;
-  font-size: 11px; margin-bottom: 4px;
+  font-size: 13px; margin-bottom: 4px;
   padding: 4px 0;
   border-bottom: 1px solid rgba(255,255,255,0.03);
 }
 .sp-item:last-child { border-bottom: none; margin-bottom: 0; }
 .sp-item .sp-name { font-weight: 700; color: var(--green); flex-shrink: 0; }
-.sp-item .sp-text { color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; font-size: 12px; }
-.sp-item .sp-amt { font-weight: 800; color: var(--gold); flex-shrink: 0; font-size: 13px; }
+.sp-item .sp-text { color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; font-size: 14px; }
+.sp-item .sp-amt { font-weight: 800; color: var(--gold); flex-shrink: 0; font-size: 15px; }
 
 /* ════════════════════════════════════════
    SHOW COMMENT OVERLAY — Floating pill on top border
@@ -408,7 +408,7 @@ body {
   border-radius: 50%;
   background: rgba(255,255,255,0.12);
   display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 900; color: #fff;
+  font-size: 15px; font-weight: 900; color: #fff;
   flex-shrink: 0;
   overflow: hidden;
   border: 2px solid rgba(255,255,255,0.2);
@@ -419,12 +419,12 @@ body {
 }
 
 .sc-name {
-  font-size: 14px; font-weight: 800; color: #fff;
+  font-size: 17px; font-weight: 800; color: #fff;
   white-space: nowrap;
 }
 
 .sc-badge {
-  font-size: 9px; font-weight: 800;
+  font-size: 11px; font-weight: 800;
   padding: 3px 10px; border-radius: 999px;
   text-transform: uppercase; letter-spacing: 1px;
   white-space: nowrap;
@@ -433,7 +433,7 @@ body {
 }
 
 .sc-msg {
-  font-size: 30px;
+  font-size: 35px;
   font-family: 'Poppins', 'Inter', sans-serif;
   font-weight: 600;
   color: rgba(240,236,228,0.85);
@@ -477,13 +477,13 @@ body {
   width: 36px; height: 36px; border-radius: 10px;
   background: linear-gradient(135deg, var(--neon-red), #aa0022);
   display: flex; align-items: center; justify-content: center;
-  font-size: 14px; font-weight: 900; color: #fff;
+  font-size: 17px; font-weight: 900; color: #fff;
   box-shadow: 0 0 12px rgba(255,45,85,0.2);
   flex-shrink: 0;
 }
 #brand-info { display: flex; flex-direction: column; gap: 1px; }
-#brand-name { font-size: 13px; font-weight: 800; letter-spacing: -0.2px; }
-#brand-live { display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 800; color: var(--neon-red); letter-spacing: 2px; text-transform: uppercase; }
+#brand-name { font-size: 15px; font-weight: 800; letter-spacing: -0.2px; }
+#brand-live { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; color: var(--neon-red); letter-spacing: 2px; text-transform: uppercase; }
 #brand-live .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--neon-red); box-shadow: 0 0 8px var(--neon-red); animation: livePulse 1.5s ease-in-out infinite; }
 #brand-health {
   display: flex; align-items: center; gap: 6px;
@@ -498,14 +498,14 @@ body {
 }
 #brand-health .health-indicator.warning { background: var(--gold); box-shadow: 0 0 8px var(--gold); }
 #brand-health .health-indicator.error { background: var(--neon-red); box-shadow: 0 0 8px var(--neon-red); animation: livePulse 1s infinite; }
-#brand-health .health-text { font-size: 10px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+#brand-health .health-text { font-size: 12px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
 #brand-viewers {
   display: flex; align-items: center; gap: 6px;
   margin-left: 10px; padding-left: 14px;
   border-left: 1px solid rgba(255,255,255,0.06);
 }
 #brand-viewers .viewer-count {
-  font-size: 18px; font-weight: 900;
+  font-size: 21px; font-weight: 900;
   color: var(--neon-blue);
   font-variant-numeric: tabular-nums;
   min-width: 44px;
@@ -517,7 +517,7 @@ body {
   text-shadow: 0 0 24px rgba(0,212,255,0.55);
 }
 #brand-viewers .viewer-label {
-  font-size: 9px; font-weight: 800; color: var(--muted);
+  font-size: 11px; font-weight: 800; color: var(--muted);
   text-transform: uppercase; letter-spacing: 1.5px;
 }
 
@@ -586,7 +586,7 @@ body {
   background: linear-gradient(90deg, transparent, rgba(255,45,85,0.2), rgba(0,212,255,0.15), transparent);
 }
 .sc-hdr .sc-title {
-  font-size: 10px; font-weight: 900; letter-spacing: 2.5px;
+  font-size: 12px; font-weight: 900; letter-spacing: 2.5px;
   text-transform: uppercase; color: var(--neon-blue);
   display: flex; align-items: center; gap: 8px;
   text-shadow: 0 0 12px rgba(0,212,255,0.3);
@@ -598,7 +598,7 @@ body {
   animation: scDotPulse 2s ease-in-out infinite;
 }
 .sc-hdr .sc-live {
-  font-size: 9px; font-weight: 800; color: var(--neon-red);
+  font-size: 11px; font-weight: 800; color: var(--neon-red);
   display: flex; align-items: center; gap: 6px;
   letter-spacing: 1.5px;
   text-shadow: 0 0 12px rgba(255,45,85,0.3);
@@ -649,7 +649,7 @@ body {
   border-radius: 999px;
   background: rgba(255,215,0,0.1);
   color: var(--gold);
-  font-size: 8px; font-weight: 900;
+  font-size: 10px; font-weight: 900;
   letter-spacing: 1px; text-transform: uppercase;
 }
 .sc-t::before {
@@ -663,20 +663,20 @@ body {
   background: radial-gradient(ellipse at center, var(--t2c, rgba(255,255,255,0.02)) 0%, transparent 70%);
 }
 .sc-t-flag {
-  font-size: 44px; margin-bottom: 6px;
+  font-size: 51px; margin-bottom: 6px;
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
 }
 .sc-t:hover .sc-t-flag { transform: scale(1.15) translateY(-2px); }
 .sc-t-name {
-  font-size: 13px; font-weight: 800; color: var(--text);
+  font-size: 15px; font-weight: 800; color: var(--text);
   margin-bottom: 6px; letter-spacing: 0;
   text-shadow: 0 1px 2px rgba(0,0,0,0.3);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   max-width: 100%;
 }
 .sc-t-score {
-  font-size: 28px; font-weight: 900;
+  font-size: 33px; font-weight: 900;
   background: linear-gradient(135deg, var(--gold), #ff9500, var(--gold));
   background-size: 200% 200%;
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
@@ -689,7 +689,7 @@ body {
   font-variant-numeric: tabular-nums;
 }
 .sc-t-score.blank {
-  font-size: 15px;
+  font-size: 18px;
   -webkit-text-fill-color: var(--muted);
   background: none;
   color: var(--muted);
@@ -701,15 +701,15 @@ body {
   font-weight: 700;
 }
 .sc-t-wk {
-  font-size: 21px;
+  font-size: 25px;
 }
 .sc-t-ov {
-  font-size: 10px; color: var(--muted); margin-top: 6px; font-weight: 700;
+  font-size: 12px; color: var(--muted); margin-top: 6px; font-weight: 700;
   letter-spacing: 0.5px;
   min-height: 12px;
 }
 .sc-vs {
-  font-size: 11px; color: rgba(255,255,255,0.15); font-weight: 900;
+  font-size: 13px; color: rgba(255,255,255,0.15); font-weight: 900;
   padding-top: 48px; position: relative;
   letter-spacing: 2px;
   text-align: center;
@@ -722,7 +722,7 @@ body {
 .sc-vs::after { top: 72px; }
 .sc-format-badge {
   display: block; margin: 0 auto 4px;
-  font-size: 8px; font-weight: 900; letter-spacing: 1px;
+  font-size: 10px; font-weight: 900; letter-spacing: 1px;
   color: #fff; background: rgba(255,255,255,0.08);
   padding: 1px 6px; border-radius: 4px;
   text-align: center; width: fit-content;
@@ -757,7 +757,7 @@ body {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   column-gap: 12px;
-  padding: 7px 8px; font-size: 12px;
+  padding: 7px 8px; font-size: 14px;
   border-radius: 8px;
   transition: all 0.25s ease;
   position: relative;
@@ -792,7 +792,7 @@ body {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .sc-bm-name .str {
-  color: var(--gold); font-size: 10px;
+  color: var(--gold); font-size: 12px;
   animation: scStarPulse 1.5s ease-in-out infinite;
 }
 @keyframes scStarPulse {
@@ -800,14 +800,14 @@ body {
   50% { opacity: 0.6; text-shadow: 0 0 8px rgba(255,215,0,0.6); }
 }
 .sc-bm-score {
-  color: var(--gold); font-weight: 900; font-size: 15px;
+  color: var(--gold); font-weight: 900; font-size: 18px;
   min-width: 64px; text-align: right;
   text-shadow: 0 0 8px rgba(255,215,0,0.15);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 .sc-bm-score-balls {
-  color: var(--muted); font-size: 10px;
+  color: var(--muted); font-size: 12px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
@@ -817,7 +817,7 @@ body {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   column-gap: 10px;
-  padding: 8px 8px; font-size: 11px;
+  padding: 8px 8px; font-size: 13px;
   border-top: 1px solid rgba(255,45,85,0.06);
   margin-top: 8px; padding-top: 10px;
   border-radius: 8px;
@@ -832,9 +832,9 @@ body {
   100% { background: transparent; }
 }
 .sc-bowler-name { color: var(--text); font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sc-bowler-eco { color: var(--muted); font-size: 10px; font-weight: 600; }
+.sc-bowler-eco { color: var(--muted); font-size: 12px; font-weight: 600; }
 .sc-bowler-fig {
-  color: var(--neon-blue); font-weight: 800; font-size: 13px;
+  color: var(--neon-blue); font-weight: 800; font-size: 15px;
   text-shadow: 0 0 8px rgba(0,212,255,0.15);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -847,14 +847,14 @@ body {
   border-top: 1px solid rgba(255,45,85,0.04);
 }
 .sc-over-label {
-  font-size: 9px; font-weight: 800; color: var(--muted);
+  font-size: 11px; font-weight: 800; color: var(--muted);
   text-transform: uppercase; letter-spacing: 1.5px;
   margin-right: 8px;
 }
 .sc-ball {
   width: 24px; height: 24px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 10px; font-weight: 800;
+  font-size: 12px; font-weight: 800;
   color: rgba(255,255,255,0.7);
   background: rgba(255,255,255,0.05);
   border: 1px solid rgba(255,255,255,0.08);
@@ -862,7 +862,7 @@ body {
   font-variant-numeric: tabular-nums;
 }
 .sc-ball:hover { transform: scale(1.25); box-shadow: 0 0 12px rgba(255,255,255,0.1); }
-.sc-ball.dot { color: rgba(255,255,255,0.2); font-size: 14px; }
+.sc-ball.dot { color: rgba(255,255,255,0.2); font-size: 17px; }
 .sc-ball.wicket {
   background: rgba(255,45,85,0.25); color: var(--neon-red);
   border-color: rgba(255,45,85,0.4);
@@ -879,7 +879,7 @@ body {
   border-color: rgba(255,215,0,0.4);
   box-shadow: 0 0 12px rgba(255,215,0,0.3), inset 0 0 8px rgba(255,215,0,0.1);
 }
-.sc-ball.wide { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.35); font-style: italic; font-size: 9px; }
+.sc-ball.wide { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.35); font-style: italic; font-size: 11px; }
 
 .sc-ball-pop {
   animation: scBallPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
@@ -905,12 +905,12 @@ body {
   flex: 1;
 }
 .sc-rate-label {
-  font-size: 9px; font-weight: 800; color: var(--muted);
+  font-size: 11px; font-weight: 800; color: var(--muted);
   text-transform: uppercase; letter-spacing: 1px;
   min-width: 28px;
 }
 .sc-rate-val {
-  font-size: 12px; font-weight: 800; color: var(--text);
+  font-size: 14px; font-weight: 800; color: var(--text);
   min-width: 32px; text-align: right;
   font-variant-numeric: tabular-nums;
 }
@@ -932,21 +932,21 @@ body {
 }
 
 .sc-partner {
-  font-size: 10px; color: var(--muted); text-align: center;
+  font-size: 12px; color: var(--muted); text-align: center;
   margin-top: 8px; font-weight: 700;
   letter-spacing: 0.3px;
 }
 .sc-last-wk {
-  font-size: 10px; color: rgba(255,45,85,0.5); text-align: center;
+  font-size: 12px; color: rgba(255,45,85,0.5); text-align: center;
   margin-top: 4px; font-weight: 700;
 }
 .sc-lead-trail {
-  font-size: 11px; color: var(--gold); text-align: center;
+  font-size: 13px; color: var(--gold); text-align: center;
   margin-top: 8px; font-weight: 800;
   letter-spacing: 0.2px;
 }
 .sc-session {
-  font-size: 10px; color: var(--muted); text-align: center;
+  font-size: 12px; color: var(--muted); text-align: center;
   margin-top: 6px; font-weight: 700; letter-spacing: 0.4px;
   text-transform: uppercase;
 }
@@ -959,7 +959,7 @@ body {
   padding: 3px 8px; border-radius: 999px;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.08);
-  font-size: 10px; color: var(--text2); font-weight: 700;
+  font-size: 12px; color: var(--text2); font-weight: 700;
 }
 .sc-inn-chip .sc-inn-name { color: var(--muted); }
 .sc-inn-chip.sc-inn-live {
@@ -971,7 +971,7 @@ body {
 .sc-status {
   margin-top: 10px; padding-top: 10px;
   border-top: 1px solid rgba(255,45,85,0.06);
-  font-size: 12px; color: var(--text2); font-weight: 700;
+  font-size: 14px; color: var(--text2); font-weight: 700;
   text-align: center;
   animation: scStatusFadeIn 0.5s ease both;
   overflow: hidden;
@@ -983,7 +983,7 @@ body {
   0% { opacity: 0; transform: translateY(4px); }
   100% { opacity: 1; transform: translateY(0); }
 }
-.sc-empty { padding: 24px 16px; text-align: center; color: var(--muted); font-size: 13px; font-weight: 700; }
+.sc-empty { padding: 24px 16px; text-align: center; color: var(--muted); font-size: 15px; font-weight: 700; }
 
 #scorecard.sc-update { animation: scUpdateFlash 0.6s ease; }
 @keyframes scUpdateFlash {
@@ -1046,7 +1046,7 @@ body {
 
 /* ===== FOUR ===== */
 #scorecard.sc-cricket-4 .sc-anim-4 {
-  display: block; font-size: 110px; letter-spacing: 5px;
+  display: block; font-size: 127px; letter-spacing: 5px;
   background: linear-gradient(135deg, #ff2d95 0%, #ff66b2 40%, #ff3399 70%, #ff0066 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
   text-shadow: 0 0 20px rgba(255,45,149,0.9), 0 0 50px rgba(255,51,153,0.5), 0 0 100px rgba(255,0,102,0.3);
@@ -1061,7 +1061,7 @@ body {
 }
 /* ===== SIX ===== */
 #scorecard.sc-cricket-6 .sc-anim-6 {
-  display: block; font-size: 130px;
+  display: block; font-size: 150px;
   background: linear-gradient(135deg, #00ff88 0%, #00e676 30%, #00c853 60%, #00a152 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
   text-shadow: 0 0 30px rgba(0,255,136,0.8), 0 0 70px rgba(0,230,118,0.5), 0 0 120px rgba(0,200,83,0.3), 0 0 180px rgba(0,161,82,0.15);
@@ -1077,7 +1077,7 @@ body {
 }
 /* ===== BOWLED ===== */
 #scorecard.sc-cricket-bold .sc-anim-bold {
-  display: block; font-size: 80px; letter-spacing: 4px;
+  display: block; font-size: 92px; letter-spacing: 4px;
   background: linear-gradient(180deg, #ff2d55 0%, #cc0022 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
   text-shadow: 0 0 20px rgba(255,45,85,0.6), 0 0 50px rgba(255,45,85,0.3);
@@ -1094,7 +1094,7 @@ body {
 }
 /* ===== CAUGHT ===== */
 #scorecard.sc-cricket-caught .sc-anim-caught {
-  display: block; font-size: 72px; letter-spacing: 6px;
+  display: block; font-size: 83px; letter-spacing: 6px;
   background: linear-gradient(135deg, #ff4757 0%, #ff6348 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
   text-shadow: 0 0 15px rgba(255,71,87,0.6), 0 0 40px rgba(255,99,72,0.3);
@@ -1113,7 +1113,7 @@ body {
 }
 /* ===== LBW ===== */
 #scorecard.sc-cricket-lbw .sc-anim-lbw {
-  display: block; font-size: 85px; letter-spacing: 8px;
+  display: block; font-size: 98px; letter-spacing: 8px;
   background: linear-gradient(135deg, #ff6348 0%, #eab308 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
   text-shadow: 0 0 20px rgba(255,99,72,0.6), 0 0 50px rgba(234,179,8,0.3);
@@ -1130,7 +1130,7 @@ body {
 }
 /* ===== RUN OUT ===== */
 #scorecard.sc-cricket-runout .sc-anim-runout {
-  display: block; font-size: 65px; letter-spacing: 6px;
+  display: block; font-size: 75px; letter-spacing: 6px;
   background: linear-gradient(135deg, #ff2d55 0%, #ff6b35 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
   text-shadow: 0 0 15px rgba(255,45,85,0.7), 0 0 40px rgba(255,45,85,0.4), 0 0 70px rgba(255,107,53,0.3);
@@ -1148,7 +1148,7 @@ body {
 }
 /* ===== DUCK ===== */
 #scorecard.sc-cricket-duck .sc-anim-duck {
-  display: block; font-size: 72px; letter-spacing: 6px;
+  display: block; font-size: 83px; letter-spacing: 6px;
   background: linear-gradient(135deg, #ffa502 0%, #ff6348 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
   text-shadow: 0 0 20px rgba(255,165,2,0.6), 0 0 50px rgba(255,165,2,0.3);
@@ -1165,7 +1165,7 @@ body {
 }
 /* ===== WICKET (neutral — dismissal mode unknown) ===== */
 #scorecard.sc-cricket-wicket .sc-anim-wicket {
-  display: block; font-size: 76px; letter-spacing: 8px;
+  display: block; font-size: 88px; letter-spacing: 8px;
   background: linear-gradient(135deg, #ff2d55 0%, #8b5cf6 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
   text-shadow: 0 0 20px rgba(139,92,246,0.7), 0 0 50px rgba(255,45,85,0.4);
@@ -1187,7 +1187,7 @@ body {
 }
 .sc-target-label {
   display: flex; justify-content: space-between;
-  font-size: 10px; font-weight: 800; color: var(--muted);
+  font-size: 12px; font-weight: 800; color: var(--muted);
   text-transform: uppercase; letter-spacing: 1px;
   margin-bottom: 8px;
 }
@@ -1247,12 +1247,12 @@ body {
   transform: translateY(-2px);
 }
 #ctrl-tab .ct-label {
-  font-size: 12px; font-weight: 900;
+  font-size: 14px; font-weight: 900;
   color: var(--neon-red); text-transform: uppercase;
   letter-spacing: 2px;
 }
 #ctrl-tab .ct-arrow {
-  font-size: 12px; color: var(--neon-red);
+  font-size: 14px; color: var(--neon-red);
   transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
   display: inline-block;
 }
@@ -1276,7 +1276,7 @@ body {
 }
 .ctrl-section:last-child { border-bottom: none; }
 .ctrl-label {
-  font-size: 10px; font-weight: 900;
+  font-size: 12px; font-weight: 900;
   color: var(--neon-blue); text-transform: uppercase;
   letter-spacing: 2px;
   width: 110px; flex-shrink: 0;
@@ -1290,7 +1290,7 @@ body {
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 8px;
   padding: 10px 14px;
-  color: var(--text); font-size: 13px; font-weight: 600;
+  color: var(--text); font-size: 15px; font-weight: 600;
   outline: none; font-family: inherit;
   transition: all 0.2s;
 }
@@ -1308,7 +1308,7 @@ body {
   background: linear-gradient(135deg, var(--neon-red), #aa0022);
   border: none; border-radius: 10px;
   padding: 11px 28px;
-  color: #fff; font-size: 13px; font-weight: 900;
+  color: #fff; font-size: 15px; font-weight: 900;
   cursor: pointer; letter-spacing: 0.5px;
   box-shadow: 0 4px 16px rgba(255,45,85,0.2), 0 0 0 1px rgba(255,45,85,0.2);
   transition: all 0.15s;
@@ -1338,14 +1338,14 @@ body {
   background: rgba(0,212,255,0.15);
   box-shadow: 0 0 0 1px rgba(0,212,255,0.2), 0 4px 16px rgba(0,212,255,0.1);
 }
-.ctrl-btn.sm { padding: 8px 18px; font-size: 11px; }
+.ctrl-btn.sm { padding: 8px 18px; font-size: 13px; }
 
 .goal-inline { display: flex; align-items: center; gap: 12px; }
-.goal-inline .gi-label { font-size: 11px; font-weight: 700; color: var(--text2); white-space: nowrap; }
+.goal-inline .gi-label { font-size: 13px; font-weight: 700; color: var(--text2); white-space: nowrap; }
 
 .ctrl-hint {
   padding: 10px 40px;
-  font-size: 10px; color: var(--muted);
+  font-size: 12px; color: var(--muted);
   text-align: center; font-weight: 700;
   letter-spacing: 0.5px;
   border-top: 1px solid rgba(255,255,255,0.03);
@@ -1356,7 +1356,7 @@ body {
   border-radius: 4px;
   padding: 2px 6px;
   font-family: inherit;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text2);
 }
 
@@ -1373,13 +1373,13 @@ body {
   gap: 4px;
 }
 #bottom-bar .bb-brand {
-  font-size: 14px; font-weight: 800;
+  font-size: 17px; font-weight: 800;
   text-transform: uppercase; letter-spacing: 5px;
   color: rgba(255,215,0,0.2);
   text-shadow: 0 0 20px rgba(255,215,0,0.05);
 }
 #bottom-bar .bb-social {
-  font-size: 10px; color: rgba(255,255,255,0.1);
+  font-size: 12px; color: rgba(255,255,255,0.1);
   font-weight: 700; letter-spacing: 2px;
 }
 
@@ -1403,7 +1403,7 @@ body {
   border-radius: 24px;
   background: linear-gradient(135deg, var(--neon-red), #aa0022);
   display: flex; align-items: center; justify-content: center;
-  font-size: 32px; font-weight: 900; color: #fff;
+  font-size: 37px; font-weight: 900; color: #fff;
   box-shadow: 0 0 40px rgba(255,45,85,0.3);
   animation: brbPulse 2s ease-in-out infinite;
 }
@@ -1412,17 +1412,17 @@ body {
   50% { transform: scale(1.05); box-shadow: 0 0 60px rgba(255,45,85,0.5); }
 }
 #brb-overlay .brb-title {
-  font-size: 48px; font-weight: 900;
+  font-size: 56px; font-weight: 900;
   color: var(--text); letter-spacing: -1px;
   text-align: center;
 }
 #brb-overlay .brb-sub {
-  font-size: 16px; color: var(--text2);
+  font-size: 19px; color: var(--text2);
   font-weight: 600; letter-spacing: 2px;
   text-transform: uppercase;
 }
 #brb-overlay .brb-timer {
-  font-size: 72px; font-weight: 900;
+  font-size: 83px; font-weight: 900;
   color: var(--neon-blue);
   font-variant-numeric: tabular-nums;
   letter-spacing: -2px;
@@ -1542,7 +1542,7 @@ body {
 }
 
 .like-name {
-  font-size: 54px;
+  font-size: 63px;
   font-weight: 900;
   font-family: 'Poppins', 'Inter', sans-serif;
   background: linear-gradient(135deg, #fff 0%, #ffd9e5 30%, #ff9fae 60%, #fff 100%);
@@ -1568,7 +1568,7 @@ body {
 }
 
 .like-label {
-  font-size: 28px;
+  font-size: 33px;
   font-weight: 800;
   background: linear-gradient(135deg, #ff2d55, #ff6bff, #00d4ff, #ff9f43, #ff2d55);
   background-size: 300% 300%;
@@ -1585,7 +1585,7 @@ body {
 }
 
 .like-count {
-  font-size: 18px;
+  font-size: 21px;
   font-weight: 700;
   color: rgba(255,255,255,0.5);
   letter-spacing: 3px;
@@ -1651,7 +1651,7 @@ body {
 
 <div id="brb-overlay">
   <div style="position:absolute;top:24px;right:24px;z-index:10">
-    <button id="brb-close-btn" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:rgba(255,255,255,0.4);font-size:20px;width:44px;height:44px;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;justify-content:center;">✕</button>
+    <button id="brb-close-btn" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:rgba(255,255,255,0.4);font-size: 23px;width:44px;height:44px;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;justify-content:center;">✕</button>
   </div>
   <div class="brb-logo">CP</div>
   <div class="brb-title">Be Right Back</div>
@@ -1740,7 +1740,7 @@ body {
     <div class="ctrl-section">
       <div class="ctrl-label">Score</div>
       <div class="ctrl-fields">
-        <span style="color:var(--text2);font-size:12px;font-weight:600;">Auto-updating from Crex</span>
+        <span style="color:var(--text2);font-size: 14px;font-weight:600;">Auto-updating from Crex</span>
         <button class="ctrl-btn blue" onclick="toggleScorecard(event)" id="fToggle">Show</button>
       </div>
     </div>
@@ -1749,7 +1749,7 @@ body {
       <div class="ctrl-label">Pop Chat</div>
       <div class="ctrl-fields">
         <input type="text" id="popName" class="w-md" placeholder="Name" value="Fan">
-        <select id="popType" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;font-weight:600;outline:none;font-family:inherit;cursor:pointer;">
+        <select id="popType" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px 14px;color:var(--text);font-size: 15px;font-weight:600;outline:none;font-family:inherit;cursor:pointer;">
           <option value="chat">Chat</option>
           <option value="superchat">Super Chat</option>
           <option value="membership">Membership</option>

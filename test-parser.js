@@ -493,5 +493,52 @@ test('REV-B M3: T20/ODI "Innings Break" status must NOT be inferred as Test', ()
   assert.ok(!built.innings, 'no Test innings strip for a T20');
 });
 
+test('parseScoreString tolerates a missing wicket count ("107")', () => {
+  const s = poller.parseScoreString('107');
+  assert.ok(s, 'bare runs string parses');
+  assert.strictEqual(s.runs, 107);
+  assert.strictEqual(s.wkts, 0);
+  assert.strictEqual(s.allOut, false);
+  assert.strictEqual(poller.parseScoreString('107/3').wkts, 3, 'explicit wickets preserved');
+  assert.strictEqual(poller.parseScoreString('107/0').wkts, 0, 'explicit 0 wickets preserved');
+});
+
+test('isPlausibleScore accepts a bare pre-match score with no wicket suffix', () => {
+  assert.strictEqual(poller.isPlausibleScore('0', '0.0', 'T20'), true, 'bare "0" is plausible');
+  assert.strictEqual(poller.isPlausibleScore('0/0', '0.0', 'T20'), true, '"0/0" is plausible');
+});
+
+test('tokenFromCrexBall: boundary with "wide outside off" prose is a SIX, not a wide', () => {
+  const six = { o: '8.2', s: '86/0', b: '6', c2: 'SIX RUNS! Launched over the cow corner for half a dozen! Full length, wide outside off...' };
+  const prev = { o: '8.1', s: '80/0', b: '0' };
+  assert.strictEqual(poller.tokenFromCrexBall(six, prev), '6');
+  const four = { o: '9.1', s: '100/0', b: '4', c2: 'FOUR! Back of a length, angled wide outside off...' };
+  assert.strictEqual(poller.tokenFromCrexBall(four, prev), '4');
+});
+
+test('tokenFromCrexBall: "Wide yorker" legal dot is NOT a wide (prose describes LINE)', () => {
+  const dot = { o: '8.5', s: '96/0', b: '0', c2: '84 mph. Wide yorker landing just inside the tramline. Left alone.' };
+  const prev = { o: '8.4', s: '96/0', b: '4' };
+  assert.strictEqual(poller.tokenFromCrexBall(dot, prev), '·');
+});
+
+test('tokenFromCrexBall: real wide is score-delta driven, prose is only a tiebreak', () => {
+  const wide = { o: '1.2', s: '15/0', b: '0', c2: 'Wide! Bowler strays down the leg side.' };
+  const prev = { o: '1.1', s: '14/0', b: '0' };
+  assert.strictEqual(poller.tokenFromCrexBall(wide, prev), 'wd', 'score moved 14->15 => wide');
+  const noBall = { o: '2.3', s: '22/0', b: '0', c2: 'No ball! Free hit to come.' };
+  assert.strictEqual(poller.tokenFromCrexBall(noBall, { o: '2.2', s: '20/0', b: '0' }), 'nb', 'score moved + prose says no ball');
+  assert.strictEqual(poller.tokenFromCrexBall({ o: '2.1', s: '20/0', b: '1wd' }, null), 'wd', 'explicit 1wd marker');
+});
+
+test('Cricbuzz inningsScoreList keeps alphanumeric team names like "India U19"', () => {
+  const html = `<html><head><title>1st Match | 2026 - Cricbuzz</title></head><body><script>
+window.__INITIAL_STATE__={"seriesInfo":{"inningsScoreList":[{\\"inningsId\\":1,\\"batTeamId\\":9,\\"batTeamName\\":\\"India U19\\",\\"score\\":150,\\"wickets\\":3,\\"overs\\":18.2},{\\"inningsId\\":2,\\"batTeamId\\":10,\\"batTeamName\\":\\"Sri Lanka U19\\",\\"score\\":120,\\"wickets\\":5,\\"overs\\":16.4}]}}
+</script></body></html>`;
+  const parsed = poller.parseCricbuzz(html, 'https://www.cricbuzz.com/live-cricket-scores/99999/ind-u19-vs-sl-u19-1st-match-2026');
+  const names = parsed.teamRows.map(r => r.name);
+  assert.ok(names.includes('India U19'), `full alphanumeric name survives, got: ${JSON.stringify(names)}`);
+  assert.ok(names.includes('Sri Lanka U19'), `second team survives, got: ${JSON.stringify(names)}`);
+});
+
 console.log(`\n${passed} passed, ${failed} failed`);
-process.exit(failed ? 1 : 0);

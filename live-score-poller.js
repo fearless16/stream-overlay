@@ -95,7 +95,7 @@ function connectWS() {
     console.log('[WS] Disconnected, reconnecting in 5s...');
     setTimeout(connectWS, 5000);
   });
-  ws.on('error', () => ws.close());
+  ws.on('error', (err) => console.error('[WS] Error:', err && (err.message || err.code || err)));
 }
 
 async function fetchPage(url) {
@@ -205,10 +205,12 @@ function maxBallsForFormat(fmt) {
  */
 function parseScoreString(s) {
   if (!s) return null;
-  const m = String(s).match(/^(\d{1,4})\s*[\/\-]\s*(\d{1,2})$/);
+  // Wicket count is optional — providers routinely drop "0" for an opening
+  // partnership ("107" instead of "107/0"). Default it to 0 downstream.
+  const m = String(s).match(/^(\d{1,4})(?:\s*[\/\-]\s*(\d{1,2}))?$/);
   if (!m) return null;
   const runs = parseInt(m[1], 10);
-  const wkts = parseInt(m[2], 10);
+  const wkts = m[2] != null ? parseInt(m[2], 10) : 0;
   return { runs, wkts, allOut: wkts >= 10 };
 }
 
@@ -523,16 +525,46 @@ function currentOverFromCrexFeeds(feeds) {
 
 /**
  * One feed entry → ball token. Wicket wins (score progression bump), then
- * wide/no-ball (from the prose), then the run value.
+ * the ball's own run field, then — only as a tiebreak — the prose.
+ *
+ * Commentary words are NOT trusted for wide/no-ball: cricket prose uses
+ * "wide" constantly to describe LINE ("wide yorker", "wide outside off",
+ * "full and wide") for perfectly legal deliveries, which previously turned
+ * dots and even SIXES into 'wd' on screen. The score is the ground truth —
+ * a real wide adds runs without consuming a legal ball — so 'wd'/'nb' is only
+ * emitted when the run field is empty/zero AND the score actually moved.
  */
+function parseBallScore(ball) {
+  if (!ball || !ball.s) return null;
+  const m = String(ball.s).split('/');
+  const runs = parseInt(m[0], 10);
+  const wkts = parseInt(m[1], 10);
+  return (!isNaN(runs) || !isNaN(wkts)) ? { runs: runs || 0, wkts: wkts || 0 } : null;
+}
+
 function tokenFromCrexBall(ball, prevBall) {
-  const prevW = prevBall && prevBall.s ? parseInt(String(prevBall.s).split('/')[1] || '0', 10) : null;
-  const curW = ball && ball.s ? parseInt(String(ball.s).split('/')[1] || '0', 10) : null;
-  if (prevW != null && curW != null && curW > prevW) return 'W';
+  const prevScore = parseBallScore(prevBall);
+  const curScore = parseBallScore(ball);
+  if (prevScore && curScore && curScore.wkts > prevScore.wkts) return 'W';
+  const b = String((ball && ball.b) || '').trim().toLowerCase();
   const text = String((ball && (ball.c2 || ball.c1)) || '').toLowerCase();
-  if (/\bwide\b/.test(text)) return 'wd';
-  if (/\bno\s*-?\s*ball\b/.test(text)) return 'nb';
-  return normalizeBallToken(ball.b);
+
+  if (/^(?:\d+)?wd/.test(b)) return 'wd';       // explicit wd marker ("1wd")
+  if (/^(?:\d+)?nb/.test(b)) return 'nb';       // explicit nb marker ("2nb")
+  if (/^\d+lb$/.test(b)) return 'lb';           // leg byes
+  if (/^\d+by$/.test(b)) return 'by';           // byes
+  if (b === 'w' || b === 'wk' || b === 'wicket') return 'W';
+  if (b === '' || b === '0' || b === '.' || b === 'dot') {
+    // Dot ball — unless the score moved, which only a wide/no-ball can do
+    // without being a legal delivery. Prose only distinguishes wd vs nb here.
+    const runDelta = prevScore && curScore ? curScore.runs - prevScore.runs : null;
+    if (runDelta != null && runDelta >= 1) {
+      return /\bno\s*-?\s*ball\b/.test(text) ? 'nb' : 'wd';
+    }
+    return '·';
+  }
+  if (/^\d+$/.test(b)) return b;                // 1-7 runs: trust the number
+  return normalizeBallToken(b);
 }
 
 /**
@@ -704,7 +736,7 @@ function parseCricbuzz(html, url) {
     // source (correct overs, all innings), so try it before text fallbacks.
     const arrStart = html.indexOf('inningsScoreList');
     const innHtml = arrStart >= 0 ? html.substring(arrStart, arrStart + 20000) : html;
-    const inningsRe = /\{\\"inningsId\\":(\d+),\\"batTeamId\\":(\d+),\\"batTeamName\\":\\"([A-Za-z ]+)\\",\\"score\\":(\d+),\\"wickets\\":(\d+),\\"overs\\":([\d.]+)/g;
+    const inningsRe = /\{\\"inningsId\\":(\d+),\\"batTeamId\\":(\d+),\\"batTeamName\\":\\"([^\\"]+)\\",\\"score\\":(\d+),\\"wickets\\":(\d+),\\"overs\\":([\d.]+)/g;
     let m;
     while ((m = inningsRe.exec(innHtml)) !== null) {
       addTeamRow({
@@ -725,7 +757,7 @@ function parseCricbuzz(html, url) {
   {
     const arrStart = html.indexOf('inningsScoreList');
     const innHtml = arrStart >= 0 ? html.substring(arrStart, arrStart + 20000) : html;
-    const inningsRe = /\{\\"inningsId\\":(\d+),\\"batTeamId\\":(\d+),\\"batTeamName\\":\\"([A-Za-z ]+)\\",\\"score\\":(\d+),\\"wickets\\":(\d+),\\"overs\\":([\d.]+)/g;
+    const inningsRe = /\{\\"inningsId\\":(\d+),\\"batTeamId\\":(\d+),\\"batTeamName\\":\\"([^\\"]+)\\",\\"score\\":(\d+),\\"wickets\\":(\d+),\\"overs\\":([\d.]+)/g;
     const seen = new Set();
     let m;
     while ((m = inningsRe.exec(innHtml)) !== null) {
