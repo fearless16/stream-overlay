@@ -192,6 +192,13 @@ wss.on('connection', (ws, req) => {
   if (MILESTONE_MODE) {
     // Initial score immediately on connect
     ws.send(JSON.stringify({ type: 'score', data: MILESTONE_STEPS[0].score }));
+    // Run the walkthrough fresh for THIS client so a late refresh still
+    // replays every milestone from the start.
+    MILESTONE_STEPS.slice(1).forEach(st => {
+      setTimeout(() => {
+        if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'score', data: st.score }));
+      }, st.s);
+    });
     ws.on('close', () => console.log(`[-] Client disconnected (${wss.clients.size} remaining)`));
     return;
   }
@@ -282,12 +289,9 @@ console.log('  60s  — score update #3');
 console.log('  120s — final score (India win)\n');
 
 // ── Milestone walkthrough timeline (FAKE_MILESTONES=1) ──────────────────────
+// Runs per-connection inside the connection handler so every refresh replays
+// the full sequence from the start.
 if (MILESTONE_MODE) {
-  MILESTONE_STEPS.slice(1).forEach(st => {
-    setTimeout(() => {
-      if (wss.clients.size > 0) broadcast({ type: 'score', data: st.score });
-    }, st.s);
-  });
   console.log('Milestone walkthrough mode:');
   console.log('  0s    — baseline score (no animation)');
   console.log('  4.8s  — FIFTY (50)');

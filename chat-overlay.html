@@ -1206,12 +1206,12 @@ body {
 #scorecard .sc-ms-item {
   display: none;
   position: relative;
+  flex-shrink: 0;
   font-weight: 900;
   font-family: 'Impact', 'Arial Black', system-ui, sans-serif;
   line-height: 1;
   max-width: 100%; max-height: 100%;
   box-sizing: border-box;
-  perspective: 800px;
   will-change: transform, opacity;
   z-index: 1;
 }
@@ -1221,22 +1221,9 @@ body {
   position: absolute; inset: 0;
   opacity: 0;
   pointer-events: none;
-  mix-blend-mode: screen;
 }
 #scorecard .sc-ms-item::before { color: var(--ms-cyan); }
 #scorecard .sc-ms-item::after  { color: var(--ms-magenta); }
-
-#scorecard .sc-ms-halo {
-  position: absolute; left: 50%; top: 50%;
-  width: 72%; aspect-ratio: 1;
-  transform: translate(-50%, -50%) scale(0.2);
-  border-radius: 50%;
-  opacity: 0;
-  background:
-    radial-gradient(circle, transparent 50%, var(--ms-glow) 56%, transparent 62%),
-    radial-gradient(circle, transparent 66%, var(--ms-glow) 70%, transparent 74%);
-  filter: blur(1px);
-}
 
 #scorecard .sc-ms-layer::before {
   content: ''; position: absolute; left: 0; right: 0; top: -30%; height: 22%;
@@ -1254,49 +1241,61 @@ body {
 #scorecard.sc-ms-4   { --ms-cyan: #ff5252; --ms-magenta: #d50000; --ms-glow: rgba(255,82,82,0.5); }
 #scorecard.sc-ms-5   { --ms-cyan: #ff9100; --ms-magenta: #ff3d00; --ms-glow: rgba(255,145,0,0.5); }
 
-#scorecard.sc-ms-50 .sc-ms-layer::before, #scorecard.sc-ms-50 .sc-ms-halo,
-#scorecard.sc-ms-100 .sc-ms-layer::before, #scorecard.sc-ms-100 .sc-ms-halo,
-#scorecard.sc-ms-150 .sc-ms-layer::before, #scorecard.sc-ms-150 .sc-ms-halo,
-#scorecard.sc-ms-200 .sc-ms-layer::before, #scorecard.sc-ms-200 .sc-ms-halo,
-#scorecard.sc-ms-250 .sc-ms-layer::before, #scorecard.sc-ms-250 .sc-ms-halo,
-#scorecard.sc-ms-3 .sc-ms-layer::before, #scorecard.sc-ms-3 .sc-ms-halo,
-#scorecard.sc-ms-4 .sc-ms-layer::before, #scorecard.sc-ms-4 .sc-ms-halo,
-#scorecard.sc-ms-5 .sc-ms-layer::before, #scorecard.sc-ms-5 .sc-ms-halo {
-  animation: msHalo 4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-@keyframes msHalo {
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.2) rotate(0deg); }
-  22% { opacity: 1; transform: translate(-50%, -50%) scale(0.9) rotate(40deg); }
-  55% { opacity: 0.9; transform: translate(-50%, -50%) scale(1.1) rotate(70deg); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.4) rotate(110deg); }
+#scorecard.sc-ms-50 .sc-ms-layer::before,
+#scorecard.sc-ms-100 .sc-ms-layer::before,
+#scorecard.sc-ms-150 .sc-ms-layer::before,
+#scorecard.sc-ms-200 .sc-ms-layer::before,
+#scorecard.sc-ms-250 .sc-ms-layer::before,
+#scorecard.sc-ms-3 .sc-ms-layer::before,
+#scorecard.sc-ms-4 .sc-ms-layer::before,
+#scorecard.sc-ms-5 .sc-ms-layer::before {
+  animation: msScan 4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 @keyframes msScan {
-  0% { top: -30%; opacity: 0; }
+  0% { transform: translateY(0); opacity: 0; }
   12% { opacity: 1; }
-  34% { top: 115%; opacity: 0; }
-  100% { top: 115%; opacity: 0; }
+  34% { transform: translateY(560%); opacity: 0; }
+  100% { transform: translateY(560%); opacity: 0; }
 }
 
 #scorecard.sc-ms-50 .sc-ms-50,
 #scorecard.sc-ms-100 .sc-ms-100,
 #scorecard.sc-ms-150 .sc-ms-150,
 #scorecard.sc-ms-200 .sc-ms-200,
-#scorecard.sc-ms-250 .sc-ms-250,
-#scorecard.sc-ms-3 .sc-ms-3,
-#scorecard.sc-ms-4 .sc-ms-4,
-#scorecard.sc-ms-5 .sc-ms-5 {
+#scorecard.sc-ms-250 .sc-ms-250 {
   display: block;
   animation: msPop 4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 @keyframes msPop {
-  0% { opacity: 0; transform: scale(2.6) rotateY(38deg); filter: blur(16px); letter-spacing: 6px; }
-  12% { opacity: 1; transform: scale(0.92) rotateY(-5deg); filter: blur(0); letter-spacing: 0; }
-  20% { transform: scale(1.06) rotateY(2deg); }
-  28% { transform: scale(1) rotateY(0deg); }
+  0% { opacity: 0; transform: scale(2.6) rotate(-10deg); letter-spacing: 6px; }
+  8% { opacity: 1; }
+  12% { opacity: 1; transform: scale(0.92) rotate(2deg); letter-spacing: 0; }
+  20% { transform: scale(1.06) rotate(-1deg); }
+  28% { transform: scale(1) rotate(0deg); }
   35% { transform: scale(1.02); }
   42% { transform: scale(1); }
-  75% { opacity: 1; transform: scale(1); filter: blur(0); }
-  100% { opacity: 0; transform: scale(1.22) translateY(-22px); filter: blur(12px); }
+  75% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.22) translateY(-22px); }
+}
+/* 3W/4W/5W hauls: wide labels (13 chars) that must never overflow the card,
+   so they get the same 4s rhythm/easing as the batsman milestones but a
+   smaller entrance scale that stays inside the layer (no clipping/jitter). */
+#scorecard.sc-ms-3 .sc-ms-3,
+#scorecard.sc-ms-4 .sc-ms-4,
+#scorecard.sc-ms-5 .sc-ms-5 {
+  display: flex; flex-direction: column; align-items: center;
+  animation: msHaulPop 4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes msHaulPop {
+  0% { opacity: 0; transform: scale(1.5) rotate(-8deg); letter-spacing: 2px; }
+  8% { opacity: 1; }
+  12% { opacity: 1; transform: scale(0.94) rotate(1.5deg); letter-spacing: 0; }
+  20% { transform: scale(1.05) rotate(-1deg); }
+  28% { transform: scale(1) rotate(0deg); }
+  35% { transform: scale(1.01); }
+  42% { transform: scale(1); }
+  75% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.15) translateY(-18px); }
 }
 @keyframes msSplit {
   0% { opacity: 0; transform: translateX(0); }
@@ -1319,6 +1318,13 @@ body {
   100% { opacity: 0; transform: translateX(0); }
 }
 
+#scorecard .sc-ms-3.sc-ms-item::before,
+#scorecard .sc-ms-4.sc-ms-item::before,
+#scorecard .sc-ms-5.sc-ms-item::before,
+#scorecard .sc-ms-3.sc-ms-item::after,
+#scorecard .sc-ms-4.sc-ms-item::after,
+#scorecard .sc-ms-5.sc-ms-item::after { content: none; }
+
 #scorecard.sc-ms-50 .sc-ms-item::before,
 #scorecard.sc-ms-100 .sc-ms-item::before,
 #scorecard.sc-ms-150 .sc-ms-item::before,
@@ -1336,81 +1342,121 @@ body {
 #scorecard.sc-ms-4 .sc-ms-item::after,
 #scorecard.sc-ms-5 .sc-ms-item::after { animation: msSplit2 4s ease forwards; }
 
-.sc-ms-50 {
+.sc-ms-item.sc-ms-50 {
   font-size: 150px; letter-spacing: 2px;
-  background: linear-gradient(90deg, #00e5ff 0%, #2979ff 55%, #7b4dff 100%);
+  background: linear-gradient(135deg, var(--ms-cyan) 0%, var(--ms-magenta) 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  color: #00e5ff;
   text-shadow: 0 0 18px var(--ms-glow);
 }
-.sc-ms-100 {
+.sc-ms-item.sc-ms-100 {
   font-size: 138px; letter-spacing: 2px;
-  background: linear-gradient(90deg, #ff2ec4 0%, #ff0080 45%, #ff8adf 100%);
+  background: linear-gradient(135deg, var(--ms-cyan) 0%, var(--ms-magenta) 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  color: #ff2ec4;
   text-shadow: 0 0 18px var(--ms-glow);
 }
-.sc-ms-150 {
+.sc-ms-item.sc-ms-150 {
   font-size: 122px; letter-spacing: 2px;
-  background: linear-gradient(90deg, #c6ff00 0%, #4caf50 60%, #00e676 100%);
+  background: linear-gradient(135deg, var(--ms-cyan) 0%, var(--ms-magenta) 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  color: #c6ff00;
   text-shadow: 0 0 18px var(--ms-glow);
 }
-.sc-ms-200 {
+.sc-ms-item.sc-ms-200 {
   font-size: 112px; letter-spacing: 2px;
-  background: linear-gradient(90deg, #ffd700 0%, #ff9100 60%, #ff6d00 100%);
+  background: linear-gradient(135deg, var(--ms-cyan) 0%, var(--ms-magenta) 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  color: #ffd700;
   text-shadow: 0 0 18px var(--ms-glow);
 }
-.sc-ms-250 {
+.sc-ms-item.sc-ms-250 {
   font-size: 100px; letter-spacing: 2px;
-  background: linear-gradient(90deg, #b06bff 0%, #6d28d9 60%, #8b5cf6 100%);
+  background: linear-gradient(135deg, var(--ms-cyan) 0%, var(--ms-magenta) 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  color: #b06bff;
   text-shadow: 0 0 18px var(--ms-glow);
 }
-.sc-ms-3 {
+.sc-ms-item.sc-ms-3 {
+  display: flex; flex-direction: column; align-items: center;
   font-size: 52px; letter-spacing: 2px;
-  background: linear-gradient(90deg, #00ffa3 0%, #00c853 60%, #00e676 100%);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  color: #00ffa3;
   text-shadow: 0 0 18px var(--ms-glow);
 }
-.sc-ms-4 {
+.sc-ms-item.sc-ms-4 {
+  display: flex; flex-direction: column; align-items: center;
   font-size: 52px; letter-spacing: 2px;
-  background: linear-gradient(90deg, #ff5252 0%, #d50000 60%, #ff1744 100%);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  color: #ff5252;
   text-shadow: 0 0 18px var(--ms-glow);
 }
-.sc-ms-5 {
+.sc-ms-item.sc-ms-5 {
+  display: flex; flex-direction: column; align-items: center;
   font-size: 52px; letter-spacing: 2px;
-  background: linear-gradient(90deg, #ff9100 0%, #ff3d00 60%, #ff5252 100%);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  color: #ff9100;
   text-shadow: 0 0 18px var(--ms-glow);
 }
+#scorecard .sc-ms-item.sc-ms-3 .ms-haul-num,
+#scorecard .sc-ms-item.sc-ms-4 .ms-haul-num,
+#scorecard .sc-ms-item.sc-ms-5 .ms-haul-num {
+  font-size: 110px; line-height: 0.95;
+  background: linear-gradient(135deg, var(--ms-cyan) 0%, var(--ms-magenta) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  filter: drop-shadow(0 0 18px var(--ms-glow));
+}
+#scorecard .sc-ms-item.sc-ms-3 .ms-haul-label,
+#scorecard .sc-ms-item.sc-ms-4 .ms-haul-label,
+#scorecard .sc-ms-item.sc-ms-5 .ms-haul-label {
+  font-size: 34px; letter-spacing: 8px; margin-top: 6px;
+  background: linear-gradient(135deg, var(--ms-cyan) 0%, var(--ms-magenta) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  filter: drop-shadow(0 0 12px var(--ms-glow));
+}
+#scorecard .sc-ms-item.sc-ms-3 .ms-haul-congrats,
+#scorecard .sc-ms-item.sc-ms-4 .ms-haul-congrats,
+#scorecard .sc-ms-item.sc-ms-5 .ms-haul-congrats {
+  font-size: 20px; letter-spacing: 4px; margin-top: 10px;
+  font-weight: 900;
+  background: linear-gradient(90deg, var(--ms-cyan) 0%, #ffffff 50%, var(--ms-magenta) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  color: #00f0ff;
+  filter: drop-shadow(0 0 8px var(--ms-glow));
+  opacity: 0;
+}
+#scorecard.sc-ms-3 .sc-ms-3 .ms-haul-congrats,
+#scorecard.sc-ms-4 .sc-ms-4 .ms-haul-congrats,
+#scorecard.sc-ms-5 .sc-ms-5 .ms-haul-congrats { animation: msCongratsIn 4s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+
+#scorecard.sc-ms-3 .sc-ms-congrats-line,
+#scorecard.sc-ms-4 .sc-ms-congrats-line,
+#scorecard.sc-ms-5 .sc-ms-congrats-line { display: none; }
+
+#scorecard.sc-ms-3 .sc-ms-item,
+#scorecard.sc-ms-4 .sc-ms-item,
+#scorecard.sc-ms-5 .sc-ms-item { padding: 12px 0; }
 
 /* CONGRATULATIONS — line 2 of the milestone animation, below the label */
 #scorecard .sc-ms-congrats-line {
   position: relative;
+  flex-shrink: 0;
   margin-top: 18px;
   font-family: 'Impact', 'Arial Black', system-ui, sans-serif;
   font-size: 26px; font-weight: 900; letter-spacing: 4px; line-height: 1;
-  background: linear-gradient(90deg, #00f0ff, #7b4dff, #ff2ec4, #00f0ff);
-  background-size: 300% 100%;
+  background: linear-gradient(90deg, var(--ms-cyan) 0%, #ffffff 50%, var(--ms-magenta) 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  color: #00f0ff;
   filter: drop-shadow(0 0 12px rgba(0,240,255,0.35));
   opacity: 0;
   z-index: 1;
 }
 #scorecard .sc-ms-layer.active .sc-ms-congrats-line {
-  animation: msCongratsIn 4s cubic-bezier(0.22, 1, 0.36, 1) forwards, msTitleFlow 2.4s linear infinite;
+  animation: msCongratsIn 4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 @keyframes msCongratsIn {
-  0% { opacity: 0; transform: translateY(16px) scale(0.8); filter: blur(8px); letter-spacing: 14px; }
-  10% { opacity: 1; transform: translateY(0) scale(1.05); filter: blur(0); letter-spacing: 4px; }
+  0% { opacity: 0; transform: translateY(16px) scale(0.8); letter-spacing: 14px; }
+  10% { opacity: 1; transform: translateY(0) scale(1.05); letter-spacing: 4px; }
   18% { transform: translateY(0) scale(1); }
-  75% { opacity: 1; filter: blur(0); }
-  100% { opacity: 0; transform: translateY(-10px) scale(1.08); filter: blur(10px); letter-spacing: 6px; }
-}
-@keyframes msTitleFlow {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 300% 50%; }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-10px) scale(1.08); letter-spacing: 6px; }
 }
 
 /* Demo-mode scale — only applies when opened with ?mode=milestone-demo */
@@ -1469,10 +1515,10 @@ body {
 #scorecard .sc-t-ov { font-size: 15px; }
 #scorecard .sc-vs { font-size: 16px; }
 #scorecard .sc-format-badge { font-size: 12px; }
-#scorecard .sc-bm { font-size: 17px; }
-#scorecard .sc-bm-name .str { font-size: 14px; }
-#scorecard .sc-bm-score { font-size: 21px; }
-#scorecard .sc-bm-score-balls { font-size: 14px; }
+#scorecard .sc-bm { font-size: 20px; }
+#scorecard .sc-bm-name .str { font-size: 16px; }
+#scorecard .sc-bm-score { font-size: 25px; }
+#scorecard .sc-bm-score-balls { font-size: 16px; }
 #scorecard .sc-bowler { font-size: 16px; }
 #scorecard .sc-bowler-eco { font-size: 14px; }
 #scorecard .sc-bowler-fig { font-size: 18px; }
@@ -1994,15 +2040,14 @@ body {
   </div>
   <div class="sc-ms-layer" id="sc-ms-layer">
     <canvas id="sc-ms-canvas"></canvas>
-    <div class="sc-ms-halo"></div>
     <div class="sc-ms-item sc-ms-50" data-text="50">50</div>
     <div class="sc-ms-item sc-ms-100" data-text="100">100</div>
     <div class="sc-ms-item sc-ms-150" data-text="150">150</div>
     <div class="sc-ms-item sc-ms-200" data-text="200">200</div>
     <div class="sc-ms-item sc-ms-250" data-text="250">250</div>
-    <div class="sc-ms-item sc-ms-3" data-text="3-WICKET HAUL">3-WICKET HAUL</div>
-    <div class="sc-ms-item sc-ms-4" data-text="4-WICKET HAUL">4-WICKET HAUL</div>
-    <div class="sc-ms-item sc-ms-5" data-text="5-WICKET HAUL">5-WICKET HAUL</div>
+    <div class="sc-ms-item sc-ms-3" data-text="3-WICKET HAUL"><span class="ms-haul-num">3</span><span class="ms-haul-label">WICKET HAUL</span><span class="ms-haul-congrats">CONGRATULATIONS</span></div>
+    <div class="sc-ms-item sc-ms-4" data-text="4-WICKET HAUL"><span class="ms-haul-num">4</span><span class="ms-haul-label">WICKET HAUL</span><span class="ms-haul-congrats">CONGRATULATIONS</span></div>
+    <div class="sc-ms-item sc-ms-5" data-text="5-WICKET HAUL"><span class="ms-haul-num">5</span><span class="ms-haul-label">WICKET HAUL</span><span class="ms-haul-congrats">CONGRATULATIONS</span></div>
     <div class="sc-ms-congrats-line">CONGRATULATIONS</div>
   </div>
   <div class="sc-hdr">
@@ -3143,6 +3188,54 @@ let _scQueued = null;   // classic celebration held while a milestone runs
 let _msBatter = {};        // batter name -> Set of milestone runs already celebrated
 let _msBowler = null;      // { name, lastWk, fired: Set }
 
+const _glowCache = {};
+const _textSpriteCache = {};
+const _MAX_PARTS = 320;
+const _TEXT_SPRITE_PX = 96;
+const _TEXT_SPRITE_FONT = 64;
+function _glowSprite(color) {
+  let s = _glowCache[color];
+  if (s) return s;
+  s = document.createElement('canvas');
+  const S = 64;
+  s.width = S; s.height = S;
+  const g = s.getContext('2d');
+  const grad = g.createRadialGradient(S / 2, S / 2, 1, S / 2, S / 2, S / 2);
+  grad.addColorStop(0, color);
+  grad.addColorStop(0.55, color);
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, S, S);
+  _glowCache[color] = s;
+  return s;
+}
+// Pre-renders a glowing text/emoji glyph ONCE (per color+text) so the render
+// loop only does a cheap scaled drawImage instead of per-frame fillText
+// (rasterizing an emoji glyph each frame was ~1.3ms — the haul jank source).
+function _textSprite(color, txt) {
+  const key = color + '|' + txt;
+  let s = _textSpriteCache[key];
+  if (s) return s;
+  const S = _TEXT_SPRITE_PX;
+  s = document.createElement('canvas');
+  s.width = S; s.height = S;
+  const g = s.getContext('2d');
+  const F = _TEXT_SPRITE_FONT;
+  const grad = g.createRadialGradient(S / 2, S / 2, F * 0.2, S / 2, S / 2, S / 2);
+  grad.addColorStop(0, color);
+  grad.addColorStop(0.55, color);
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, S, S);
+  g.font = F + 'px Impact,system-ui';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillStyle = '#fff';
+  g.fillText(txt, S / 2, S / 2);
+  _textSpriteCache[key] = s;
+  return s;
+}
+
 function _msCanvasInit() {
   const c = document.getElementById('sc-ms-canvas');
   if (!c) return;
@@ -3156,7 +3249,7 @@ function _msCanvasInit() {
 }
 
 function _msSpawn(cx, cy, n, o) {
-  for (let i = 0; i < n; i++) _msParts.push(_scP(cx, cy, o));
+  for (let i = 0; i < n && _msParts.length < _MAX_PARTS; i++) _msParts.push(_scP(cx, cy, o));
 }
 
 function _msRender() {
@@ -3178,18 +3271,20 @@ function _msRender() {
     const sz = p.s * (0.3 + 0.7 * alpha);
     ctx.globalAlpha = alpha * p.op;
     ctx.fillStyle = p.c;
-    if (p.gl) { ctx.shadowColor = p.c; ctx.shadowBlur = p.gl * alpha; }
+    if (p.gl) { const gr = sz * 3.4; ctx.drawImage(_glowSprite(p.c), p.x - gr, p.y - gr, gr * 2, gr * 2); }
     if (p.t === 1) {
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
       ctx.fillRect(-sz, -sz * 0.3, sz * 2, sz * 0.6); ctx.restore();
     } else if (p.t === 2) {
       ctx.strokeStyle = p.c; ctx.lineWidth = 1.5 + 2 * alpha;
-      ctx.beginPath(); ctx.arc(p.x, p.y, sz, 0, 6.283); ctx.stroke();
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.beginPath();
+      ctx.moveTo(0, -sz); ctx.lineTo(sz, 0); ctx.lineTo(0, sz); ctx.lineTo(-sz, 0);
+      ctx.closePath(); ctx.stroke(); ctx.restore();
     } else if (p.t === 3) {
-      ctx.font = (sz * 2.2) + 'px Impact,system-ui';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.shadowBlur = (p.gl || 10) * alpha;
-      ctx.fillText(p.txt || '0', p.x, p.y);
+      const spr = _textSprite(p.c, p.txt || '0');
+      const target = sz * 2.2 / _TEXT_SPRITE_FONT * _TEXT_SPRITE_PX;
+      ctx.drawImage(spr, p.x - target / 2, p.y - target / 2, target, target);
     } else if (p.t === 4) {
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
       ctx.beginPath();
@@ -3200,8 +3295,19 @@ function _msRender() {
       ctx.beginPath();
       ctx.moveTo(0, -sz); ctx.lineTo(sz * 0.7, 0); ctx.lineTo(0, sz); ctx.lineTo(-sz * 0.7, 0);
       ctx.closePath(); ctx.fill(); ctx.restore();
+    } else if (p.t === 7) {
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.beginPath();
+      for (let k = 0; k < 10; k++) {
+        const r = k % 2 === 0 ? sz : sz * 0.45;
+        const ang = -Math.PI / 2 + k * Math.PI / 5;
+        const px = Math.cos(ang) * r, py = Math.sin(ang) * r;
+        if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath(); ctx.fill(); ctx.restore();
     } else {
-      ctx.beginPath(); ctx.arc(p.x, p.y, sz, 0, 6.283); ctx.fill();
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.fillRect(-sz, -sz, sz * 2, sz * 2); ctx.restore();
     }
   }
   ctx.shadowBlur = 0; ctx.globalAlpha = 1;
@@ -3225,45 +3331,45 @@ function _msSpawnEvent(type) {
   const C4   = ['#ff5252', '#ff1744', '#d50000', '#ff8a80', '#ff6b6b'];
   const C5   = ['#ff9100', '#ffab40', '#ff3d00', '#ff6d00', '#ffcc80'];
   if (type === 50) {
-    burst(150, C50, { l: 3.6, sp: 3 + Math.random() * 13, gl: 16, t: [0,0,0,0,1,4,5] });
-    setTimeout(() => burst(80, [C50[0], C50[4]], { l: 2.6, sp: 2 + Math.random() * 7, gl: 12, t: [1,4,5] }), 250);
+    burst(150, C50, { l: 3.6, sp: 3 + Math.random() * 13, gl: 16, t: [7,0,0,0,1,4,5] });
+    setTimeout(() => burst(80, [C50[0], C50[4]], { l: 2.6, sp: 2 + Math.random() * 7, gl: 12, t: [1,4,5,7] }), 250);
     setTimeout(() => _msSpawn(cx, cy, 60, { c: [C50[0], C50[3], '#fff'], l: 2.4, sp: 1 + Math.random() * 4, g: 0.02, d: 0.99, gl: 14, t: 3, txt: Math.random() > 0.5 ? '0' : '1', scatter: 70 }), 550);
-    setTimeout(() => _msSpawn(cx, cy, 26, { c: C50[0], l: 2.8, sp: 1 + Math.random() * 3, g: 0, d: 0.99, gl: 10, t: 2, s: 8 + Math.random() * 12, scatter: 20 }), 800);
+    setTimeout(() => burst(26, [C50[0], C50[3]], { l: 2.8, sp: 1 + Math.random() * 3, g: 0, d: 0.99, gl: 10, t: 7, s: 8 + Math.random() * 12, scatter: 20 }), 800);
   } else if (type === 100) {
-    burst(170, C100, { l: 3.8, sp: 4 + Math.random() * 15, gl: 18, t: [0,0,0,0,1,4,5] });
-    setTimeout(() => burst(90, [C100[2], C100[0]], { l: 2.8, sp: 2 + Math.random() * 8, gl: 14, t: [1,4,5] }), 250);
+    burst(170, C100, { l: 3.8, sp: 4 + Math.random() * 15, gl: 18, t: [7,0,0,0,1,4,5] });
+    setTimeout(() => burst(90, [C100[2], C100[0]], { l: 2.8, sp: 2 + Math.random() * 8, gl: 14, t: [1,4,5,7] }), 250);
     setTimeout(() => _msSpawn(cx, cy, 70, { c: [C100[0], '#fff', C100[3]], l: 2.4, sp: 1 + Math.random() * 4, g: 0.02, d: 0.99, gl: 16, t: 3, txt: '✦', scatter: 70 }), 550);
-    setTimeout(() => _msSpawn(cx, cy, 20, { c: C100[2], l: 3, sp: 1 + Math.random() * 3, g: 0, d: 0.99, gl: 12, t: 2, s: 10 + Math.random() * 14, scatter: 24 }), 800);
+    setTimeout(() => burst(20, [C100[2], C100[0]], { l: 3, sp: 1 + Math.random() * 3, g: 0, d: 0.99, gl: 12, t: 7, s: 10 + Math.random() * 14, scatter: 24 }), 800);
   } else if (type === 150) {
-    burst(190, C150, { l: 4, sp: 4 + Math.random() * 16, gl: 18, t: [0,0,0,0,1,4,5] });
-    setTimeout(() => burst(110, [C150[0], C150[2]], { l: 3, sp: 2 + Math.random() * 9, gl: 14, t: [1,4,5] }), 250);
+    burst(190, C150, { l: 4, sp: 4 + Math.random() * 16, gl: 18, t: [7,0,0,0,1,4,5] });
+    setTimeout(() => burst(110, [C150[0], C150[2]], { l: 3, sp: 2 + Math.random() * 9, gl: 14, t: [1,4,5,7] }), 250);
     setTimeout(() => _msSpawn(cx, cy, 80, { c: [C150[0], C150[2], '#fff'], l: 2.6, sp: 1 + Math.random() * 5, g: 0.02, d: 0.99, gl: 16, t: 3, txt: '✦', scatter: 80 }), 550);
-    setTimeout(() => _msSpawn(cx, cy, 30, { c: C150[0], l: 3.2, sp: 1 + Math.random() * 3, g: 0, d: 0.99, gl: 12, t: 2, s: 9 + Math.random() * 14, scatter: 24 }), 800);
+    setTimeout(() => burst(30, [C150[0], C150[2]], { l: 3.2, sp: 1 + Math.random() * 3, g: 0, d: 0.99, gl: 12, t: 7, s: 9 + Math.random() * 14, scatter: 24 }), 800);
   } else if (type === 200) {
-    burst(210, C200, { l: 4, sp: 4 + Math.random() * 16, gl: 18, t: [0,0,0,0,1,4,5] });
-    setTimeout(() => burst(120, [C200[0], C200[2]], { l: 3, sp: 2 + Math.random() * 9, gl: 14, t: [1,4,5] }), 250);
+    burst(210, C200, { l: 4, sp: 4 + Math.random() * 16, gl: 18, t: [7,0,0,0,1,4,5] });
+    setTimeout(() => burst(120, [C200[0], C200[2]], { l: 3, sp: 2 + Math.random() * 9, gl: 14, t: [1,4,5,7] }), 250);
     setTimeout(() => _msSpawn(cx, cy, 90, { c: [C200[0], C200[3], '#fff'], l: 2.6, sp: 1 + Math.random() * 5, g: 0.02, d: 0.99, gl: 16, t: 3, txt: '✦', scatter: 80 }), 550);
-    setTimeout(() => _msSpawn(cx, cy, 34, { c: C200[2], l: 3.2, sp: 1 + Math.random() * 3, g: 0, d: 0.99, gl: 12, t: 2, s: 9 + Math.random() * 14, scatter: 24 }), 800);
+    setTimeout(() => burst(34, [C200[2], C200[0]], { l: 3.2, sp: 1 + Math.random() * 3, g: 0, d: 0.99, gl: 12, t: 7, s: 9 + Math.random() * 14, scatter: 24 }), 800);
   } else if (type === 250) {
-    burst(230, C250, { l: 4.2, sp: 4 + Math.random() * 17, gl: 20, t: [0,0,0,0,1,4,5] });
-    setTimeout(() => burst(130, [C250[0], C250[2]], { l: 3, sp: 2 + Math.random() * 10, gl: 15, t: [1,4,5] }), 250);
+    burst(230, C250, { l: 4.2, sp: 4 + Math.random() * 17, gl: 20, t: [7,0,0,0,1,4,5] });
+    setTimeout(() => burst(130, [C250[0], C250[2]], { l: 3, sp: 2 + Math.random() * 10, gl: 15, t: [1,4,5,7] }), 250);
     setTimeout(() => _msSpawn(cx, cy, 100, { c: [C250[0], C250[3], '#fff'], l: 2.8, sp: 1 + Math.random() * 5, g: 0.02, d: 0.99, gl: 18, t: 3, txt: '✦', scatter: 90 }), 550);
-    setTimeout(() => _msSpawn(cx, cy, 38, { c: C250[1], l: 3.4, sp: 1 + Math.random() * 3, g: 0, d: 0.99, gl: 13, t: 2, s: 10 + Math.random() * 15, scatter: 26 }), 800);
+    setTimeout(() => burst(38, [C250[1], C250[0]], { l: 3.4, sp: 1 + Math.random() * 3, g: 0, d: 0.99, gl: 13, t: 7, s: 10 + Math.random() * 15, scatter: 26 }), 800);
   } else if (type === 'haul3') {
-    burst(160, C3, { l: 3.6, sp: 3 + Math.random() * 14, gl: 16, t: [0,0,0,0,1,4,5] });
-    setTimeout(() => burst(100, [C3[0], C3[1]], { l: 2.8, sp: 2 + Math.random() * 8, gl: 14, t: [1,4,5] }), 200);
+    burst(160, C3, { l: 3.6, sp: 3 + Math.random() * 14, gl: 16, t: [7,0,0,0,1,4,5] });
+    setTimeout(() => burst(100, [C3[0], C3[1]], { l: 2.8, sp: 2 + Math.random() * 8, gl: 14, t: [1,4,5,7] }), 200);
     setTimeout(() => _msSpawn(cx, cy, 60, { c: [C3[0], C3[1], '#fff'], l: 2.5, sp: 2 + Math.random() * 5, g: 0.03, d: 0.98, gl: 16, t: 3, txt: '⚡', scatter: 60 }), 450);
-    setTimeout(() => _msSpawn(cx, cy, 40, { c: C3[1], l: 3, sp: 1 + Math.random() * 3, g: 0, d: 0.99, gl: 12, t: 2, s: 10 + Math.random() * 16, scatter: 20 }), 700);
+    setTimeout(() => burst(40, [C3[1], C3[0]], { l: 3, sp: 1 + Math.random() * 3, g: 0, d: 0.99, gl: 12, t: 7, s: 10 + Math.random() * 16, scatter: 20 }), 700);
   } else if (type === 'haul4') {
-    burst(185, C4, { l: 3.8, sp: 3 + Math.random() * 15, gl: 18, t: [0,0,0,0,1,4,5] });
-    setTimeout(() => burst(110, [C4[0], C4[2]], { l: 3, sp: 2 + Math.random() * 9, gl: 15, t: [1,4,5] }), 200);
+    burst(185, C4, { l: 3.8, sp: 3 + Math.random() * 15, gl: 18, t: [7,0,0,0,1,4,5] });
+    setTimeout(() => burst(110, [C4[0], C4[2]], { l: 3, sp: 2 + Math.random() * 9, gl: 15, t: [1,4,5,7] }), 200);
     setTimeout(() => _msSpawn(cx, cy, 70, { c: [C4[0], C4[3], '#fff'], l: 2.6, sp: 2 + Math.random() * 5, g: 0.03, d: 0.98, gl: 18, t: 3, txt: '⚡', scatter: 65 }), 450);
-    setTimeout(() => _msSpawn(cx, cy, 45, { c: C4[1], l: 3.1, sp: 1 + Math.random() * 3, g: 0, d: 0.99, gl: 13, t: 2, s: 11 + Math.random() * 16, scatter: 22 }), 700);
+    setTimeout(() => burst(45, [C4[1], C4[0]], { l: 3.1, sp: 1 + Math.random() * 3, g: 0, d: 0.99, gl: 13, t: 7, s: 11 + Math.random() * 16, scatter: 22 }), 700);
   } else if (type === 'haul5') {
-    burst(210, C5, { l: 4, sp: 4 + Math.random() * 16, gl: 20, t: [0,0,0,0,1,4,5] });
-    setTimeout(() => burst(125, [C5[0], C5[2]], { l: 3, sp: 2 + Math.random() * 10, gl: 16, t: [1,4,5] }), 200);
+    burst(210, C5, { l: 4, sp: 4 + Math.random() * 16, gl: 20, t: [7,0,0,0,1,4,5] });
+    setTimeout(() => burst(125, [C5[0], C5[2]], { l: 3, sp: 2 + Math.random() * 10, gl: 16, t: [1,4,5,7] }), 200);
     setTimeout(() => _msSpawn(cx, cy, 80, { c: [C5[0], C5[1], '#fff'], l: 2.7, sp: 2 + Math.random() * 5, g: 0.03, d: 0.98, gl: 18, t: 3, txt: '⚡', scatter: 70 }), 450);
-    setTimeout(() => _msSpawn(cx, cy, 50, { c: C5[2], l: 3.2, sp: 1 + Math.random() * 3, g: 0, d: 0.99, gl: 14, t: 2, s: 11 + Math.random() * 17, scatter: 24 }), 700);
+    setTimeout(() => burst(50, [C5[2], C5[0]], { l: 3.2, sp: 1 + Math.random() * 3, g: 0, d: 0.99, gl: 14, t: 7, s: 11 + Math.random() * 17, scatter: 24 }), 700);
   }
   _msRender();
 }
@@ -3399,6 +3505,7 @@ function _msDemoAuto() {
 function _msDemoFire(type) {
   const card = DOM.scorecard;
   _msDemoResetTrackers();
+  updateScore(_msDemoScore(254, 3, 46), 'demo');
   const map = { '50': 50, '100': 100, '150': 150, '200': 200, '250': 250 };
   if (map[type]) _triggerMilestoneAnim(card, map[type], _msDemoBatter);
   else _triggerMilestoneAnim(card, 'haul' + String(type), _msDemoBowler);
