@@ -1181,6 +1181,287 @@ body {
   100% { opacity: 0; transform: scale(1.15) translateY(12px); filter: blur(6px); }
 }
 
+/* ════════════════════════════════════════
+   MILESTONE ANIMATIONS — Futuristic celebrations
+   (batter every 50: 50 / 100 / 150 / 200 / 250,
+    bowler 3 / 4 / 5-wicket haul)
+   Renders on its own sc-ms-layer so the classic cricket
+   celebrations are never disturbed. 2-line format:
+   milestone label + CONGRATULATIONS. Every event gets a
+   distinct color identity.
+   ════════════════════════════════════════ */
+#scorecard .sc-ms-layer {
+  position: absolute; inset: 0;
+  pointer-events: none; z-index: 1000;
+  border-radius: 18px; overflow: hidden;
+  opacity: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 32px;
+  will-change: opacity;
+}
+#scorecard .sc-ms-layer.active { opacity: 1; }
+#sc-ms-canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+
+#scorecard .sc-ms-item {
+  display: none;
+  position: relative;
+  flex-shrink: 0;
+  font-weight: 900;
+  font-family: 'Impact', 'Arial Black', system-ui, sans-serif;
+  line-height: 1;
+  max-width: 100%; max-height: 100%;
+  box-sizing: border-box;
+  will-change: transform, opacity;
+  z-index: 1;
+}
+#scorecard .sc-ms-item::before,
+#scorecard .sc-ms-item::after {
+  content: attr(data-text);
+  position: absolute; inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+#scorecard .sc-ms-item::before { color: var(--ms-cyan); }
+#scorecard .sc-ms-item::after  { color: var(--ms-magenta); }
+
+#scorecard .sc-ms-layer::before {
+  content: ''; position: absolute; left: 0; right: 0; top: -30%; height: 22%;
+  background: linear-gradient(180deg, transparent, rgba(0,240,255,0.09), rgba(123,77,255,0.12), transparent);
+  opacity: 0; z-index: 2;
+}
+
+/* One distinct color identity per milestone event */
+#scorecard.sc-ms-50  { --ms-cyan: #00e5ff; --ms-magenta: #7b4dff; --ms-glow: rgba(0,229,255,0.45); }
+#scorecard.sc-ms-100 { --ms-cyan: #ff8adf; --ms-magenta: #ff2ec4; --ms-glow: rgba(255,46,196,0.45); }
+#scorecard.sc-ms-150 { --ms-cyan: #c6ff00; --ms-magenta: #00e676; --ms-glow: rgba(198,255,0,0.4); }
+#scorecard.sc-ms-200 { --ms-cyan: #ffd700; --ms-magenta: #ff9100; --ms-glow: rgba(255,193,7,0.45); }
+#scorecard.sc-ms-250 { --ms-cyan: #b06bff; --ms-magenta: #6d28d9; --ms-glow: rgba(176,107,255,0.45); }
+#scorecard.sc-ms-3   { --ms-cyan: #00ffa3; --ms-magenta: #00c853; --ms-glow: rgba(0,255,163,0.5); }
+#scorecard.sc-ms-4   { --ms-cyan: #ff5252; --ms-magenta: #d50000; --ms-glow: rgba(255,82,82,0.5); }
+#scorecard.sc-ms-5   { --ms-cyan: #ff9100; --ms-magenta: #ff3d00; --ms-glow: rgba(255,145,0,0.5); }
+
+#scorecard.sc-ms-50 .sc-ms-layer::before,
+#scorecard.sc-ms-100 .sc-ms-layer::before,
+#scorecard.sc-ms-150 .sc-ms-layer::before,
+#scorecard.sc-ms-200 .sc-ms-layer::before,
+#scorecard.sc-ms-250 .sc-ms-layer::before,
+#scorecard.sc-ms-3 .sc-ms-layer::before,
+#scorecard.sc-ms-4 .sc-ms-layer::before,
+#scorecard.sc-ms-5 .sc-ms-layer::before {
+  animation: msScan 4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes msScan {
+  0% { transform: translateY(0); opacity: 0; }
+  12% { opacity: 1; }
+  34% { transform: translateY(560%); opacity: 0; }
+  100% { transform: translateY(560%); opacity: 0; }
+}
+
+#scorecard.sc-ms-50 .sc-ms-50,
+#scorecard.sc-ms-100 .sc-ms-100,
+#scorecard.sc-ms-150 .sc-ms-150,
+#scorecard.sc-ms-200 .sc-ms-200,
+#scorecard.sc-ms-250 .sc-ms-250 {
+  display: block;
+  animation: msPop 4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes msPop {
+  0% { opacity: 0; transform: scale(2.6) rotate(-10deg); letter-spacing: 6px; }
+  8% { opacity: 1; }
+  12% { opacity: 1; transform: scale(0.92) rotate(2deg); letter-spacing: 0; }
+  20% { transform: scale(1.06) rotate(-1deg); }
+  28% { transform: scale(1) rotate(0deg); }
+  35% { transform: scale(1.02); }
+  42% { transform: scale(1); }
+  75% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.22) translateY(-22px); }
+}
+/* 3W/4W/5W hauls: wide labels (13 chars) that must never overflow the card,
+   so they get the same 4s rhythm/easing as the batsman milestones but a
+   smaller entrance scale that stays inside the layer (no clipping/jitter). */
+#scorecard.sc-ms-3 .sc-ms-3,
+#scorecard.sc-ms-4 .sc-ms-4,
+#scorecard.sc-ms-5 .sc-ms-5 {
+  display: flex; flex-direction: column; align-items: center;
+  animation: msHaulPop 4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes msHaulPop {
+  0% { opacity: 0; transform: scale(1.5) rotate(-8deg); letter-spacing: 2px; }
+  8% { opacity: 1; }
+  12% { opacity: 1; transform: scale(0.94) rotate(1.5deg); letter-spacing: 0; }
+  20% { transform: scale(1.05) rotate(-1deg); }
+  28% { transform: scale(1) rotate(0deg); }
+  35% { transform: scale(1.01); }
+  42% { transform: scale(1); }
+  75% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.15) translateY(-18px); }
+}
+@keyframes msSplit {
+  0% { opacity: 0; transform: translateX(0); }
+  4% { opacity: 0.85; transform: translateX(-6px); }
+  10% { opacity: 0; transform: translateX(3px); }
+  28% { opacity: 0.6; transform: translateX(-5px); }
+  34% { opacity: 0; transform: translateX(2px); }
+  58% { opacity: 0.35; transform: translateX(-3px); }
+  66% { opacity: 0; transform: translateX(4px); }
+  100% { opacity: 0; transform: translateX(0); }
+}
+@keyframes msSplit2 {
+  0% { opacity: 0; transform: translateX(0); }
+  4% { opacity: 0.85; transform: translateX(6px); }
+  10% { opacity: 0; transform: translateX(-3px); }
+  28% { opacity: 0.6; transform: translateX(5px); }
+  34% { opacity: 0; transform: translateX(-2px); }
+  58% { opacity: 0.35; transform: translateX(3px); }
+  66% { opacity: 0; transform: translateX(-4px); }
+  100% { opacity: 0; transform: translateX(0); }
+}
+
+#scorecard .sc-ms-3.sc-ms-item::before,
+#scorecard .sc-ms-4.sc-ms-item::before,
+#scorecard .sc-ms-5.sc-ms-item::before,
+#scorecard .sc-ms-3.sc-ms-item::after,
+#scorecard .sc-ms-4.sc-ms-item::after,
+#scorecard .sc-ms-5.sc-ms-item::after { content: none; }
+
+#scorecard.sc-ms-50 .sc-ms-item::before,
+#scorecard.sc-ms-100 .sc-ms-item::before,
+#scorecard.sc-ms-150 .sc-ms-item::before,
+#scorecard.sc-ms-200 .sc-ms-item::before,
+#scorecard.sc-ms-250 .sc-ms-item::before,
+#scorecard.sc-ms-3 .sc-ms-item::before,
+#scorecard.sc-ms-4 .sc-ms-item::before,
+#scorecard.sc-ms-5 .sc-ms-item::before { animation: msSplit 4s ease forwards; }
+#scorecard.sc-ms-50 .sc-ms-item::after,
+#scorecard.sc-ms-100 .sc-ms-item::after,
+#scorecard.sc-ms-150 .sc-ms-item::after,
+#scorecard.sc-ms-200 .sc-ms-item::after,
+#scorecard.sc-ms-250 .sc-ms-item::after,
+#scorecard.sc-ms-3 .sc-ms-item::after,
+#scorecard.sc-ms-4 .sc-ms-item::after,
+#scorecard.sc-ms-5 .sc-ms-item::after { animation: msSplit2 4s ease forwards; }
+
+.sc-ms-item.sc-ms-50 {
+  font-size: 150px; letter-spacing: 2px;
+  background: linear-gradient(135deg, var(--ms-cyan) 0%, var(--ms-magenta) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  color: #00e5ff;
+  text-shadow: 0 0 18px var(--ms-glow);
+}
+.sc-ms-item.sc-ms-100 {
+  font-size: 138px; letter-spacing: 2px;
+  background: linear-gradient(135deg, var(--ms-cyan) 0%, var(--ms-magenta) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  color: #ff2ec4;
+  text-shadow: 0 0 18px var(--ms-glow);
+}
+.sc-ms-item.sc-ms-150 {
+  font-size: 122px; letter-spacing: 2px;
+  background: linear-gradient(135deg, var(--ms-cyan) 0%, var(--ms-magenta) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  color: #c6ff00;
+  text-shadow: 0 0 18px var(--ms-glow);
+}
+.sc-ms-item.sc-ms-200 {
+  font-size: 112px; letter-spacing: 2px;
+  background: linear-gradient(135deg, var(--ms-cyan) 0%, var(--ms-magenta) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  color: #ffd700;
+  text-shadow: 0 0 18px var(--ms-glow);
+}
+.sc-ms-item.sc-ms-250 {
+  font-size: 100px; letter-spacing: 2px;
+  background: linear-gradient(135deg, var(--ms-cyan) 0%, var(--ms-magenta) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  color: #b06bff;
+  text-shadow: 0 0 18px var(--ms-glow);
+}
+.sc-ms-item.sc-ms-3 {
+  display: flex; flex-direction: column; align-items: center;
+  font-size: 52px; letter-spacing: 2px;
+  color: #00ffa3;
+  text-shadow: 0 0 18px var(--ms-glow);
+}
+.sc-ms-item.sc-ms-4 {
+  display: flex; flex-direction: column; align-items: center;
+  font-size: 52px; letter-spacing: 2px;
+  color: #ff5252;
+  text-shadow: 0 0 18px var(--ms-glow);
+}
+.sc-ms-item.sc-ms-5 {
+  display: flex; flex-direction: column; align-items: center;
+  font-size: 52px; letter-spacing: 2px;
+  color: #ff9100;
+  text-shadow: 0 0 18px var(--ms-glow);
+}
+#scorecard .sc-ms-item.sc-ms-3 .ms-haul-num,
+#scorecard .sc-ms-item.sc-ms-4 .ms-haul-num,
+#scorecard .sc-ms-item.sc-ms-5 .ms-haul-num {
+  font-size: 110px; line-height: 0.95;
+  background: linear-gradient(135deg, var(--ms-cyan) 0%, var(--ms-magenta) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  filter: drop-shadow(0 0 18px var(--ms-glow));
+}
+#scorecard .sc-ms-item.sc-ms-3 .ms-haul-label,
+#scorecard .sc-ms-item.sc-ms-4 .ms-haul-label,
+#scorecard .sc-ms-item.sc-ms-5 .ms-haul-label {
+  font-size: 34px; letter-spacing: 8px; margin-top: 6px;
+  background: linear-gradient(135deg, var(--ms-cyan) 0%, var(--ms-magenta) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  filter: drop-shadow(0 0 12px var(--ms-glow));
+}
+#scorecard .sc-ms-item.sc-ms-3 .ms-haul-congrats,
+#scorecard .sc-ms-item.sc-ms-4 .ms-haul-congrats,
+#scorecard .sc-ms-item.sc-ms-5 .ms-haul-congrats {
+  font-size: 20px; letter-spacing: 4px; margin-top: 10px;
+  font-weight: 900;
+  background: linear-gradient(90deg, var(--ms-cyan) 0%, #ffffff 50%, var(--ms-magenta) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  color: #00f0ff;
+  filter: drop-shadow(0 0 8px var(--ms-glow));
+  opacity: 0;
+}
+#scorecard.sc-ms-3 .sc-ms-3 .ms-haul-congrats,
+#scorecard.sc-ms-4 .sc-ms-4 .ms-haul-congrats,
+#scorecard.sc-ms-5 .sc-ms-5 .ms-haul-congrats { animation: msCongratsIn 4s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+
+#scorecard.sc-ms-3 .sc-ms-congrats-line,
+#scorecard.sc-ms-4 .sc-ms-congrats-line,
+#scorecard.sc-ms-5 .sc-ms-congrats-line { display: none; }
+
+#scorecard.sc-ms-3 .sc-ms-item,
+#scorecard.sc-ms-4 .sc-ms-item,
+#scorecard.sc-ms-5 .sc-ms-item { padding: 12px 0; }
+
+/* CONGRATULATIONS — line 2 of the milestone animation, below the label */
+#scorecard .sc-ms-congrats-line {
+  position: relative;
+  flex-shrink: 0;
+  margin-top: 18px;
+  font-family: 'Impact', 'Arial Black', system-ui, sans-serif;
+  font-size: 26px; font-weight: 900; letter-spacing: 4px; line-height: 1;
+  background: linear-gradient(90deg, var(--ms-cyan) 0%, #ffffff 50%, var(--ms-magenta) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  color: #00f0ff;
+  filter: drop-shadow(0 0 12px rgba(0,240,255,0.35));
+  opacity: 0;
+  z-index: 1;
+}
+#scorecard .sc-ms-layer.active .sc-ms-congrats-line {
+  animation: msCongratsIn 4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes msCongratsIn {
+  0% { opacity: 0; transform: translateY(16px) scale(0.8); letter-spacing: 14px; }
+  10% { opacity: 1; transform: translateY(0) scale(1.05); letter-spacing: 4px; }
+  18% { transform: translateY(0) scale(1); }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-10px) scale(1.08); letter-spacing: 6px; }
+}
+
+/* Demo-mode scale — only applies when opened with ?mode=milestone-demo */
+#scorecard.ms-demo { transform: scale(1.6); transform-origin: 0 0; }
+
 .sc-target {
   margin-top: 12px; padding-top: 12px;
   border-top: 1px solid rgba(255,45,85,0.06);
@@ -1234,10 +1515,10 @@ body {
 #scorecard .sc-t-ov { font-size: 15px; }
 #scorecard .sc-vs { font-size: 16px; }
 #scorecard .sc-format-badge { font-size: 12px; }
-#scorecard .sc-bm { font-size: 17px; }
-#scorecard .sc-bm-name .str { font-size: 14px; }
-#scorecard .sc-bm-score { font-size: 21px; }
-#scorecard .sc-bm-score-balls { font-size: 14px; }
+#scorecard .sc-bm { font-size: 20px; }
+#scorecard .sc-bm-name .str { font-size: 16px; }
+#scorecard .sc-bm-score { font-size: 25px; }
+#scorecard .sc-bm-score-balls { font-size: 16px; }
 #scorecard .sc-bowler { font-size: 16px; }
 #scorecard .sc-bowler-eco { font-size: 14px; }
 #scorecard .sc-bowler-fig { font-size: 18px; }
@@ -1756,6 +2037,18 @@ body {
     <div class="sc-anim-item sc-anim-duck">DUCK!</div>
     <div class="sc-anim-item sc-anim-wicket">WICKET!</div>
 
+  </div>
+  <div class="sc-ms-layer" id="sc-ms-layer">
+    <canvas id="sc-ms-canvas"></canvas>
+    <div class="sc-ms-item sc-ms-50" data-text="50">50</div>
+    <div class="sc-ms-item sc-ms-100" data-text="100">100</div>
+    <div class="sc-ms-item sc-ms-150" data-text="150">150</div>
+    <div class="sc-ms-item sc-ms-200" data-text="200">200</div>
+    <div class="sc-ms-item sc-ms-250" data-text="250">250</div>
+    <div class="sc-ms-item sc-ms-3" data-text="3-WICKET HAUL"><span class="ms-haul-num">3</span><span class="ms-haul-label">WICKET HAUL</span><span class="ms-haul-congrats">CONGRATULATIONS</span></div>
+    <div class="sc-ms-item sc-ms-4" data-text="4-WICKET HAUL"><span class="ms-haul-num">4</span><span class="ms-haul-label">WICKET HAUL</span><span class="ms-haul-congrats">CONGRATULATIONS</span></div>
+    <div class="sc-ms-item sc-ms-5" data-text="5-WICKET HAUL"><span class="ms-haul-num">5</span><span class="ms-haul-label">WICKET HAUL</span><span class="ms-haul-congrats">CONGRATULATIONS</span></div>
+    <div class="sc-ms-congrats-line">CONGRATULATIONS</div>
   </div>
   <div class="sc-hdr">
     <span class="sc-title">Live Score</span>
@@ -2832,6 +3125,9 @@ function _scSpawnEvent(eventType) {
 }
 
 function _triggerCricketAnim(card, eventType) {
+  // A milestone celebration owns the screen — queue this classic event and
+  // play it the moment the milestone ends, so the two never overlap.
+  if (_msAnimTimer) { _scQueued = eventType; return; }
   __animFireCount++;
   const layer = $('sc-anim-layer');
   const cls = 'sc-cricket-' + eventType;
@@ -2860,6 +3156,8 @@ function _triggerCricketAnim(card, eventType) {
       'sc-flash-wicket', 'sc-flash-boundary', 'sc-shake');
     layer.classList.remove('active');
     _cricketAnimTimer = null;
+    // A milestone that arrived mid-celebration plays the moment this ends.
+    if (_msQueued) { const q = _msQueued; _msQueued = null; _triggerMilestoneAnim(card, q.type, q.name); }
   }, 4000);
 }
 
@@ -2875,6 +3173,356 @@ function _scDemoLoop() {
   }
   next();
 }
+
+/* ════════════════════════════════════════
+   MILESTONE ENGINE — batter 50/100/150/200/250, bowler 3/4/5-wicket haul
+   Fires off live score deltas in updateScore (never on the first
+   snapshot), renders on its own sc-ms-layer (2 lines: milestone
+   label + CONGRATULATIONS) so the classic cricket celebrations
+   are untouched.
+   ════════════════════════════════════════ */
+let _msCtx = null, _msW = 0, _msH = 0, _msParts = [], _msFrame = null;
+let _msAnimTimer = null;
+let _msQueued = null;   // milestone held while a classic celebration runs
+let _scQueued = null;   // classic celebration held while a milestone runs
+let _msBatter = {};        // batter name -> Set of milestone runs already celebrated
+let _msBowler = null;      // { name, lastWk, fired: Set }
+
+const _glowCache = {};
+const _textSpriteCache = {};
+const _MAX_PARTS = 320;
+const _TEXT_SPRITE_PX = 96;
+const _TEXT_SPRITE_FONT = 64;
+function _glowSprite(color) {
+  let s = _glowCache[color];
+  if (s) return s;
+  s = document.createElement('canvas');
+  const S = 64;
+  s.width = S; s.height = S;
+  const g = s.getContext('2d');
+  const grad = g.createRadialGradient(S / 2, S / 2, 1, S / 2, S / 2, S / 2);
+  grad.addColorStop(0, color);
+  grad.addColorStop(0.55, color);
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, S, S);
+  _glowCache[color] = s;
+  return s;
+}
+// Pre-renders a glowing text/emoji glyph ONCE (per color+text) so the render
+// loop only does a cheap scaled drawImage instead of per-frame fillText
+// (rasterizing an emoji glyph each frame was ~1.3ms — the haul jank source).
+function _textSprite(color, txt) {
+  const key = color + '|' + txt;
+  let s = _textSpriteCache[key];
+  if (s) return s;
+  const S = _TEXT_SPRITE_PX;
+  s = document.createElement('canvas');
+  s.width = S; s.height = S;
+  const g = s.getContext('2d');
+  const F = _TEXT_SPRITE_FONT;
+  const grad = g.createRadialGradient(S / 2, S / 2, F * 0.2, S / 2, S / 2, S / 2);
+  grad.addColorStop(0, color);
+  grad.addColorStop(0.55, color);
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, S, S);
+  g.font = F + 'px Impact,system-ui';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillStyle = '#fff';
+  g.fillText(txt, S / 2, S / 2);
+  _textSpriteCache[key] = s;
+  return s;
+}
+
+function _msCanvasInit() {
+  const c = document.getElementById('sc-ms-canvas');
+  if (!c) return;
+  const dpr = window.devicePixelRatio || 1;
+  const layer = document.getElementById('sc-ms-layer');
+  const r = layer.getBoundingClientRect();
+  c.width = Math.max(10, r.width * dpr); c.height = Math.max(10, r.height * dpr);
+  c.style.width = r.width + 'px'; c.style.height = r.height + 'px';
+  _msCtx = c.getContext('2d'); _msCtx.scale(dpr, dpr);
+  _msW = r.width; _msH = r.height;
+}
+
+function _msSpawn(cx, cy, n, o) {
+  for (let i = 0; i < n && _msParts.length < _MAX_PARTS; i++) _msParts.push(_scP(cx, cy, o));
+}
+
+function _msRender() {
+  const ctx = _msCtx;
+  if (!ctx) return;
+  ctx.clearRect(0, 0, _msW, _msH);
+  let alive = false;
+  for (let i = 0; i < _msParts.length; i++) {
+    const p = _msParts[i];
+    if (p.l <= 0) continue;
+    alive = true;
+    p.x += p.vx; p.y += p.vy;
+    p.vx *= p.d; p.vy *= p.d;
+    p.vy += p.g;
+    p.rot += p.rotV;
+    p.l -= 0.016;
+    if (p.x < -60 || p.x > _msW + 60 || p.y < -60 || p.y > _msH + 60) { p.vx *= 0.98; p.vy *= 0.98; }
+    const alpha = Math.max(0, p.l / p.ml);
+    const sz = p.s * (0.3 + 0.7 * alpha);
+    ctx.globalAlpha = alpha * p.op;
+    ctx.fillStyle = p.c;
+    if (p.gl) { const gr = sz * 3.4; ctx.drawImage(_glowSprite(p.c), p.x - gr, p.y - gr, gr * 2, gr * 2); }
+    if (p.t === 1) {
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.fillRect(-sz, -sz * 0.3, sz * 2, sz * 0.6); ctx.restore();
+    } else if (p.t === 2) {
+      ctx.strokeStyle = p.c; ctx.lineWidth = 1.5 + 2 * alpha;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.beginPath();
+      ctx.moveTo(0, -sz); ctx.lineTo(sz, 0); ctx.lineTo(0, sz); ctx.lineTo(-sz, 0);
+      ctx.closePath(); ctx.stroke(); ctx.restore();
+    } else if (p.t === 3) {
+      const spr = _textSprite(p.c, p.txt || '0');
+      const target = sz * 2.2 / _TEXT_SPRITE_FONT * _TEXT_SPRITE_PX;
+      ctx.drawImage(spr, p.x - target / 2, p.y - target / 2, target, target);
+    } else if (p.t === 4) {
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.beginPath();
+      ctx.moveTo(0, -sz); ctx.lineTo(-sz * 0.866, sz * 0.5); ctx.lineTo(sz * 0.866, sz * 0.5);
+      ctx.closePath(); ctx.fill(); ctx.restore();
+    } else if (p.t === 5) {
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.beginPath();
+      ctx.moveTo(0, -sz); ctx.lineTo(sz * 0.7, 0); ctx.lineTo(0, sz); ctx.lineTo(-sz * 0.7, 0);
+      ctx.closePath(); ctx.fill(); ctx.restore();
+    } else if (p.t === 7) {
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.beginPath();
+      for (let k = 0; k < 10; k++) {
+        const r = k % 2 === 0 ? sz : sz * 0.45;
+        const ang = -Math.PI / 2 + k * Math.PI / 5;
+        const px = Math.cos(ang) * r, py = Math.sin(ang) * r;
+        if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath(); ctx.fill(); ctx.restore();
+    } else {
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.fillRect(-sz, -sz, sz * 2, sz * 2); ctx.restore();
+    }
+  }
+  ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+  if (alive) _msFrame = requestAnimationFrame(_msRender);
+  else { _msParts = []; _msFrame = null; }
+}
+
+function _msSpawnEvent(type) {
+  _msCanvasInit();
+  _msParts = [];
+  if (_msFrame) { cancelAnimationFrame(_msFrame); _msFrame = null; }
+  const cx = _msW / 2, cy = _msH / 2;
+  const burst = (n, cols, opts) => _msSpawn(cx, cy, n, Object.assign({ scatter: 55, g: 0.03, d: 0.97 }, opts, { c: cols }));
+  // Color identity per event — matches the CSS gradients
+  const C50  = ['#00e5ff', '#2979ff', '#00c8ff', '#7b4dff', '#a7f3ff'];
+  const C100 = ['#ff2ec4', '#ff0080', '#ff8adf', '#c084fc', '#ff00a0'];
+  const C150 = ['#c6ff00', '#aaff00', '#00e676', '#4caf50', '#d9ff4d'];
+  const C200 = ['#ffd700', '#ffb300', '#ff9100', '#ff6d00', '#ffe45c'];
+  const C250 = ['#b06bff', '#8b5cf6', '#6d28d9', '#c4a0ff', '#7c3aed'];
+  const C3   = ['#00ffa3', '#00e676', '#00c853', '#5cffb0', '#a7ffdc'];
+  const C4   = ['#ff5252', '#ff1744', '#d50000', '#ff8a80', '#ff6b6b'];
+  const C5   = ['#ff9100', '#ffab40', '#ff3d00', '#ff6d00', '#ffcc80'];
+  if (type === 50) {
+    burst(150, C50, { l: 3.6, sp: 3 + Math.random() * 13, gl: 16, t: [7,0,0,0,1,4,5] });
+    setTimeout(() => burst(80, [C50[0], C50[4]], { l: 2.6, sp: 2 + Math.random() * 7, gl: 12, t: [1,4,5,7] }), 250);
+    setTimeout(() => _msSpawn(cx, cy, 60, { c: [C50[0], C50[3], '#fff'], l: 2.4, sp: 1 + Math.random() * 4, g: 0.02, d: 0.99, gl: 14, t: 3, txt: Math.random() > 0.5 ? '0' : '1', scatter: 70 }), 550);
+    setTimeout(() => burst(26, [C50[0], C50[3]], { l: 2.8, sp: 1 + Math.random() * 3, g: 0, d: 0.99, gl: 10, t: 7, s: 8 + Math.random() * 12, scatter: 20 }), 800);
+  } else if (type === 100) {
+    burst(170, C100, { l: 3.8, sp: 4 + Math.random() * 15, gl: 18, t: [7,0,0,0,1,4,5] });
+    setTimeout(() => burst(90, [C100[2], C100[0]], { l: 2.8, sp: 2 + Math.random() * 8, gl: 14, t: [1,4,5,7] }), 250);
+    setTimeout(() => _msSpawn(cx, cy, 70, { c: [C100[0], '#fff', C100[3]], l: 2.4, sp: 1 + Math.random() * 4, g: 0.02, d: 0.99, gl: 16, t: 3, txt: '✦', scatter: 70 }), 550);
+    setTimeout(() => burst(20, [C100[2], C100[0]], { l: 3, sp: 1 + Math.random() * 3, g: 0, d: 0.99, gl: 12, t: 7, s: 10 + Math.random() * 14, scatter: 24 }), 800);
+  } else if (type === 150) {
+    burst(190, C150, { l: 4, sp: 4 + Math.random() * 16, gl: 18, t: [7,0,0,0,1,4,5] });
+    setTimeout(() => burst(110, [C150[0], C150[2]], { l: 3, sp: 2 + Math.random() * 9, gl: 14, t: [1,4,5,7] }), 250);
+    setTimeout(() => _msSpawn(cx, cy, 80, { c: [C150[0], C150[2], '#fff'], l: 2.6, sp: 1 + Math.random() * 5, g: 0.02, d: 0.99, gl: 16, t: 3, txt: '✦', scatter: 80 }), 550);
+    setTimeout(() => burst(30, [C150[0], C150[2]], { l: 3.2, sp: 1 + Math.random() * 3, g: 0, d: 0.99, gl: 12, t: 7, s: 9 + Math.random() * 14, scatter: 24 }), 800);
+  } else if (type === 200) {
+    burst(210, C200, { l: 4, sp: 4 + Math.random() * 16, gl: 18, t: [7,0,0,0,1,4,5] });
+    setTimeout(() => burst(120, [C200[0], C200[2]], { l: 3, sp: 2 + Math.random() * 9, gl: 14, t: [1,4,5,7] }), 250);
+    setTimeout(() => _msSpawn(cx, cy, 90, { c: [C200[0], C200[3], '#fff'], l: 2.6, sp: 1 + Math.random() * 5, g: 0.02, d: 0.99, gl: 16, t: 3, txt: '✦', scatter: 80 }), 550);
+    setTimeout(() => burst(34, [C200[2], C200[0]], { l: 3.2, sp: 1 + Math.random() * 3, g: 0, d: 0.99, gl: 12, t: 7, s: 9 + Math.random() * 14, scatter: 24 }), 800);
+  } else if (type === 250) {
+    burst(230, C250, { l: 4.2, sp: 4 + Math.random() * 17, gl: 20, t: [7,0,0,0,1,4,5] });
+    setTimeout(() => burst(130, [C250[0], C250[2]], { l: 3, sp: 2 + Math.random() * 10, gl: 15, t: [1,4,5,7] }), 250);
+    setTimeout(() => _msSpawn(cx, cy, 100, { c: [C250[0], C250[3], '#fff'], l: 2.8, sp: 1 + Math.random() * 5, g: 0.02, d: 0.99, gl: 18, t: 3, txt: '✦', scatter: 90 }), 550);
+    setTimeout(() => burst(38, [C250[1], C250[0]], { l: 3.4, sp: 1 + Math.random() * 3, g: 0, d: 0.99, gl: 13, t: 7, s: 10 + Math.random() * 15, scatter: 26 }), 800);
+  } else if (type === 'haul3') {
+    burst(160, C3, { l: 3.6, sp: 3 + Math.random() * 14, gl: 16, t: [7,0,0,0,1,4,5] });
+    setTimeout(() => burst(100, [C3[0], C3[1]], { l: 2.8, sp: 2 + Math.random() * 8, gl: 14, t: [1,4,5,7] }), 200);
+    setTimeout(() => _msSpawn(cx, cy, 60, { c: [C3[0], C3[1], '#fff'], l: 2.5, sp: 2 + Math.random() * 5, g: 0.03, d: 0.98, gl: 16, t: 3, txt: '⚡', scatter: 60 }), 450);
+    setTimeout(() => burst(40, [C3[1], C3[0]], { l: 3, sp: 1 + Math.random() * 3, g: 0, d: 0.99, gl: 12, t: 7, s: 10 + Math.random() * 16, scatter: 20 }), 700);
+  } else if (type === 'haul4') {
+    burst(185, C4, { l: 3.8, sp: 3 + Math.random() * 15, gl: 18, t: [7,0,0,0,1,4,5] });
+    setTimeout(() => burst(110, [C4[0], C4[2]], { l: 3, sp: 2 + Math.random() * 9, gl: 15, t: [1,4,5,7] }), 200);
+    setTimeout(() => _msSpawn(cx, cy, 70, { c: [C4[0], C4[3], '#fff'], l: 2.6, sp: 2 + Math.random() * 5, g: 0.03, d: 0.98, gl: 18, t: 3, txt: '⚡', scatter: 65 }), 450);
+    setTimeout(() => burst(45, [C4[1], C4[0]], { l: 3.1, sp: 1 + Math.random() * 3, g: 0, d: 0.99, gl: 13, t: 7, s: 11 + Math.random() * 16, scatter: 22 }), 700);
+  } else if (type === 'haul5') {
+    burst(210, C5, { l: 4, sp: 4 + Math.random() * 16, gl: 20, t: [7,0,0,0,1,4,5] });
+    setTimeout(() => burst(125, [C5[0], C5[2]], { l: 3, sp: 2 + Math.random() * 10, gl: 16, t: [1,4,5,7] }), 200);
+    setTimeout(() => _msSpawn(cx, cy, 80, { c: [C5[0], C5[1], '#fff'], l: 2.7, sp: 2 + Math.random() * 5, g: 0.03, d: 0.98, gl: 18, t: 3, txt: '⚡', scatter: 70 }), 450);
+    setTimeout(() => burst(50, [C5[2], C5[0]], { l: 3.2, sp: 1 + Math.random() * 3, g: 0, d: 0.99, gl: 14, t: 7, s: 11 + Math.random() * 17, scatter: 24 }), 700);
+  }
+  _msRender();
+}
+
+function _triggerMilestoneAnim(card, type, name) {
+  const layer = document.getElementById('sc-ms-layer');
+  if (!card || !layer) return;
+  // A classic celebration owns the screen — hold this milestone and play it
+  // the moment that animation ends, so the two never overlap.
+  if (_cricketAnimTimer) { _msQueued = { type, name }; return; }
+  const cls = type === 'haul3' ? 'sc-ms-3'
+    : type === 'haul4' ? 'sc-ms-4'
+    : type === 'haul5' ? 'sc-ms-5'
+    : 'sc-ms-' + type;
+  if (_msAnimTimer) { clearTimeout(_msAnimTimer); _msAnimTimer = null; }
+  card.classList.remove('sc-ms-50', 'sc-ms-100', 'sc-ms-150', 'sc-ms-200', 'sc-ms-250', 'sc-ms-3', 'sc-ms-4', 'sc-ms-5');
+  layer.classList.remove('active');
+  void card.offsetWidth;
+  card.classList.add(cls);
+  layer.classList.add('active');
+  _msSpawnEvent(type);
+  _msAnimTimer = setTimeout(() => {
+    card.classList.remove('sc-ms-50', 'sc-ms-100', 'sc-ms-150', 'sc-ms-200', 'sc-ms-250', 'sc-ms-3', 'sc-ms-4', 'sc-ms-5');
+    layer.classList.remove('active');
+    _msAnimTimer = null;
+    // A classic celebration that arrived mid-milestone plays the moment this ends.
+    if (_scQueued) { const q = _scQueued; _scQueued = null; _triggerCricketAnim(card, q); }
+  }, 4000);
+}
+
+// Returns the biggest milestone crossed this update, or null. Never fires on
+// the first snapshot (the caller gates on prev) so a half-watched match does
+// not celebrate milestones that fell before the overlay opened.
+function _detectMilestones(merged) {
+  if (!merged || !Array.isArray(merged.batsmen)) return null;
+  let out = null;
+  (merged.batsmen || []).forEach(b => {
+    if (!b || !b.name) return;
+    const runs = parseInt(b.runs, 10);
+    if (isNaN(runs)) return;
+    const set = _msBatter[b.name] || (_msBatter[b.name] = new Set());
+    // Same name back below 30 = a fresh innings, allow the milestone again.
+    if (runs < 30 && set.has(50)) set.clear();
+    const crossed = [50, 100, 150, 200, 250].filter(m => runs >= m && !set.has(m));
+    if (crossed.length) {
+      const m = crossed[crossed.length - 1];
+      set.add(m);
+      out = { type: m, name: b.name };
+    }
+  });
+  const bw = merged.bowler;
+  if (bw && bw.name) {
+    const wk = parseInt(bw.wickets, 10);
+    const wkNum = isNaN(wk) ? 0 : wk;
+    if (!_msBowler || _msBowler.name !== bw.name) {
+      _msBowler = { name: bw.name, lastWk: wkNum, fired: new Set() };
+    } else {
+      const prevWk = _msBowler.lastWk;
+      // Only celebrate hauls actually crossed this update (baseline on first
+      // sighting never fires) and each haul exactly once per bowler spell.
+      const hauls = [3, 4, 5].filter(h => wkNum >= h && h > prevWk && !_msBowler.fired.has(h));
+      if (hauls.length) {
+        const h = hauls[hauls.length - 1];
+        _msBowler.fired.add(h);
+        out = { type: 'haul' + h, name: bw.name };
+      }
+      _msBowler.lastWk = Math.max(_msBowler.lastWk, wkNum);
+    }
+  }
+  return out;
+}
+
+/* ── milestone demo mode (?mode=milestone-demo) ──────────────────────────── */
+const _msDemoBatter = 'Virat Kohli';
+const _msDemoBowler = 'Jasprit Bumrah';
+let _msDemoTimer = null;
+let _msDemoRunning = false;
+
+function _msDemoScore(runs, bowlerWk, seq) {
+  return {
+    teams: [
+      { name: 'India', abbr: 'IND', score: runs + '/1', overs: '24.3' },
+      { name: 'Australia', abbr: 'AUS', score: '110/5', overs: '28.0' },
+    ],
+    batsmen: [
+      { name: _msDemoBatter, runs: String(runs), balls: String(Math.round(runs * 1.1 + 14)), striker: true },
+      { name: 'Rohit Sharma', runs: '12', balls: '18' },
+    ],
+    bowler: { name: _msDemoBowler, wickets: String(bowlerWk), runs: '32', overs: '8' },
+    currentOver: ['1', '4', '1', '2'],
+    lastBallSeq: seq,
+    format: 'ODI',
+    crr: '6.4',
+    status: 'India need 210 runs from 150 balls',
+    source: 'milestone-demo',
+  };
+}
+
+function _msDemoResetTrackers() { _msBatter = {}; _msBowler = null; }
+
+function _msDemoStop() {
+  _msDemoRunning = false;
+  if (_msDemoTimer) { clearTimeout(_msDemoTimer); _msDemoTimer = null; }
+}
+
+function _msDemoBase() {
+  _msDemoResetTrackers();
+  updateScore(_msDemoScore(38, 1, 40), 'demo');
+}
+
+function _msDemoAuto() {
+  if (_msDemoRunning) return;
+  _msDemoStop();
+  _msDemoRunning = true;
+  _msDemoBase();
+  const steps = [
+    { t: 3800,  fn: () => updateScore(_msDemoScore(54, 1, 41), 'demo') },    // crosses 50 → FIFTY
+    { t: 8500,  fn: () => updateScore(_msDemoScore(106, 1, 42), 'demo') },   // crosses 100 → CENTURY
+    { t: 13200, fn: () => updateScore(_msDemoScore(152, 1, 43), 'demo') },   // crosses 150 → 150 UP
+    { t: 17900, fn: () => updateScore(_msDemoScore(206, 1, 44), 'demo') },   // crosses 200 → DOUBLE
+    { t: 22600, fn: () => updateScore(_msDemoScore(254, 1, 45), 'demo') },   // crosses 250 → 250 UP
+    { t: 27300, fn: () => updateScore(_msDemoScore(254, 3, 46), 'demo') },   // bowler 3rd → 3W HAUL
+    { t: 32000, fn: () => updateScore(_msDemoScore(254, 4, 47), 'demo') },   // bowler 4th → 4W HAUL
+    { t: 36700, fn: () => updateScore(_msDemoScore(254, 5, 48), 'demo') },   // bowler 5th → 5W HAUL
+    { t: 41400, fn: () => updateScore(_msDemoScore(254, 5, 49), 'demo') },   // hold, then loop
+  ];
+  steps.forEach(s => {
+    _msDemoTimer = setTimeout(() => { if (_msDemoRunning) s.fn(); }, s.t);
+  });
+  _msDemoTimer = setTimeout(() => { if (_msDemoRunning) _msDemoAuto(); }, 45500);
+}
+
+function _msDemoFire(type) {
+  const card = DOM.scorecard;
+  _msDemoResetTrackers();
+  updateScore(_msDemoScore(254, 3, 46), 'demo');
+  const map = { '50': 50, '100': 100, '150': 150, '200': 200, '250': 250 };
+  if (map[type]) _triggerMilestoneAnim(card, map[type], _msDemoBatter);
+  else _triggerMilestoneAnim(card, 'haul' + String(type), _msDemoBowler);
+}
+
+window.__msDemo = {
+  auto: () => { setScorecardVisible(true); DOM.scorecard.classList.add('ms-demo'); _msDemoAuto(); },
+  stop: () => _msDemoStop(),
+  fire: (type) => { setScorecardVisible(true); DOM.scorecard.classList.add('ms-demo'); _msDemoStop(); _msDemoFire(type); },
+};
+window.addEventListener('message', ev => {
+  const d = ev.data;
+  if (!d || !d.__msDemo) return;
+  if (d.__msDemo === 'auto') window.__msDemo.auto();
+  else if (d.__msDemo === 'stop') window.__msDemo.stop();
+  else window.__msDemo.fire(String(d.__msDemo));
+});
 
 const _teamFlags = {
   'australia': '🇦🇺', 'aus': '🇦🇺', 'aus-w': '🇦🇺', 'australia women': '🇦🇺',
@@ -3394,10 +4042,23 @@ function updateScore(data, source) {
     // text) owns the flash — drop any border-flash class left behind so the
     // scorecard stays clean for the graphic.
     DOM.scorecard.classList.remove('sc-update');
-  } else if (!_cricketAnimTimer) {
+  } else if (!_cricketAnimTimer && !_msAnimTimer) {
     DOM.scorecard.classList.remove('sc-update');
     void DOM.scorecard.offsetWidth;
     DOM.scorecard.classList.add('sc-update');
+  }
+
+  // Milestone celebrations — batter every 50 (50/100/150/200/250), bowler
+  // 3/4/5-wicket haul. Fires on LIVE score deltas only (never the first
+  // snapshot) and runs on its own layer. A classic celebration already on
+  // screen holds the milestone (played the moment it ends) so the two never
+  // overlap.
+  if (prev) {
+    const ms = _detectMilestones(merged);
+    if (ms) {
+      _triggerMilestoneAnim(DOM.scorecard, ms.type, ms.name);
+      DOM.scorecard.classList.remove('sc-update');
+    }
   }
 
   setTimeout(() => {
@@ -3800,6 +4461,16 @@ if (isAdmin) {
   DOM.ctrlPanel.classList.add('open');
   if (!state.scorecardVisible) setScorecardVisible(true);
   $('fToggle').textContent = 'Hide';
+}
+
+// Milestone demo mode — opens the scorecard full-screen (scaled) and auto-runs
+// the milestone celebration loop. Driven from milestone-demo.html via
+// postMessage; no server required.
+const _msDemoMode = new URLSearchParams(window.location.search).get('mode') === 'milestone-demo';
+if (_msDemoMode) {
+  setScorecardVisible(true);
+  DOM.scorecard.classList.add('ms-demo');
+  setTimeout(() => window.__msDemo && window.__msDemo.auto(), 900);
 }
 
 DOM.scorecard.classList.add('sc-enter');

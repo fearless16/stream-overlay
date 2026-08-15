@@ -3,6 +3,12 @@
  * Simulates a fake live stream WebSocket feed on ws://localhost:8770
  * DISABLED by policy — only runs with ALLOW_FAKE_CHAT=1. Must NOT feed OBS.
  * Run: ALLOW_FAKE_CHAT=1 node mock-server.js
+ *
+ * Milestone walkthrough mode (fake-server demo of the milestone animations):
+ * Run: ALLOW_FAKE_CHAT=1 FAKE_MILESTONES=1 node mock-server.js
+ * Broadcasts a baseline score, then one score crossing each milestone
+ * (50 / 100 / 150 / 200 / 250 / 3W / 4W / 5W) roughly every ~4.8s so the
+ * overlay celebrates them one after another.
  */
 
 const { WebSocketServer } = require('ws');
@@ -130,6 +136,45 @@ const scoreSequence = [
 let chatIdx = 0;
 let scoreIdx = 1; /* index 0 sent on connect */
 
+const MILESTONE_MODE = process.env.FAKE_MILESTONES === '1';
+
+// A score payload that keeps a batter (Virat Kohli) at `runs` and a bowler
+// (Jasprit Bumrah) at `wickets`. No 4s/6s/Ws in the current over so the classic
+// boundary/wicket celebrations stay quiet and only milestones animate.
+function milestoneScore(runs, wickets, seq) {
+  return {
+    teams: [
+      { name: 'India', abbr: 'IND', score: runs + '/1', overs: '24.3' },
+      { name: 'Australia', abbr: 'AUS', score: '110/5', overs: '28.0' }
+    ],
+    batsmen: [
+      { name: 'Virat Kohli', runs: String(runs), balls: String(Math.round(runs * 1.15 + 14)), striker: true },
+      { name: 'Rohit Sharma', runs: '23', balls: '28' }
+    ],
+    bowler: { name: 'Jasprit Bumrah', overs: '9.0', wickets: String(wickets), runs: '42' },
+    currentOver: ['1', '1', '2', '1'],
+    lastBallSeq: seq,
+    format: 'ODI',
+    crr: '6.4',
+    status: 'India need 210 runs from 150 balls'
+  };
+}
+
+// Milestone walkthrough: baseline, then one milestone every ~4.8s. Refresh the
+// overlay page to replay the sequence.
+const MILESTONE_STEPS = [
+  { s: 0,     score: milestoneScore(48, 1, 400) },   // baseline (never animates — no prev)
+  { s: 4800,  score: milestoneScore(54, 1, 401) },   // crosses 50 → FIFTY
+  { s: 9600,  score: milestoneScore(106, 1, 402) },  // crosses 100 → CENTURY
+  { s: 14400, score: milestoneScore(152, 1, 403) },  // crosses 150 → 150 UP
+  { s: 19200, score: milestoneScore(206, 1, 404) },  // crosses 200 → DOUBLE
+  { s: 24000, score: milestoneScore(254, 1, 405) },  // crosses 250 → 250 UP
+  { s: 28800, score: milestoneScore(254, 3, 406) },  // bowler 3rd → 3W HAUL
+  { s: 33600, score: milestoneScore(254, 4, 407) },  // bowler 4th → 4W HAUL
+  { s: 38400, score: milestoneScore(254, 5, 408) },  // bowler 5th → 5W HAUL
+  { s: 43200, score: milestoneScore(254, 5, 409) }   // hold
+];
+
 function sendNextScore() {
   if (scoreIdx >= scoreSequence.length) return;
   broadcast({ type: 'score', data: scoreSequence[scoreIdx] });
@@ -143,6 +188,20 @@ function sendGoals(d) {
 // ── Schedule ─────────────────────────────────────────────────────────────────
 wss.on('connection', (ws, req) => {
   console.log(`[+] Client connected (${wss.clients.size} total)`);
+
+  if (MILESTONE_MODE) {
+    // Initial score immediately on connect
+    ws.send(JSON.stringify({ type: 'score', data: MILESTONE_STEPS[0].score }));
+    // Run the walkthrough fresh for THIS client so a late refresh still
+    // replays every milestone from the start.
+    MILESTONE_STEPS.slice(1).forEach(st => {
+      setTimeout(() => {
+        if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'score', data: st.score }));
+      }, st.s);
+    });
+    ws.on('close', () => console.log(`[-] Client disconnected (${wss.clients.size} remaining)`));
+    return;
+  }
 
   // Send initial score immediately on connect
   ws.send(JSON.stringify({ type: 'score', data: scoreSequence[0] }));
@@ -191,8 +250,6 @@ function scheduleRetraction() {
   }, delay);
 }
 
-setTimeout(scheduleRetraction, 10000);
-
 // Chat stream scheduler: every 3–6 seconds
 function scheduleChat() {
   const delay = 3000 + Math.random() * 3000;
@@ -201,8 +258,6 @@ function scheduleChat() {
     scheduleChat();
   }, delay);
 }
-
-setTimeout(scheduleChat, 1000);
 
 // Like events: every 15–45 seconds
 let likeCount = 142;
@@ -216,19 +271,13 @@ function scheduleLike() {
     scheduleLike();
   }, delay);
 }
-setTimeout(scheduleLike, 8000);
 
-// Score updates: at 20s, 60s, 120s
-setTimeout(() => sendNextScore(), 20000);
-setTimeout(() => sendNextScore(), 60000);
-setTimeout(() => sendNextScore(), 120000);
-
-// Goals update at 45s
-setTimeout(() => sendGoals({
-  todayGoal: '$28 / $50', todayGoalFill: 56,
-  winStreak: 5,
-  subGoal: '63 / 100', subGoalFill: 63
-}), 45000);
+// Keep the default timeline noise off in milestone walkthrough mode
+if (!MILESTONE_MODE) {
+  setTimeout(scheduleRetraction, 10000);
+  setTimeout(scheduleChat, 1000);
+  setTimeout(scheduleLike, 8000);
+}
 
 console.log('Timeline:');
 console.log('  0s   — initial score + goals sent on connect');
@@ -238,3 +287,20 @@ console.log('  20s  — score update #2');
 console.log('  45s  — goals update');
 console.log('  60s  — score update #3');
 console.log('  120s — final score (India win)\n');
+
+// ── Milestone walkthrough timeline (FAKE_MILESTONES=1) ──────────────────────
+// Runs per-connection inside the connection handler so every refresh replays
+// the full sequence from the start.
+if (MILESTONE_MODE) {
+  console.log('Milestone walkthrough mode:');
+  console.log('  0s    — baseline score (no animation)');
+  console.log('  4.8s  — FIFTY (50)');
+  console.log('  9.6s  — CENTURY (100)');
+  console.log('  14.4s — 150 UP');
+  console.log('  19.2s — DOUBLE (200)');
+  console.log('  24s   — 250 UP');
+  console.log('  28.8s — 3-WICKET HAUL');
+  console.log('  33.6s — 4-WICKET HAUL');
+  console.log('  38.4s — 5-WICKET HAUL');
+  console.log('  Refresh the overlay page to replay.\n');
+}
