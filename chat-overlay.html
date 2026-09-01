@@ -511,21 +511,30 @@ body {
     border: 2px solid rgba(255,215,0,0);
     opacity: 0;
   }
-  #sub-widget.bumping .sw-burst { animation: subBurst 0.9s ease-out; }
-  #sub-widget.bumping .sw-count { animation: subPop 0.6s var(--ease-out-back); }
-  #sub-widget.bumping { animation: subGlow 0.7s ease; }
+  #sub-widget.bumping .sw-burst { animation: subBurst 8s ease-out forwards; }
+  #sub-widget.bumping .sw-count { animation: subPop 8s ease-in-out; }
+  #sub-widget.bumping { animation: subGlow 8s ease-out; }
   @keyframes subBurst {
-    0% { transform: scale(0.4); border-color: rgba(255,215,0,0.9); opacity: 1; }
-    100% { transform: scale(1.9); border-color: rgba(255,215,0,0); opacity: 0; }
+    0% { transform: scale(0.35); border-color: rgba(255,215,0,0.95); opacity: 1; }
+    12% { transform: scale(1.15); border-color: rgba(255,215,0,0.85); opacity: 0.95; }
+    35% { transform: scale(1.55); border-color: rgba(255,215,0,0.5); opacity: 0.7; }
+    60% { transform: scale(1.95); border-color: rgba(255,215,0,0.28); opacity: 0.45; }
+    100% { transform: scale(2.6); border-color: rgba(255,215,0,0); opacity: 0; }
   }
   @keyframes subPop {
     0% { transform: scale(1); }
-    45% { transform: scale(1.3); text-shadow: 0 0 26px rgba(255,215,0,0.9); }
-    100% { transform: scale(1); }
+    8% { transform: scale(1.32); text-shadow: 0 0 30px rgba(255,215,0,0.95); }
+    20% { transform: scale(1.18); }
+    38% { transform: scale(1.28); text-shadow: 0 0 34px rgba(255,215,0,0.9); }
+    55% { transform: scale(1.2); }
+    72% { transform: scale(1.26); text-shadow: 0 0 30px rgba(255,215,0,0.8); }
+    85% { transform: scale(1.16); }
+    100% { transform: scale(1); text-shadow: 0 0 18px rgba(255,215,0,0.35); }
   }
   @keyframes subGlow {
     0% { box-shadow: 0 0 0 rgba(255,215,0,0); }
-    50% { box-shadow: 0 0 30px 6px rgba(255,215,0,0.5); }
+    10% { box-shadow: 0 0 36px 8px rgba(255,215,0,0.55); }
+    45% { box-shadow: 0 0 26px 5px rgba(255,215,0,0.4); }
     100% { box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
   }
 #sub-widget.hidden { display: none; }
@@ -533,36 +542,49 @@ body {
   display: flex; align-items: baseline; gap: 6px;
 }
 #sub-widget .sw-count {
-  font-size: 30px; font-weight: 900;
+  font-size: 46px; font-weight: 900;
   color: var(--gold);
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.5px;
-  text-shadow: 0 0 18px rgba(255,215,0,0.35);
+  letter-spacing: -1px;
+  text-shadow: 0 0 20px rgba(255,215,0,0.4);
+  line-height: 1;
 }
-#sub-widget .sw-slash { font-size: 18px; font-weight: 800; color: var(--muted); }
-#sub-widget .sw-goal { font-size: 20px; font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; }
+#sub-widget .sw-slash { font-size: 28px; font-weight: 800; color: var(--muted); }
+#sub-widget .sw-goal { font-size: 32px; font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; }
 #sub-widget .sw-bar {
-  height: 6px; border-radius: 3px;
-  background: rgba(255,255,255,0.10);
-  overflow: hidden; margin-top: 8px;
+  height: 10px; border-radius: 5px;
+  background: rgba(255,255,255,0.12);
+  overflow: hidden; margin-top: 10px;
 }
 #sub-widget .sw-bar i {
   display: block; height: 100%; width: 0%;
   background: linear-gradient(90deg, var(--gold), #ff9500);
-  border-radius: 3px;
-  transition: width 0.6s ease;
+  border-radius: 5px;
+  transition: width 0.9s ease;
 }
 #sub-widget.reached .sw-bar i { background: linear-gradient(90deg, var(--green), #00b3a4); }
 #sub-widget .sw-bottom {
   display: flex; align-items: center; justify-content: space-between;
-  margin-top: 7px;
+  margin-top: 9px;
 }
 #sub-widget .sw-label {
-  font-size: 10px; font-weight: 800; color: var(--muted);
-  text-transform: uppercase; letter-spacing: 1.5px;
+  font-size: 14px; font-weight: 800; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 2px;
 }
-#sub-widget .sw-remain { font-size: 11px; font-weight: 800; color: #ff9500; font-variant-numeric: tabular-nums; }
+#sub-widget .sw-remain { font-size: 16px; font-weight: 800; color: #ff9500; font-variant-numeric: tabular-nums; }
 #sub-widget.reached .sw-remain { color: var(--green); }
+
+/* Mobile / small screens: make the subscriber widget a full-width prominent banner */
+@media (max-width: 820px) {
+  #right-panel { right: 0; left: 0; width: 100%; padding: 10px 10px; gap: 10px; }
+  #sub-widget { border-radius: 16px; padding: 16px 18px; }
+  #sub-widget .sw-count { font-size: 58px; }
+  #sub-widget .sw-slash { font-size: 36px; }
+  #sub-widget .sw-goal { font-size: 42px; }
+  #sub-widget .sw-label { font-size: 17px; }
+  #sub-widget .sw-remain { font-size: 19px; }
+  #sub-widget .sw-burst { width: 84px; height: 84px; }
+}
 
 /* ════════════════════════════════════════
     SCORECARD — State of the Art
