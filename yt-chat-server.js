@@ -31,6 +31,14 @@ const YOUTUBE_API_KEY = (process.env.YOUTUBE_API_KEY || '').trim();
 const YOUTUBE_COOKIES = (process.env.YOUTUBE_COOKIES || '').trim();
 const COOKIES_FILE = (process.env.COOKIES_FILE || '').trim();
 
+// Subscriber milestone widget — the channel whose sub count we announce and the
+// target the count-up animation runs toward. Polled via the (quota-funded) Data
+// API, so it must never be called faster than SUB_POLL_INTERVAL and must back
+// off on errors instead of hammering (see updateSubscribers below).
+const CHANNEL_ID = (process.env.CHANNEL_ID || 'UCQtCMKPc41MHd7hujVuGm5g').trim();
+const SUB_GOAL = parseInt(process.env.SUB_GOAL || '500', 10) || 500;
+const SUB_POLL_INTERVAL = parseInt(process.env.SUB_POLL_INTERVAL || '60000', 10) || 60000;
+
 // Load cookies for authenticated requests (needed for private/unlisted streams)
 let authCookies = YOUTUBE_COOKIES;
 if (!authCookies && COOKIES_FILE && fs.existsSync(COOKIES_FILE)) {
@@ -562,6 +570,77 @@ function startEngagementPolling() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// Subscriber milestone widget — lives on the overlay's own corner widget, not
+// the dashboard. Fetches the channel's real subscriber count from the YouTube
+// Data API (quota-funded) and broadcasts it so the overlay can run its
+// count-up-to-`SUB_GOAL` animation.
+// ─────────────────────────────────────────────────────────────────────────
+let currentSubscribers = null;   // last known real count (null until first read)
+let currentSubGoal = SUB_GOAL;
+
+// Quota + rate guard: the Data API costs 1 unit/call (10k/day free). Bring the
+// poll interval down only when a poll actually succeeds; on failure we back off
+// so repeated errors never burn quota or spam the log.
+let lastSubApiCall = 0;
+let subBackoffMs = 0;
+
+function broadcastSubscribers() {
+  const payload = JSON.stringify({
+    type: 'subscribers',
+    count: currentSubscribers,
+    goal: currentSubGoal,
+    remaining: currentSubscribers == null ? null : Math.max(0, currentSubGoal - currentSubscribers),
+  });
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) client.send(payload);
+  });
+}
+
+// Fetch the channel's subscriber count from the Data API. Returns the integer
+// count, or null when the API key is missing / the network fails / quota is
+// exhausted. Never throws.
+async function fetchSubscriberCount() {
+  if (!YOUTUBE_API_KEY) return null;
+  const now = Date.now();
+  if (now - lastSubApiCall < (SUB_POLL_INTERVAL + subBackoffMs)) return null;
+  try {
+    lastSubApiCall = now;
+    const url = `https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${encodeURIComponent(CHANNEL_ID)}&key=${YOUTUBE_API_KEY}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) {
+      if (res.status === 403 || res.status === 429) {
+        // Quota exhausted / rate limited — extend backoff so we don't hammer.
+        subBackoffMs = Math.min((subBackoffMs || 60000) * 2, 60 * 60 * 1000);
+      }
+      throw new Error(`Data API ${res.status}`);
+    }
+    const data = await res.json();
+    const countStr = data?.items?.[0]?.statistics?.subscriberCount;
+    if (countStr == null) throw new Error('no subscriberCount');
+    // A successful call resets the backoff so the next failure starts fresh.
+    if (subBackoffMs !== 0) subBackoffMs = 0;
+    return parseInt(countStr, 10) || null;
+  } catch (e) {
+    console.error('[Subscribers]', e.message);
+    return null;
+  }
+}
+
+async function updateSubscribers() {
+  const count = await fetchSubscriberCount();
+  if (count !== null && count !== currentSubscribers) {
+    currentSubscribers = count;
+    broadcastSubscribers();
+    console.log(`[Subscribers] ${count} (goal ${currentSubGoal})`);
+  }
+}
+
+function startSubscriberPolling() {
+  updateSubscribers();
+  setInterval(updateSubscribers, SUB_POLL_INTERVAL);
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // OBS metrics — feeds the streamer-only dashboard (served on the HTTP port,
 // never added to an OBS scene, so viewers never see it).
 // ─────────────────────────────────────────────────────────────────────────
@@ -664,12 +743,14 @@ async function connectOBS() {
   console.log(`Chat server for video: ${VIDEO_ID}`);
   pollChat();
   startEngagementPolling();
+  startSubscriberPolling();
   connectOBS();
 
   wss.on('connection', ws => {
     console.log('Client connected');
      ws.send(JSON.stringify({ type: 'connected', message: 'YouTube Chat Bridge ready', fake: false, mode: MODE }));
     ws.send(JSON.stringify({ type: 'viewers', count: currentViewers }));
+    ws.send(JSON.stringify({ type: 'subscribers', count: currentSubscribers, goal: currentSubGoal, remaining: currentSubscribers == null ? null : Math.max(0, currentSubGoal - currentSubscribers) }));
     const replay = messageHistory.slice(-200);
     if (replay.length > 0) {
       replay.forEach((msg, i) => {

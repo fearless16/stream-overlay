@@ -55,48 +55,6 @@ body {
   pointer-events: none;
 }
 
-.donator-card {
-  background: linear-gradient(135deg, rgba(255,215,0,0.04), transparent);
-  border: 1px solid rgba(255,215,0,0.1);
-  border-radius: 14px;
-  padding: 16px;
-  backdrop-filter: blur(12px);
-  pointer-events: auto;
-  position: relative;
-  overflow: hidden;
-  transition: all 0.3s;
-}
-.donator-card::before {
-  content: ''; position: absolute; top: 0; right: 0;
-  width: 100px; height: 100px;
-  background: radial-gradient(circle, rgba(255,215,0,0.08), transparent 70%);
-  pointer-events: none;
-}
-.donator-card:hover {
-  border-color: rgba(255,215,0,0.2);
-  box-shadow: 0 4px 20px rgba(255,215,0,0.08);
-}
-.donator-label {
-  font-size: 14px; font-weight: 700; color: var(--muted);
-  text-transform: uppercase; letter-spacing: 1.5px;
-  margin-bottom: 4px;
-}
-.donator-name {
-  font-size: 28px; font-weight: 900; color: var(--gold);
-  letter-spacing: -0.5px;
-  transition: transform 0.3s var(--ease-out-back), text-shadow 0.3s ease;
-}
-.donator-name.updated { animation: goldPulse 0.6s ease; }
-@keyframes goldPulse {
-  0%,100% { transform: scale(1); }
-  50% { transform: scale(1.05); text-shadow: 0 0 20px rgba(255,215,0,0.5); }
-}
-.donator-amt {
-  font-size: 15px; font-weight: 700;
-  color: var(--gold); margin-top: 4px;
-  opacity: 0.7;
-}
-
 #chat-panel {
   flex: 1; min-height: 0;
   background: var(--panel-bg);
@@ -520,6 +478,67 @@ body {
   font-size: 11px; font-weight: 800; color: var(--muted);
   text-transform: uppercase; letter-spacing: 1.5px;
 }
+
+/* ════════════════════════════════════════
+   SUBSCRIBER GOAL WIDGET — count-up to SUB_GOAL
+   Standalone top-right chip (just left of the chat panel). Shows the channel's
+   live subscriber count animating up toward the target, with a progress bar.
+   Hidden until the first real subscriber payload arrives so it never shows a
+   misleading "— / 500" before the Data API responds.
+   ════════════════════════════════════════ */
+ #sub-widget {
+   width: 100%;
+   background: linear-gradient(135deg, rgba(255,215,0,0.05), transparent);
+   backdrop-filter: blur(14px);
+   border: 1px solid rgba(255,215,0,0.18);
+   border-radius: 14px;
+   padding: 14px 16px;
+   pointer-events: none;
+   box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+   position: relative;
+   overflow: hidden;
+ }
+ #sub-widget::before {
+   content: ''; position: absolute; top: 0; right: 0;
+   width: 100px; height: 100px;
+   background: radial-gradient(circle, rgba(255,215,0,0.10), transparent 70%);
+   pointer-events: none;
+ }
+#sub-widget.hidden { display: none; }
+#sub-widget .sw-top {
+  display: flex; align-items: baseline; gap: 6px;
+}
+#sub-widget .sw-count {
+  font-size: 30px; font-weight: 900;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+  text-shadow: 0 0 18px rgba(255,215,0,0.35);
+}
+#sub-widget .sw-slash { font-size: 18px; font-weight: 800; color: var(--muted); }
+#sub-widget .sw-goal { font-size: 20px; font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; }
+#sub-widget .sw-bar {
+  height: 6px; border-radius: 3px;
+  background: rgba(255,255,255,0.10);
+  overflow: hidden; margin-top: 8px;
+}
+#sub-widget .sw-bar i {
+  display: block; height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--gold), #ff9500);
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+#sub-widget.reached .sw-bar i { background: linear-gradient(90deg, var(--green), #00b3a4); }
+#sub-widget .sw-bottom {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 7px;
+}
+#sub-widget .sw-label {
+  font-size: 10px; font-weight: 800; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 1.5px;
+}
+#sub-widget .sw-remain { font-size: 11px; font-weight: 800; color: #ff9500; font-variant-numeric: tabular-nums; }
+#sub-widget.reached .sw-remain { color: var(--green); }
 
 /* ════════════════════════════════════════
     SCORECARD — State of the Art
@@ -1993,10 +2012,17 @@ body {
 </div>
 
 <div id="right-panel">
-  <div class="donator-card">
-    <div class="donator-label">Top Donator</div>
-    <div class="donator-name" id="dName">—</div>
-    <div class="donator-amt" id="dAmt">$0</div>
+  <div id="sub-widget" class="hidden">
+    <div class="sw-top">
+      <span class="sw-count" id="subCount" data-raw="">—</span>
+      <span class="sw-slash">/</span>
+      <span class="sw-goal" id="subGoal">500</span>
+    </div>
+    <div class="sw-bar"><i id="subBarFill"></i></div>
+    <div class="sw-bottom">
+      <span class="sw-label">SUBSCRIBERS</span>
+      <span class="sw-remain" id="subRemain">to go</span>
+    </div>
   </div>
 
   <div id="chat-panel">
@@ -2120,7 +2146,6 @@ const state = {
   hasRealData: false,
   wsReconnectAttempts: 0,
   ws: null,
-  topDonator: { name: '—', amount: 0 },
   pinnedId: null,
   scorecardVisible: false,
   brbActive: false,
@@ -2138,6 +2163,7 @@ const state = {
   replayIndex: -1,
   replayTimer: null,
   userScrolledUp: false,
+  subGoal: 500,
 };
 
 const $ = id => document.getElementById(id);
@@ -2147,8 +2173,6 @@ const DOM = {
   showComment: $('show-comment'),
   chatCount: $('chatCount'),
   spList: $('sp-list'),
-  dName: $('dName'),
-  dAmt: $('dAmt'),
   healthInd: $('health-ind'),
   healthText: $('health-text'),
   scorecard: $('scorecard'),
@@ -2157,7 +2181,12 @@ const DOM = {
   brbTimer: $('brb-timer'),
   brbCloseBtn: $('brb-close-btn'),
   scBackdrop: $('sc-backdrop'),
-  viewerCount: $('viewerCount')
+  viewerCount: $('viewerCount'),
+  subCount: $('subCount'),
+  subGoal: $('subGoal'),
+  subRemain: $('subRemain'),
+  subBarFill: $('subBarFill'),
+  subWidget: $('sub-widget')
 };
 
 DOM.brbCloseBtn.addEventListener('click', toggleBRB);
@@ -2338,6 +2367,31 @@ function setViewerCount(count) {
   }
 }
 
+// Subscriber goal widget — animates the live count up toward `goal`. No data
+// yet → keep the widget hidden so it never shows a misleading "— / 500".
+function setSubscriberCount(count, goal) {
+  if (count == null) return;
+  const widget = DOM.subWidget;
+  widget.classList.remove('hidden');
+  if (goal != null) {
+    state.subGoal = goal;
+    DOM.subGoal.textContent = formatCount(goal);
+  }
+  const target = parseInt(count, 10) || 0;
+  const prev = parseInt(DOM.subCount.dataset.raw, 10) || 0;
+  DOM.subCount.dataset.raw = target;
+  if (prev !== target) animateNumber(DOM.subCount, prev, target, Math.min(1200, 300 + Math.abs(target - prev) * 6));
+  const pct = state.subGoal > 0 ? Math.min(100, (target / state.subGoal) * 100) : 0;
+  DOM.subBarFill.style.width = pct + '%';
+  if (target >= state.subGoal) {
+    widget.classList.add('reached');
+    DOM.subRemain.textContent = 'GOAL REACHED!';
+  } else {
+    widget.classList.remove('reached');
+    DOM.subRemain.textContent = (state.subGoal - target).toLocaleString() + ' to go';
+  }
+}
+
 function setHealth(status) {
   DOM.healthInd.className = 'health-indicator ' + status;
   const texts = { healthy: 'Stream Healthy', warning: 'Connection Weak', error: 'Reconnecting...' };
@@ -2442,14 +2496,6 @@ function addMsg(data, options = {}) {
   updateCount();
 
   if (type === 'superchat' && amount) {
-    const amt = parseFloat(amount);
-    if (amt > state.topDonator.amount) {
-      state.topDonator = { name, amount: amt };
-      DOM.dName.textContent = name;
-      DOM.dName.classList.add('updated');
-      setTimeout(() => DOM.dName.classList.remove('updated'), 600);
-      DOM.dAmt.textContent = '$' + amt;
-    }
     const si = document.createElement('div');
     si.className = 'sp-item';
     si.innerHTML = `<span class="sp-name">${esc(name)}</span><span class="sp-text">${segments ? renderSegments(segments) : renderEmoji(esc(text.substring(0, 45)))}</span><span class="sp-amt">$${esc(amount)}</span>`;
@@ -4130,9 +4176,6 @@ function resetAll(e) {
   if (e) e.stopPropagation();
   clearChat();
   DOM.spList.innerHTML = '';
-  state.topDonator = { name: '—', amount: 0 };
-  DOM.dName.textContent = '—';
-  DOM.dAmt.textContent = '$0';
   currentScore = null;
   if (_pendingWicket) { clearTimeout(_pendingWicket.timer); _pendingWicket = null; }
   _wicketFire = { team: '', count: -1, at: 0, lw: '', seq: null, source: '' };
@@ -4204,9 +4247,6 @@ function connectWS() {
           // panel + local state first so a reconnect/refresh never duplicates chat.
           clearChat();
           DOM.spList.innerHTML = '';
-          state.topDonator = { name: '—', amount: 0 };
-          DOM.dName.textContent = '—';
-          DOM.dAmt.textContent = '$0';
           state.msgHistory = [];
           state.pinnedId = null;
           state.userScrolledUp = false;
@@ -4225,6 +4265,8 @@ function connectWS() {
           setScorecardVisible(d.data === '1');
         } else if (d.type === 'viewers') {
           setViewerCount(d.count);
+        } else if (d.type === 'subscribers') {
+          setSubscriberCount(d.count, d.goal);
         } else if (d.type === 'like') {
           triggerLikeAnimation(d.name || 'Someone', d.count);
         } else if (d.type === 'retracted') {

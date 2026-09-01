@@ -213,6 +213,9 @@ wss.on('connection', (ws, req) => {
     subGoal: '47 / 100', subGoalFill: 47
   }}));
 
+  // Send initial subscriber state so the widget shows immediately
+  sendSubscribers();
+
   ws.on('close', () => console.log(`[-] Client disconnected (${wss.clients.size} remaining)`));
 });
 
@@ -272,16 +275,34 @@ function scheduleLike() {
   }, delay);
 }
 
+// Subscriber goal widget: step the fake count up toward the 500 target so the
+// overlay count-up animation can be exercised locally.
+function sendSubscribers() {
+  const goal = 500;
+  broadcast({ type: 'subscribers', count: subscriberCount, goal, remaining: Math.max(0, goal - subscriberCount) });
+}
+let subscriberCount = 348;
+function scheduleSubscribers() {
+  const delay = 20000 + Math.random() * 10000;
+  setTimeout(() => {
+    subscriberCount = Math.min(500, subscriberCount + (1 + Math.floor(Math.random() * 3)));
+    sendSubscribers();
+    scheduleSubscribers();
+  }, delay);
+}
+
 // Keep the default timeline noise off in milestone walkthrough mode
 if (!MILESTONE_MODE) {
   setTimeout(scheduleRetraction, 10000);
   setTimeout(scheduleChat, 1000);
   setTimeout(scheduleLike, 8000);
+  setTimeout(scheduleSubscribers, 3000);
 }
 
 console.log('Timeline:');
-console.log('  0s   — initial score + goals sent on connect');
+console.log('  0s   — initial score + goals + subscriber state sent on connect');
 console.log('  1s+  — chat messages every 3-6s');
+console.log('  3s+  — subscriber count steps up toward 500 every 20-30s');
 console.log('  10s+ — retraction events every 8-16s (random, ~50% chance)');
 console.log('  20s  — score update #2');
 console.log('  45s  — goals update');

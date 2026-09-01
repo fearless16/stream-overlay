@@ -60,6 +60,7 @@
     <div class="row"><span class="label">Source</span><span class="val" id="chatFake"><span class="pill p-ok">REAL</span></span></div>
     <div class="row"><span class="label">Last message</span><span class="val" id="chatLast">—</span></div>
     <div class="row"><span class="label">Viewers</span><span class="val" id="viewers">—</span></div>
+    <div class="row"><span class="label">Subscribers</span><span class="val" id="subs"><span class="pill p-off">—</span></span></div>
   </div>
 
   <div class="ts" id="ts">connecting…</div>
@@ -104,6 +105,15 @@ function handle(d) {
     document.getElementById('chatLast').textContent = fmtAgo(c.lastChatAt);
   } else if (d.type === 'viewers') {
     document.getElementById('viewers').textContent = d.count!=null ? d.count.toLocaleString() : '—';
+  } else if (d.type === 'subscribers') {
+    const el = document.getElementById('subs');
+    if (d.count == null) { el.innerHTML = '<span class="pill p-off">—</span>'; }
+    else {
+      const goal = d.goal || 0;
+      const reached = d.count >= goal;
+      el.innerHTML = '<span class="val">'+d.count.toLocaleString()+' / '+goal.toLocaleString()+'</span> '+
+        '<span class="pill '+(reached?'p-ok':'p-warn')+'">'+(reached?'REACHED':(d.remaining!=null?d.remaining.toLocaleString()+' to go':'…'))+'</span>';
+    }
   } else if (d.type === 'connected') {
     document.getElementById('chatLast').textContent = 'just now';
   }

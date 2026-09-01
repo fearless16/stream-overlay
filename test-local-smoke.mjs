@@ -14,14 +14,22 @@ try {
     return names.includes('India') && names.includes('Australia');
   }, null, { timeout: 10000 });
   await page.waitForFunction(() => document.querySelectorAll('#chat-container .msg').length > 0, null, { timeout: 10000 });
+  await page.waitForFunction(() => {
+    const w = document.getElementById('sub-widget');
+    return w && !w.classList.contains('hidden');
+  }, null, { timeout: 10000 });
 
   const result = await page.evaluate(() => ({
     scoreTeams: [...document.querySelectorAll('#sc-content .sc-t-name')].map(el => el.textContent.trim()),
-    chatCount: document.querySelectorAll('#chat-container .msg').length
+    chatCount: document.querySelectorAll('#chat-container .msg').length,
+    subCount: parseInt(document.getElementById('subCount')?.dataset.raw || '0', 10),
+    subGoal: parseInt(document.getElementById('subGoal')?.textContent || '0', 10),
   }));
   assert.deepEqual(result.scoreTeams, ['India', 'Australia']);
   assert.ok(result.chatCount > 0, 'mock chat message should reach overlay');
-  console.log(`PASS: local overlay received score + ${result.chatCount} chat message(s) via ${wsUrl}`);
+  assert.ok(result.subCount > 0, 'subscriber count should reach overlay');
+  assert.ok(result.subGoal >= result.subCount, 'subscriber goal should be >= current count');
+  console.log(`PASS: local overlay received score + ${result.chatCount} chat message(s) + ${result.subCount}/${result.subGoal} subs via ${wsUrl}`);
 } finally {
   await browser.close();
 }
