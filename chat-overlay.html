@@ -486,24 +486,48 @@ body {
    Hidden until the first real subscriber payload arrives so it never shows a
    misleading "— / 500" before the Data API responds.
    ════════════════════════════════════════ */
- #sub-widget {
-   width: 100%;
-   background: linear-gradient(135deg, rgba(255,215,0,0.05), transparent);
-   backdrop-filter: blur(14px);
-   border: 1px solid rgba(255,215,0,0.18);
-   border-radius: 14px;
-   padding: 14px 16px;
-   pointer-events: none;
-   box-shadow: 0 8px 24px rgba(0,0,0,0.35);
-   position: relative;
-   overflow: hidden;
- }
- #sub-widget::before {
-   content: ''; position: absolute; top: 0; right: 0;
-   width: 100px; height: 100px;
-   background: radial-gradient(circle, rgba(255,215,0,0.10), transparent 70%);
-   pointer-events: none;
- }
+  #sub-widget {
+    width: 100%;
+    background: linear-gradient(135deg, rgba(24,16,2,0.94), rgba(9,7,16,0.96));
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,215,0,0.28);
+    border-radius: 14px;
+    padding: 14px 16px;
+    pointer-events: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    position: relative;
+    overflow: hidden;
+  }
+  #sub-widget::before {
+    content: ''; position: absolute; top: 0; right: 0;
+    width: 140px; height: 140px;
+    background: radial-gradient(circle, rgba(255,215,0,0.16), transparent 70%);
+    pointer-events: none;
+  }
+  #sub-widget .sw-burst {
+    position: absolute; right: 14px; top: 12px;
+    width: 52px; height: 52px; pointer-events: none;
+    border-radius: 50%;
+    border: 2px solid rgba(255,215,0,0);
+    opacity: 0;
+  }
+  #sub-widget.bumping .sw-burst { animation: subBurst 0.9s ease-out; }
+  #sub-widget.bumping .sw-count { animation: subPop 0.6s var(--ease-out-back); }
+  #sub-widget.bumping { animation: subGlow 0.7s ease; }
+  @keyframes subBurst {
+    0% { transform: scale(0.4); border-color: rgba(255,215,0,0.9); opacity: 1; }
+    100% { transform: scale(1.9); border-color: rgba(255,215,0,0); opacity: 0; }
+  }
+  @keyframes subPop {
+    0% { transform: scale(1); }
+    45% { transform: scale(1.3); text-shadow: 0 0 26px rgba(255,215,0,0.9); }
+    100% { transform: scale(1); }
+  }
+  @keyframes subGlow {
+    0% { box-shadow: 0 0 0 rgba(255,215,0,0); }
+    50% { box-shadow: 0 0 30px 6px rgba(255,215,0,0.5); }
+    100% { box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+  }
 #sub-widget.hidden { display: none; }
 #sub-widget .sw-top {
   display: flex; align-items: baseline; gap: 6px;
@@ -2013,6 +2037,7 @@ body {
 
 <div id="right-panel">
   <div id="sub-widget" class="hidden">
+    <span class="sw-burst"></span>
     <div class="sw-top">
       <span class="sw-count" id="subCount" data-raw="">—</span>
       <span class="sw-slash">/</span>
@@ -2380,6 +2405,7 @@ function setSubscriberCount(count, goal) {
   const target = parseInt(count, 10) || 0;
   const prev = parseInt(DOM.subCount.dataset.raw, 10) || 0;
   DOM.subCount.dataset.raw = target;
+  if (target > prev) triggerSubBump();
   if (prev !== target) animateNumber(DOM.subCount, prev, target, Math.min(1200, 300 + Math.abs(target - prev) * 6));
   const pct = state.subGoal > 0 ? Math.min(100, (target / state.subGoal) * 100) : 0;
   DOM.subBarFill.style.width = pct + '%';
@@ -2390,6 +2416,15 @@ function setSubscriberCount(count, goal) {
     widget.classList.remove('reached');
     DOM.subRemain.textContent = (state.subGoal - target).toLocaleString() + ' to go';
   }
+}
+
+// Replay the gold bump/burst celebration each time a new subscriber arrives.
+function triggerSubBump() {
+  const widget = DOM.subWidget;
+  widget.classList.remove('bumping');
+  void widget.offsetWidth;
+  widget.classList.add('bumping');
+  widget.addEventListener('animationend', () => widget.classList.remove('bumping'), { once: true });
 }
 
 function setHealth(status) {
