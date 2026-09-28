@@ -1,0 +1,45 @@
+{
+  "specific_users": [
+    {
+      "channelId": "",
+      "matchNames": ["shubham", "jhatku", "shubham-_-1837"],
+      "early": "shubham jhatku welcome! 🔥🔥"
+    },
+    {
+      "channelId": "",
+      "matchNames": ["boss", "abhrojeet", "bose", "gudiya"],
+      "early": "Gudiya man is here! Welcome boss! 😎"
+    },
+    {
+      "channelId": "",
+      "matchNames": ["pulkit"],
+      "early": "Pulkit bhai ki entry! Welcome to the stream 🏏🔥"
+    },
+    {
+      "channelId": "",
+      "matchNames": ["yuvi", "yuvraj"],
+      "early": "Yuvi paaji in the house! Swagat hai 🔥",
+      "late": "Yuvi paaji late entry maar rahe hain, welcome! 🏏😎"
+    },
+    {
+      "channelId": "",
+      "matchNames": ["shekhawat", "shekawat"],
+      "early": "Shekhawat ji padhaar chuke hain! Khamma Ghani 🙏🔥",
+      "late": "Shekhawat ji, stream aadha nikal gaya! Der aaye durust aaye 😂"
+    },
+    {
+      "channelId": "",
+      "matchNames": ["ayush"],
+      "early": "Ayush bhai is here! Let's go! 🚀🏏",
+      "late": "Ayush bhai entry time note karo, late ho gaya aaj! 😂😂"
+    }
+  ],
+  "generic_new_user": [
+    "Welcome to the stream {name}! Make sure to subscribe 🏏🎉",
+    "Hey {name}, great to see a new face here! 🥳"
+  ],
+  "generic_returning_user": [
+    "Welcome back {name}! 🏏",
+    "{name} is back in the chat! 🔥"
+  ]
+}

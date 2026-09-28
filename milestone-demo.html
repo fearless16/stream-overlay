@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Milestone Animation Lab — Cricket With Prajjwal</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0; min-height: 100vh;
+  background:
+    radial-gradient(1200px 700px at 18% -10%, rgba(0,212,255,0.09), transparent 60%),
+    radial-gradient(1000px 620px at 112% 112%, rgba(255,45,85,0.09), transparent 60%),
+    #06040e;
+  color: var(--text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+/* ════════════════════════════════════════
+   SCORECARD BASE — verbatim from chat-overlay.html
+   (extracted by line range, see git diff of that file)
+   ════════════════════════════════════════ */
+:root {
+  --neon-blue: #00d4ff;
+  --neon-red: #ff2d55;
+  --gold: #FFD700;
+  --green: #00E676;
+  --purple: #CE93D8;
+  --text: #f0f0f5;
+  --text2: #a0a0b0;
+  --muted: #555;
+  --bg-dark: #06040e;
+  --panel-bg: rgba(8, 6, 16, 0.92);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-highlight: rgba(255, 255, 255, 0.03);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.3);
+  --shadow-md: 0 8px 32px rgba(0,0,0,0.4);
+  --shadow-glow-red: 0 0 20px rgba(255,45,85,0.15);
+  --shadow-glow-blue: 0 0 20px rgba(0,212,255,0.15);
+}
+:root { --sc-angle: 0deg; }
+#scorecard {
+  position: fixed; top: 92px; left: 24px;
+  width: 480px;
+  max-height: calc(1080px - 160px);
+  background: linear-gradient(160deg, rgba(10,8,18,0.96), rgba(6,4,14,0.98));
+  backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid rgba(255,45,85,0.1);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.5),
+    0 0 60px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.04);
+  z-index: 20;
+  pointer-events: none;
+  transition: opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1), transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+#scorecard.sc-enter {
+  animation: scCardEntry 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+#scorecard::before {
+  content: ''; position: absolute; inset: 0;
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 0; border-radius: 18px;
+}
+#scorecard::after {
+  content: ''; position: absolute; inset: -1px;
+  border-radius: 18px;
+  background: conic-gradient(from var(--sc-angle), transparent 0%, rgba(255,45,85,0.15) 25%, transparent 50%, rgba(0,212,255,0.15) 75%, transparent 100%);
+  animation: scBorderRotate 6s linear infinite;
+  pointer-events: none; z-index: -1;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+  padding: 1px;
+}
+#scorecard.hidden {
+  opacity: 0;
+  transform: translateY(-20px) scale(0.94);
+  pointer-events: none;
+}
+@keyframes scCardEntry {
+  0% { opacity: 0; transform: translateY(-30px) scale(0.92); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes scBorderRotate {
+  to { --sc-angle: 360deg; }
+}
+.sc-hdr {
+  background: linear-gradient(135deg, rgba(255,45,85,0.08), rgba(0,212,255,0.04));
+  padding: 14px 18px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid rgba(255,45,85,0.08);
+  position: relative; z-index: 1;
+}
+.sc-hdr::after {
+  content: ''; position: absolute; bottom: 0; left: 10%; right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,45,85,0.2), rgba(0,212,255,0.15), transparent);
+}
+.sc-hdr .sc-title {
+  font-size: 12px; font-weight: 900; letter-spacing: 2.5px;
+  text-transform: uppercase; color: var(--neon-blue);
+  display: flex; align-items: center; gap: 8px;
+  text-shadow: 0 0 12px rgba(0,212,255,0.3);
+}
+.sc-hdr .sc-title::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--neon-blue);
+  box-shadow: 0 0 8px var(--neon-blue), 0 0 20px rgba(0,212,255,0.3);
+  animation: scDotPulse 2s ease-in-out infinite;
+}
+.sc-hdr .sc-live {
+  font-size: 11px; font-weight: 800; color: var(--neon-red);
+  display: flex; align-items: center; gap: 6px;
+  letter-spacing: 1.5px;
+  text-shadow: 0 0 12px rgba(255,45,85,0.3);
+}
+.sc-hdr .sc-live::before {
+  content: ''; width: 5px; height: 5px;
+  background: var(--neon-red); border-radius: 50%;
+  animation: livePulse 1.5s ease-in-out infinite;
+  box-shadow: 0 0 8px var(--neon-red), 0 0 20px rgba(255,45,85,0.4);
+}
+
+@keyframes scDotPulse {
+  0%,100% { box-shadow: 0 0 8px var(--neon-blue), 0 0 20px rgba(0,212,255,0.3); }
+  50% { box-shadow: 0 0 12px var(--neon-blue), 0 0 30px rgba(0,212,255,0.5); }
+}
+.sc-bd {
+  padding: 14px 16px 16px;
+  position: relative;
+  z-index: 1;
+  max-height: calc(1080px - 232px);
+  overflow: hidden;
+}
+.sc-tms {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1fr);
+  align-items: start;
+  column-gap: 6px;
+  margin-bottom: 14px;
+  position: relative;
+}
+.sc-t {
+  text-align: center;
+  min-width: 0;
+  padding: 8px 4px;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  position: relative;
+}
+.sc-t.active {
+  background: rgba(255,255,255,0.035);
+  box-shadow: inset 0 0 0 1px rgba(255,215,0,0.12);
+}
+.sc-t-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 16px; padding: 0 7px; margin-bottom: 6px;
+  border-radius: 999px;
+  background: rgba(255,215,0,0.1);
+  color: var(--gold);
+  font-size: 10px; font-weight: 900;
+  letter-spacing: 1px; text-transform: uppercase;
+}
+.sc-t::before {
+  content: ''; position: absolute; inset: 0;
+  border-radius: 12px;
+  background: radial-gradient(ellipse at center, var(--t1c, rgba(255,255,255,0.02)) 0%, transparent 70%);
+  opacity: 0.06;
+  transition: opacity 0.3s;
+}
+.sc-t:last-child::before {
+  background: radial-gradient(ellipse at center, var(--t2c, rgba(255,255,255,0.02)) 0%, transparent 70%);
+}
+.sc-t-flag {
+  font-size: 51px; margin-bottom: 6px;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+.sc-t:hover .sc-t-flag { transform: scale(1.15) translateY(-2px); }
+.sc-t-name {
+  font-size: 15px; font-weight: 800; color: var(--text);
+  margin-bottom: 6px; letter-spacing: 0;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 100%;
+}
+.sc-t-score {
+  font-size: 33px; font-weight: 900;
+  background: linear-gradient(135deg, var(--gold), #ff9500, var(--gold));
+  background-size: 200% 200%;
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; line-height: 1;
+  letter-spacing: -1px;
+  animation: scScoreShimmer 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 8px rgba(255,215,0,0.15));
+  transition: filter 0.3s;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.sc-t-score.blank {
+  font-size: 18px;
+  -webkit-text-fill-color: var(--muted);
+  background: none;
+  color: var(--muted);
+  letter-spacing: 0;
+  animation: none;
+}
+.sc-t-sep {
+  -webkit-text-fill-color: rgba(255,215,0,0.4);
+  font-weight: 700;
+}
+.sc-t-wk {
+  font-size: 25px;
+}
+.sc-t-ov {
+  font-size: 12px; color: var(--muted); margin-top: 6px; font-weight: 700;
+  letter-spacing: 0.5px;
+  min-height: 12px;
+}
+.sc-vs {
+  font-size: 13px; color: rgba(255,255,255,0.15); font-weight: 900;
+  padding-top: 48px; position: relative;
+  letter-spacing: 2px;
+  text-align: center;
+}
+.sc-vs::before, .sc-vs::after {
+  content: ''; position: absolute; left: 50%; width: 1px;
+  background: linear-gradient(180deg, transparent, rgba(255,255,255,0.08), transparent); height: 24px;
+}
+.sc-vs::before { top: 16px; }
+.sc-vs::after { top: 72px; }
+.sc-format-badge {
+  display: block; margin: 0 auto 4px;
+  font-size: 10px; font-weight: 900; letter-spacing: 1px;
+  color: #fff; background: rgba(255,255,255,0.08);
+  padding: 1px 6px; border-radius: 4px;
+  text-align: center; width: fit-content;
+}
+.sc-t-img-flag {
+  width: 44px; height: 44px; object-fit: contain;
+  display: inline-block; vertical-align: middle;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+
+@keyframes scScoreShimmer {
+  0%,100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+.sc-bmen {
+  border-top: 1px solid rgba(255,45,85,0.06);
+  padding-top: 12px;
+}
+.sc-bm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  padding: 7px 8px; font-size: 14px;
+  border-radius: 8px;
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+.sc-bm::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, rgba(255,255,255,0.02), transparent);
+  opacity: 0; transition: opacity 0.2s;
+  border-radius: 8px;
+}
+.sc-bm:hover::before { opacity: 1; }
+.sc-bm:hover { transform: translateX(3px); }
+
+.sc-bm-enter {
+  animation: scBmSlideIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes scBmSlideIn {
+  0% { opacity: 0; transform: translateX(-20px) scale(0.95); }
+  100% { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+.sc-bm-avatar {
+  width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+.sc-bm-name {
+  color: var(--text); font-weight: 700;
+  display: flex; align-items: center; gap: 6px;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sc-bm-name .str {
+  color: var(--gold); font-size: 12px;
+  animation: scStarPulse 1.5s ease-in-out infinite;
+}
+@keyframes scStarPulse {
+  0%,100% { opacity: 1; text-shadow: 0 0 4px rgba(255,215,0,0.3); }
+  50% { opacity: 0.6; text-shadow: 0 0 8px rgba(255,215,0,0.6); }
+}
+.sc-bm-score {
+  color: var(--gold); font-weight: 900; font-size: 18px;
+  min-width: 64px; text-align: right;
+  text-shadow: 0 0 8px rgba(255,215,0,0.15);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sc-bm-score-balls {
+  color: var(--muted); font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.sc-bowler {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 10px;
+  padding: 8px 8px; font-size: 13px;
+  border-top: 1px solid rgba(255,45,85,0.06);
+  margin-top: 8px; padding-top: 10px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+.sc-bowler-changed {
+  animation: scBowlerFlash 0.5s ease;
+}
+@keyframes scBowlerFlash {
+  0% { background: transparent; }
+  30% { background: rgba(0,212,255,0.06); }
+  100% { background: transparent; }
+}
+.sc-bowler-name { color: var(--text); font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc-bowler-eco { color: var(--muted); font-size: 12px; font-weight: 600; }
+.sc-bowler-fig {
+  color: var(--neon-blue); font-weight: 800; font-size: 15px;
+  text-shadow: 0 0 8px rgba(0,212,255,0.15);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sc-over {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 10px; flex-wrap: wrap;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255,45,85,0.04);
+}
+.sc-over-label {
+  font-size: 11px; font-weight: 800; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 1.5px;
+  margin-right: 8px;
+}
+.sc-ball {
+  width: 24px; height: 24px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800;
+  color: rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  font-variant-numeric: tabular-nums;
+}
+.sc-ball:hover { transform: scale(1.25); box-shadow: 0 0 12px rgba(255,255,255,0.1); }
+.sc-ball.dot { color: rgba(255,255,255,0.2); font-size: 17px; }
+.sc-ball.wicket {
+  background: rgba(255,45,85,0.25); color: var(--neon-red);
+  border-color: rgba(255,45,85,0.4);
+  box-shadow: 0 0 12px rgba(255,45,85,0.3), inset 0 0 8px rgba(255,45,85,0.1);
+  animation: scBallWicketPulse 1s ease-in-out infinite;
+}
+.sc-ball.four {
+  background: rgba(0,212,255,0.2); color: var(--neon-blue);
+  border-color: rgba(0,212,255,0.4);
+  box-shadow: 0 0 12px rgba(0,212,255,0.25), inset 0 0 8px rgba(0,212,255,0.1);
+}
+.sc-ball.six {
+  background: rgba(255,215,0,0.25); color: var(--gold);
+  border-color: rgba(255,215,0,0.4);
+  box-shadow: 0 0 12px rgba(255,215,0,0.3), inset 0 0 8px rgba(255,215,0,0.1);
+}
+.sc-ball.wide { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.35); font-style: italic; font-size: 11px; }
+
+.sc-ball-pop {
+  animation: scBallPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes scBallPop {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes scBallWicketPulse {
+  0%,100% { box-shadow: 0 0 12px rgba(255,45,85,0.3); }
+  50% { box-shadow: 0 0 20px rgba(255,45,85,0.5); }
+}
+.sc-rates {
+  display: flex; justify-content: center; gap: 16px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255,45,85,0.05);
+}
+.sc-rate {
+  display: flex; align-items: center; gap: 6px;
+  flex: 1;
+}
+.sc-rate-label {
+  font-size: 11px; font-weight: 800; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 1px;
+  min-width: 28px;
+}
+.sc-rate-val {
+  font-size: 14px; font-weight: 800; color: var(--text);
+  min-width: 32px; text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.sc-rate-track {
+  flex: 1; height: 4px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 2px; overflow: hidden;
+  min-width: 40px;
+}
+.sc-rate-fill {
+  height: 100%; border-radius: 2px;
+  transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+}
+.sc-rate-fill::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  animation: shimmer 2.5s infinite;
+}
+.sc-partner {
+  font-size: 12px; color: var(--muted); text-align: center;
+  margin-top: 8px; font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.sc-last-wk {
+  font-size: 12px; color: rgba(255,45,85,0.5); text-align: center;
+  margin-top: 4px; font-weight: 700;
+}
+.sc-lead-trail {
+  font-size: 13px; color: var(--gold); text-align: center;
+  margin-top: 8px; font-weight: 800;
+  letter-spacing: 0.2px;
+}
+.sc-session {
+  font-size: 12px; color: var(--muted); text-align: center;
+  margin-top: 6px; font-weight: 700; letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+.sc-innings {
+  display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;
+  margin-top: 8px;
+}
+.sc-inn-chip {
+  display: inline-flex; align-items: baseline; gap: 5px;
+  padding: 3px 8px; border-radius: 999px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  font-size: 12px; color: var(--text2); font-weight: 700;
+}
+.sc-inn-chip .sc-inn-name { color: var(--muted); }
+.sc-inn-chip.sc-inn-live {
+  border-color: rgba(255,45,85,0.5);
+  background: rgba(255,45,85,0.08);
+  color: var(--gold);
+}
+.sc-inn-chip.sc-inn-live .sc-inn-name { color: var(--gold); }
+.sc-status {
+  margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid rgba(255,45,85,0.06);
+  font-size: 14px; color: var(--text2); font-weight: 700;
+  text-align: center;
+  animation: scStatusFadeIn 0.5s ease both;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+@keyframes scStatusFadeIn {
+  0% { opacity: 0; transform: translateY(4px); }
+  100% { opacity: 1; transform: translateY(0); }
+.sc-target {
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid rgba(255,45,85,0.06);
+}
+.sc-target-label {
+  display: flex; justify-content: space-between;
+  font-size: 12px; font-weight: 800; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+.sc-target-bar {
+  height: 6px; background: rgba(255,255,255,0.04);
+  border-radius: 3px; overflow: hidden;
+  position: relative;
+}
+.sc-target-fill {
+  height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, var(--neon-red), #ff6b35, var(--gold));
+  background-size: 200% 100%;
+  transition: width 1s cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+  animation: scTargetGradient 3s ease-in-out infinite;
+}
+.sc-target-fill::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+  animation: shimmer 2s infinite;
+}
+.sc-target-anim {
+  animation: scTargetPulse 0.6s ease;
+}
+@keyframes scTargetPulse {
+  0% { filter: brightness(1); }
+  50% { filter: brightness(1.5); }
+  100% { filter: brightness(1); }
+}
+@keyframes scTargetGradient {
+  0%,100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+@keyframes livePulse {
+  0%,100% { opacity:1; transform:scale(1); }
+  50% { opacity:0.5; transform:scale(1.35); }
+}
+.lab-head { padding: 20px 28px 0; }
+.lab-head h1 { margin: 0; font-size: 21px; letter-spacing: 2.5px; font-weight: 900; }
+.lab-head h1 em { font-style: normal; color: var(--neon-blue); text-shadow: 0 0 14px rgba(0,212,255,0.4); }
+.lab-head p { margin: 8px 0 0; color: var(--text2); font-size: 12.5px; max-width: 980px; line-height: 1.65; }
+.lab-head p code { color: #eaff9e; background: rgba(255,255,255,0.05); padding: 1px 6px; border-radius: 5px; font-size: 11.5px; }
+.lab-wrap { display: flex; gap: 28px; padding: 24px 28px 48px; align-items: flex-start; flex-wrap: wrap; }
+
+.stage {
+  flex: 0 0 540px;
+  background: rgba(255,255,255,0.015);
+  border: 1px dashed rgba(255,255,255,0.09);
+  border-radius: 18px;
+  padding: 26px 20px 40px;
+  display: flex; justify-content: center;
+  position: relative;
+}
+.stage .stage-tag {
+  position: absolute; top: 8px; left: 14px;
+  font-size: 10px; font-weight: 900; letter-spacing: 2px;
+  color: rgba(255,255,255,0.25); text-transform: uppercase;
+}
+#scorecard { position: relative; top: auto; left: auto; }
+#scorecard .sc-empty { padding: 30px; color: var(--muted); text-align: center; font-weight: 700; font-size: 16px; }
+
+.panel { flex: 1 1 320px; max-width: 460px; min-width: 300px; }
+.panel-hd { font-size: 12px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--neon-blue); font-weight: 900; margin-bottom: 14px; text-shadow: 0 0 12px rgba(0,212,255,0.25); }
+.btnrow { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 14px; }
+button {
+  font-family: inherit; cursor: pointer;
+  background: rgba(255,255,255,0.045); color: var(--text);
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 11px;
+  padding: 11px 16px; font-size: 13.5px; font-weight: 800; letter-spacing: 1px;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+button:hover { transform: translateY(-1px); box-shadow: 0 0 16px rgba(0,212,255,0.18); }
+button:active { transform: translateY(1px); }
+button.ms-50  { border-color: rgba(0,240,255,0.55); color: #a7f3ff; }
+button.ms-50:hover  { box-shadow: 0 0 16px rgba(0,240,255,0.3); }
+button.ms-100 { border-color: rgba(255,46,196,0.55); color: #ff8adf; }
+button.ms-100:hover { box-shadow: 0 0 16px rgba(255,46,196,0.3); }
+button.ms-150 { border-color: rgba(204,255,0,0.55); color: #eaff9e; }
+button.ms-150:hover { box-shadow: 0 0 16px rgba(204,255,0,0.3); }
+button.haul   { border-color: rgba(0,212,255,0.55); color: #a7f3ff; }
+button.haul:hover   { box-shadow: 0 0 16px rgba(0,212,255,0.3); }
+button.play  { background: linear-gradient(135deg, rgba(0,212,255,0.14), rgba(255,45,85,0.14)); }
+button.stop  { border-color: rgba(255,45,85,0.45); color: #ff8fa3; }
+button.stop:hover  { box-shadow: 0 0 16px rgba(255,45,85,0.3); }
+button.reset { border-color: rgba(255,255,255,0.15); color: var(--text2); }
+
+.readout {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 13px;
+  padding: 14px 16px; margin-top: 4px;
+}
+.readout .ro-k { font-size: 10.5px; text-transform: uppercase; letter-spacing: 1.6px; color: var(--text2); font-weight: 900; margin-bottom: 8px; }
+.readout .ro-last { font-size: 20px; font-weight: 900; color: #a7f3ff; font-variant-numeric: tabular-nums; min-height: 24px; }
+.readout .ro-last.ms-50 { color: #a7f3ff; } .readout .ro-last.ms-100 { color: #ff8adf; }
+.readout .ro-last.ms-150 { color: #eaff9e; } .readout .ro-last.haul { color: #7ff5e8; }
+.readout .ro-note { margin-top: 10px; font-size: 11.5px; color: var(--text2); line-height: 1.7; }
+.readout .ro-note b { color: #eaff9e; }
+.legend { display: flex; gap: 16px; margin-top: 14px; flex-wrap: wrap; font-size: 11px; color: var(--text2); font-weight: 700; }
+.legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: -1px; }
+.foot-note { font-size: 11px; color: rgba(255,255,255,0.3); line-height: 1.7; margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; }
+/* ════════════════════════════════════════
+MILESTONE ANIMATIONS — Futuristic celebrations
+   (batter 50 / 100 / 150, bowler 3-wicket haul)
+   Renders on its own sc-ms-layer so the classic cricket
+   celebrations are never disturbed.
+   ════════════════════════════════════════ */
+#scorecard .sc-ms-layer {
+  position: absolute; inset: 0;
+  pointer-events: none; z-index: 1000;
+  border-radius: 18px; overflow: hidden;
+  opacity: 0;
+  display: flex; align-items: center; justify-content: center;
+  padding: 32px;
+  will-change: opacity;
+}
+#scorecard .sc-ms-layer.active { opacity: 1; }
+#sc-ms-canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+
+#scorecard .sc-ms-item {
+  display: none;
+  position: relative;
+  font-weight: 900;
+  font-family: 'Impact', 'Arial Black', system-ui, sans-serif;
+  line-height: 1;
+  max-width: 100%; max-height: 100%;
+  box-sizing: border-box;
+  perspective: 800px;
+  will-change: transform, opacity;
+  z-index: 1;
+}
+#scorecard .sc-ms-item::before,
+#scorecard .sc-ms-item::after {
+  content: attr(data-text);
+  position: absolute; inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+#scorecard .sc-ms-item::before { color: var(--ms-cyan); }
+#scorecard .sc-ms-item::after  { color: var(--ms-magenta); }
+
+#scorecard .sc-ms-halo {
+  position: absolute; left: 50%; top: 50%;
+  width: 72%; aspect-ratio: 1;
+  transform: translate(-50%, -50%) scale(0.2);
+  border-radius: 50%;
+  opacity: 0;
+  background:
+    radial-gradient(circle, transparent 50%, var(--ms-glow) 56%, transparent 62%),
+    radial-gradient(circle, transparent 66%, var(--ms-glow) 70%, transparent 74%);
+  filter: blur(1px);
+}
+
+#scorecard .sc-ms-layer::before {
+  content: ''; position: absolute; left: 0; right: 0; top: -30%; height: 22%;
+  background: linear-gradient(180deg, transparent, rgba(0,240,255,0.09), rgba(123,77,255,0.12), transparent);
+  opacity: 0; z-index: 2;
+}
+
+#scorecard.sc-ms-50 { --ms-cyan: #00f0ff; --ms-magenta: #ff2ec4; --ms-glow: rgba(0,240,255,0.45); }
+#scorecard.sc-ms-100 { --ms-cyan: #ff8adf; --ms-magenta: #ff2ec4; --ms-glow: rgba(255,46,196,0.45); }
+#scorecard.sc-ms-150 { --ms-cyan: #ccff00; --ms-magenta: #ff2ec4; --ms-glow: rgba(204,255,0,0.4); }
+#scorecard.sc-ms-3 { --ms-cyan: #00f0ff; --ms-magenta: #ccff00; --ms-glow: rgba(204,255,0,0.5); }
+
+#scorecard.sc-ms-50 .sc-ms-layer::before, #scorecard.sc-ms-50 .sc-ms-halo,
+#scorecard.sc-ms-100 .sc-ms-layer::before, #scorecard.sc-ms-100 .sc-ms-halo,
+#scorecard.sc-ms-150 .sc-ms-layer::before, #scorecard.sc-ms-150 .sc-ms-halo,
+#scorecard.sc-ms-3 .sc-ms-layer::before, #scorecard.sc-ms-3 .sc-ms-halo {
+  animation: msHalo 4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes msHalo {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.2) rotate(0deg); }
+  22% { opacity: 1; transform: translate(-50%, -50%) scale(0.9) rotate(40deg); }
+  55% { opacity: 0.9; transform: translate(-50%, -50%) scale(1.1) rotate(70deg); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.4) rotate(110deg); }
+}
+@keyframes msScan {
+  0% { top: -30%; opacity: 0; }
+  12% { opacity: 1; }
+  34% { top: 115%; opacity: 0; }
+  100% { top: 115%; opacity: 0; }
+}
+
+#scorecard.sc-ms-50 .sc-ms-50,
+#scorecard.sc-ms-100 .sc-ms-100,
+#scorecard.sc-ms-150 .sc-ms-150,
+#scorecard.sc-ms-3 .sc-ms-3 {
+  display: block;
+  animation: msPop 4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes msPop {
+  0% { opacity: 0; transform: scale(2.6) rotateY(38deg); filter: blur(16px); letter-spacing: 6px; }
+  12% { opacity: 1; transform: scale(0.92) rotateY(-5deg); filter: blur(0); letter-spacing: 0; }
+  20% { transform: scale(1.06) rotateY(2deg); }
+  28% { transform: scale(1) rotateY(0deg); }
+  35% { transform: scale(1.02); }
+  42% { transform: scale(1); }
+  75% { opacity: 1; transform: scale(1); filter: blur(0); }
+  100% { opacity: 0; transform: scale(1.22) translateY(-22px); filter: blur(12px); }
+}
+@keyframes msSplit {
+  0% { opacity: 0; transform: translateX(0); }
+  4% { opacity: 0.85; transform: translateX(-6px); }
+  10% { opacity: 0; transform: translateX(3px); }
+  28% { opacity: 0.6; transform: translateX(-5px); }
+  34% { opacity: 0; transform: translateX(2px); }
+  58% { opacity: 0.35; transform: translateX(-3px); }
+  66% { opacity: 0; transform: translateX(4px); }
+  100% { opacity: 0; transform: translateX(0); }
+}
+@keyframes msSplit2 {
+  0% { opacity: 0; transform: translateX(0); }
+  4% { opacity: 0.85; transform: translateX(6px); }
+  10% { opacity: 0; transform: translateX(-3px); }
+  28% { opacity: 0.6; transform: translateX(5px); }
+  34% { opacity: 0; transform: translateX(-2px); }
+  58% { opacity: 0.35; transform: translateX(3px); }
+  66% { opacity: 0; transform: translateX(-4px); }
+  100% { opacity: 0; transform: translateX(0); }
+}
+
+#scorecard.sc-ms-50 .sc-ms-item::before { animation: msSplit 4s ease forwards; }
+#scorecard.sc-ms-50 .sc-ms-item::after  { animation: msSplit2 4s ease forwards; }
+#scorecard.sc-ms-100 .sc-ms-item::before { animation: msSplit 4s ease forwards; }
+#scorecard.sc-ms-100 .sc-ms-item::after  { animation: msSplit2 4s ease forwards; }
+#scorecard.sc-ms-150 .sc-ms-item::before { animation: msSplit 4s ease forwards; }
+#scorecard.sc-ms-150 .sc-ms-item::after  { animation: msSplit2 4s ease forwards; }
+#scorecard.sc-ms-3 .sc-ms-item::before { animation: msSplit 4s ease forwards; }
+#scorecard.sc-ms-3 .sc-ms-item::after  { animation: msSplit2 4s ease forwards; }
+
+.sc-ms-50 {
+  font-size: 165px; letter-spacing: 2px;
+  background: linear-gradient(90deg, #00f0ff 0%, #7b4dff 55%, #b967ff 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  text-shadow: 0 0 30px rgba(0,240,255,0.55), 0 0 80px rgba(123,77,255,0.35), 0 0 140px rgba(185,103,255,0.2);
+}
+.sc-ms-100 {
+  font-size: 150px; letter-spacing: 2px;
+  background: linear-gradient(90deg, #ff2ec4 0%, #7b4dff 45%, #ff8adf 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  text-shadow: 0 0 30px rgba(255,46,196,0.55), 0 0 80px rgba(123,77,255,0.4), 0 0 140px rgba(255,138,223,0.2);
+}
+.sc-ms-150 {
+  font-size: 135px; letter-spacing: 2px;
+  background: linear-gradient(90deg, #ccff00 0%, #00f0ff 45%, #ff2ec4 90%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  text-shadow: 0 0 30px rgba(204,255,0,0.5), 0 0 80px rgba(0,240,255,0.35), 0 0 140px rgba(255,46,196,0.25);
+}
+.sc-ms-3 {
+  font-size: 150px; letter-spacing: 6px;
+  background: linear-gradient(90deg, #ccff00 0%, #00f0ff 55%, #a7f3ff 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  text-shadow: 0 0 30px rgba(204,255,0,0.6), 0 0 80px rgba(0,240,255,0.45), 0 0 140px rgba(167,243,255,0.25);
+}
+
+/* Congratulation banner — slides in right below the score */
+.sc-ms-congrats {
+  position: relative;
+  margin: 0 14px; padding: 0 14px;
+  text-align: center;
+  border-radius: 10px;
+  opacity: 0;
+  transform: translateY(12px);
+  max-height: 0;
+  overflow: hidden;
+  transition:
+    opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    max-height 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    margin 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    padding 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.5s ease, border-color 0.5s ease;
+  pointer-events: none;
+}
+.sc-ms-congrats.show {
+  opacity: 1; transform: translateY(0);
+  max-height: 150px;
+  margin: 8px 14px 14px;
+  padding: 10px 14px 12px;
+  border: 1px solid rgba(0,240,255,0.22);
+  box-shadow: 0 0 26px rgba(0,240,255,0.14), inset 0 0 20px rgba(123,77,255,0.08);
+  background: linear-gradient(135deg, rgba(0,240,255,0.08), rgba(123,77,255,0.1) 60%, rgba(255,46,196,0.08));
+}
+.sc-ms-congrats::before {
+  content: ''; position: absolute; left: 10%; right: 10%; top: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--ms-cyan, #00f0ff), var(--ms-magenta, #ff2ec4), transparent);
+  opacity: 0.9;
+}
+.sc-ms-congrats .msc-title {
+  font-family: 'Impact', 'Arial Black', system-ui, sans-serif;
+  font-size: 20px; font-weight: 900; letter-spacing: 3px; line-height: 1;
+  background: linear-gradient(90deg, #00f0ff, #7b4dff, #ff2ec4, #00f0ff);
+  background-size: 300% 100%;
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  animation: msTitleFlow 2.4s linear infinite;
+  filter: drop-shadow(0 0 10px rgba(0,240,255,0.35));
+}
+.sc-ms-congrats .msc-sub {
+  margin-top: 6px;
+  font-size: 13px; font-weight: 800; letter-spacing: 1.5px;
+  color: #cbeaff; text-transform: uppercase;
+  text-shadow: 0 0 12px rgba(123,77,255,0.7), 0 0 22px rgba(0,240,255,0.35);
+}
+@keyframes msTitleFlow {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 300% 50%; }
+}
+
+/* Demo-mode scale — only applies when opened with ?mode=milestone-demo */
+#scorecard.ms-demo { transform: scale(1.6); transform-origin: 0 0; }
+
+
+</style>
+</head>
+<body>
+<div class="lab-head">
+  <h1>MILESTONE <em>ANIMATION LAB</em></h1>
+  <p>Standalone lab copy of the milestone engine from <code>chat-overlay.html</code> (batter 50/100/150, bowler 3-wicket haul). CSS + engine block are mirrored verbatim so look/feel matches the real overlay. Preview is the real <code>#scorecard</code> markup minus the classic 4/6/wicket layers.</p>
+</div>
+
+<div class="lab-wrap">
+
+  <div class="stage">
+    <span class="stage-tag">Preview</span>
+    <div id="scorecard">
+      <div class="sc-ms-layer" id="sc-ms-layer">
+        <canvas id="sc-ms-canvas"></canvas>
+        <div class="sc-ms-halo"></div>
+        <div class="sc-ms-item sc-ms-50" data-text="50">50</div>
+        <div class="sc-ms-item sc-ms-100" data-text="100">100</div>
+        <div class="sc-ms-item sc-ms-150" data-text="150">150</div>
+        <div class="sc-ms-item sc-ms-3" data-text="3W">3W</div>
+      </div>
+      <div class="sc-hdr">
+        <span class="sc-title">Live Score</span>
+        <span class="sc-live">LIVE</span>
+      </div>
+      <div id="sc-content">
+        <div class="sc-bd">
+          <div class="sc-tms">
+            <div class="sc-t active">
+              <div class="sc-t-badge">1st Inn</div>
+              <div class="sc-t-flag">🇮🇳</div>
+              <div class="sc-t-name">IND</div>
+              <div class="sc-t-score"><span class="sc-t-runs" id="demo-t1-runs">38</span><span class="sc-t-sep">/</span><span class="sc-t-wk">1</span></div>
+              <div class="sc-t-ov">24.3 ov</div>
+            </div>
+            <div class="sc-vs">VS</div>
+            <div class="sc-t">
+              <div class="sc-t-badge">2nd Inn</div>
+              <div class="sc-t-flag">🇦🇺</div>
+              <div class="sc-t-name">AUS</div>
+              <div class="sc-t-score"><span class="sc-t-runs">110</span><span class="sc-t-sep">/</span><span class="sc-t-wk">5</span></div>
+              <div class="sc-t-ov">28.0 ov</div>
+            </div>
+          </div>
+          <div class="sc-bmen">
+            <div class="sc-bm"><span class="sc-bm-name">Virat Kohli <span class="str">★</span></span><span class="sc-bm-score"><span id="demo-batter-runs">38</span><span class="sc-bm-score-balls"> (56)</span></span></div>
+            <div class="sc-bm"><span class="sc-bm-name">Rohit Sharma</span><span class="sc-bm-score">12 (18)</span></div>
+          </div>
+          <div class="sc-bowler">
+            <span class="sc-bowler-name">Jasprit Bumrah <span class="sc-bowler-eco">ECO 4.00</span></span>
+            <span class="sc-bowler-fig"><span id="demo-bowler-wk">1</span>/32 (8 ov)</span>
+          </div>
+          <div class="sc-over">
+            <span class="sc-over-label">This Over</span>
+            <div class="sc-ball">1</div><div class="sc-ball four">4</div><div class="sc-ball">1</div><div class="sc-ball">2</div>
+          </div>
+          <div class="sc-rates">
+            <div class="sc-rate"><span class="sc-rate-label">CRR</span><span class="sc-rate-val">6.40</span><div class="sc-rate-track"><div class="sc-rate-fill" style="width:53%;background:#22c55e"></div></div></div>
+            <div class="sc-rate"><span class="sc-rate-label">RRR</span><span class="sc-rate-val">8.40</span><div class="sc-rate-track"><div class="sc-rate-fill" style="width:70%;background:#eab308"></div></div></div>
+          </div>
+          <div class="sc-target">
+            <div class="sc-target-label"><span>Need 210 runs from 150 balls</span><span>210 / 420</span></div>
+            <div class="sc-target-bar"><div class="sc-target-fill" style="width:50%"></div></div>
+          </div>
+          <div class="sc-status">India need 210 runs from 150 balls</div>
+        </div>
+      </div>
+      <div class="sc-ms-congrats" id="sc-ms-congrats">
+        <div class="msc-title">CONGRATULATIONS</div>
+        <div class="msc-sub">50 RUNS</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-hd">Control Panel</div>
+    <div class="btnrow">
+      <button class="ms-50"  onclick="demoFire('50')">FIFTY</button>
+      <button class="ms-100" onclick="demoFire('100')">CENTURY</button>
+      <button class="ms-150" onclick="demoFire('150')">150 UP</button>
+      <button class="haul"   onclick="demoFire('haul3')">3-WICKET HAUL</button>
+    </div>
+    <div class="btnrow">
+      <button class="play wide" onclick="demoAuto()">▶ AUTO LOOP — 38 -> 54 -> 106 -> 152 -> 3W</button>
+    </div>
+    <div class="btnrow">
+      <button class="stop"  onclick="demoStop()">■ STOP</button>
+      <button class="reset" onclick="demoReset()">RESET BASELINE</button>
+    </div>
+
+    <div class="readout">
+      <div class="ro-k">Last event</div>
+      <div class="ro-last" id="demo-last">—</div>
+    </div>
+    <div class="readout">
+      <div class="ro-k">Auto-loop step map</div>
+      <div class="ro-note">
+        <b>38/1</b> baseline -> <b>54</b> FIFTY -> <b>106</b> CENTURY -> <b>152</b> 150 UP -> <b>Bumrah 3rd wicket</b> HAUL -> hold -> loops.<br/>
+        Same gating as prod: the first snapshot only arms the trackers (never celebrates), so a half-watched match doesn't fire.
+      </div>
+    </div>
+    <div class="legend">
+      <span><i style="background:#00f0ff"></i>50</span>
+      <span><i style="background:#ff8adf"></i>100</span>
+      <span><i style="background:#ccff00"></i>150</span>
+      <span><i style="background:#00d4ff"></i>3W</span>
+    </div>
+    <div class="foot-note">Lab-only file — not loaded by OBS. Edit <code>chat-overlay.html</code> and re-copy the milestone CSS/JS blocks here to keep them in sync.</div>
+  </div>
+
+</div>
+<script>
+/* ════════════════════════════════════════
+   PARTICLE FACTORY — verbatim copy of _scP from
+   chat-overlay.html, renamed _msP for this lab.
+   ════════════════════════════════════════ */
+function _msP(x, y, o) {
+  const a = o.a != null ? o.a + (Math.random() - 0.5) * 0.5 : Math.random() * 6.283;
+  const sp = o.sp != null ? o.sp * (0.5 + Math.random()) : 2 + Math.random() * 8;
+  const clr = Array.isArray(o.c) ? o.c[Math.floor(Math.random() * o.c.length)] : (o.c || '#fff');
+  const tArr = Array.isArray(o.t) ? o.t : [o.t || 0];
+  const scatter = o.scatter || 0;
+  return {
+    x: x + (Math.random() - 0.5) * scatter,
+    y: y + (Math.random() - 0.5) * scatter,
+    vx: Math.cos(a) * sp + (o.dx || 0) * (0.7 + Math.random() * 0.6),
+    vy: Math.sin(a) * sp + (o.dy || 0) * (0.7 + Math.random() * 0.6),
+    l: (o.l || 1.5) * (0.7 + Math.random() * 0.6),
+    ml: o.l || 1.5,
+    s: (o.s || (2 + Math.random() * 6)) * (0.4 + Math.random() * 1.2),
+    c: clr,
+    d: (o.d || 0.97) * (0.96 + Math.random() * 0.04),
+    g: (o.g || 0) * (0.5 + Math.random()),
+    gl: o.gl || 0, op: (o.op || 0.85) * (0.5 + Math.random() * 0.5),
+    t: tArr[Math.floor(Math.random() * tArr.length)],
+    rot: Math.random() * 6.283,
+    rotV: (Math.random() - 0.5) * 0.25,
+    txt: o.txt || '',
+  };
+}
+
+/* ════════════════════════════════════════
+   MILESTONE ENGINE — verbatim copy from chat-overlay.html
+   (mechanical renames only: _scP->_msP, updateScore->demoApplyScore,
+   DOM.scorecard->getElementById, demo-scale/visible calls removed)
+   ════════════════════════════════════════ */
+/* ════════════════════════════════════════
+MILESTONE ENGINE — batter 50/100/150, bowler 3-wicket haul
+   Fires off live score deltas in updateScore (never on the first
+   snapshot), renders on its own sc-ms-layer + congrats banner so the
+   classic cricket celebrations are untouched.
+   ════════════════════════════════════════ */
+let _msCtx = null, _msW = 0, _msH = 0, _msParts = [], _msFrame = null;
+let _msAnimTimer = null;
+let _msCongratsTimer = null;
+let _msBatter = {};        // batter name -> Set of milestone runs already celebrated
+let _msBowler = null;      // { name, lastWk }
+
+function _msCanvasInit() {
+  const c = document.getElementById('sc-ms-canvas');
+  if (!c) return;
+  const dpr = window.devicePixelRatio || 1;
+  const layer = document.getElementById('sc-ms-layer');
+  const r = layer.getBoundingClientRect();
+  c.width = Math.max(10, r.width * dpr); c.height = Math.max(10, r.height * dpr);
+  c.style.width = r.width + 'px'; c.style.height = r.height + 'px';
+  _msCtx = c.getContext('2d'); _msCtx.scale(dpr, dpr);
+  _msW = r.width; _msH = r.height;
+}
+
+function _msSpawn(cx, cy, n, o) {
+  for (let i = 0; i < n; i++) _msParts.push(_msP(cx, cy, o));
+}
+
+function _msRender() {
+  const ctx = _msCtx;
+  if (!ctx) return;
+  ctx.clearRect(0, 0, _msW, _msH);
+  let alive = false;
+  for (let i = 0; i < _msParts.length; i++) {
+    const p = _msParts[i];
+    if (p.l <= 0) continue;
+    alive = true;
+    p.x += p.vx; p.y += p.vy;
+    p.vx *= p.d; p.vy *= p.d;
+    p.vy += p.g;
+    p.rot += p.rotV;
+    p.l -= 0.016;
+    if (p.x < -60 || p.x > _msW + 60 || p.y < -60 || p.y > _msH + 60) { p.vx *= 0.98; p.vy *= 0.98; }
+    const alpha = Math.max(0, p.l / p.ml);
+    const sz = p.s * (0.3 + 0.7 * alpha);
+    ctx.globalAlpha = alpha * p.op;
+    ctx.fillStyle = p.c;
+    if (p.gl) { ctx.shadowColor = p.c; ctx.shadowBlur = p.gl * alpha; }
+    if (p.t === 1) {
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.fillRect(-sz, -sz * 0.3, sz * 2, sz * 0.6); ctx.restore();
+    } else if (p.t === 2) {
+      ctx.strokeStyle = p.c; ctx.lineWidth = 1.5 + 2 * alpha;
+      ctx.beginPath(); ctx.arc(p.x, p.y, sz, 0, 6.283); ctx.stroke();
+    } else if (p.t === 3) {
+      ctx.font = (sz * 2.2) + 'px Impact,system-ui';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.shadowBlur = (p.gl || 10) * alpha;
+      ctx.fillText(p.txt || '0', p.x, p.y);
+    } else if (p.t === 4) {
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.beginPath();
+      ctx.moveTo(0, -sz); ctx.lineTo(-sz * 0.866, sz * 0.5); ctx.lineTo(sz * 0.866, sz * 0.5);
+      ctx.closePath(); ctx.fill(); ctx.restore();
+    } else if (p.t === 5) {
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.beginPath();
+      ctx.moveTo(0, -sz); ctx.lineTo(sz * 0.7, 0); ctx.lineTo(0, sz); ctx.lineTo(-sz * 0.7, 0);
+      ctx.closePath(); ctx.fill(); ctx.restore();
+    } else {
+      ctx.beginPath(); ctx.arc(p.x, p.y, sz, 0, 6.283); ctx.fill();
+    }
+  }
+  ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+  if (alive) _msFrame = requestAnimationFrame(_msRender);
+  else { _msParts = []; _msFrame = null; }
+}
+
+function _msSpawnEvent(type) {
+  _msCanvasInit();
+  _msParts = [];
+  if (_msFrame) { cancelAnimationFrame(_msFrame); _msFrame = null; }
+  const cx = _msW / 2, cy = _msH / 2;
+  const burst = (n, cols, opts) => _msSpawn(cx, cy, n, Object.assign({ scatter: 55, g: 0.03, d: 0.97 }, opts, { c: cols }));
+  if (type === 50) {
+    burst(150, ['#00f0ff', '#7b4dff', '#00c8ff', '#b967ff', '#a7f3ff'], { l: 3.6, sp: 3 + Math.random() * 13, gl: 16, t: [0,0,0,0,1,4,5] });
+    setTimeout(() => burst(80, ['#00f0ff', '#a7f3ff'], { l: 2.6, sp: 2 + Math.random() * 7, gl: 12, t: [1,4,5] }), 250);
+    setTimeout(() => _msSpawn(cx, cy, 60, { c: ['#00f0ff', '#b967ff', '#fff'], l: 2.4, sp: 1 + Math.random() * 4, g: 0.02, d: 0.99, gl: 14, t: 3, txt: Math.random() > 0.5 ? '0' : '1', scatter: 70 }), 550);
+    setTimeout(() => _msSpawn(cx, cy, 26, { c: '#00f0ff', l: 2.8, sp: 1 + Math.random() * 3, g: 0, d: 0.99, gl: 10, t: 2, s: 8 + Math.random() * 12, scatter: 20 }), 800);
+  } else if (type === 100) {
+    burst(170, ['#ff2ec4', '#7b4dff', '#ff8adf', '#c084fc', '#ff00a0'], { l: 3.8, sp: 4 + Math.random() * 15, gl: 18, t: [0,0,0,0,1,4,5] });
+    setTimeout(() => burst(90, ['#ff8adf', '#ff2ec4'], { l: 2.8, sp: 2 + Math.random() * 8, gl: 14, t: [1,4,5] }), 250);
+    setTimeout(() => _msSpawn(cx, cy, 70, { c: ['#ff2ec4', '#fff', '#c084fc'], l: 2.4, sp: 1 + Math.random() * 4, g: 0.02, d: 0.99, gl: 16, t: 3, txt: '✦', scatter: 70 }), 550);
+    setTimeout(() => _msSpawn(cx, cy, 20, { c: '#ff8adf', l: 3, sp: 1 + Math.random() * 3, g: 0, d: 0.99, gl: 12, t: 2, s: 10 + Math.random() * 14, scatter: 24 }), 800);
+  } else if (type === 150) {
+    burst(190, ['#ccff00', '#00f0ff', '#ff2ec4', '#a7f3ff', '#7b4dff'], { l: 4, sp: 4 + Math.random() * 16, gl: 18, t: [0,0,0,0,1,4,5] });
+    setTimeout(() => burst(110, ['#ccff00', '#a7f3ff'], { l: 3, sp: 2 + Math.random() * 9, gl: 14, t: [1,4,5] }), 250);
+    setTimeout(() => _msSpawn(cx, cy, 80, { c: ['#ccff00', '#00f0ff', '#fff'], l: 2.6, sp: 1 + Math.random() * 5, g: 0.02, d: 0.99, gl: 16, t: 3, txt: '✦', scatter: 80 }), 550);
+    setTimeout(() => _msSpawn(cx, cy, 30, { c: '#ccff00', l: 3.2, sp: 1 + Math.random() * 3, g: 0, d: 0.99, gl: 12, t: 2, s: 9 + Math.random() * 14, scatter: 24 }), 800);
+  } else if (type === 'haul3') {
+    burst(160, ['#ccff00', '#00f0ff', '#00e0ff', '#a7f3ff', '#7b4dff'], { l: 3.6, sp: 3 + Math.random() * 14, gl: 16, t: [0,0,0,0,1,4,5] });
+    setTimeout(() => burst(100, ['#ccff00', '#00f0ff'], { l: 2.8, sp: 2 + Math.random() * 8, gl: 14, t: [1,4,5] }), 200);
+    setTimeout(() => _msSpawn(cx, cy, 60, { c: ['#ccff00', '#00f0ff', '#fff'], l: 2.5, sp: 2 + Math.random() * 5, g: 0.03, d: 0.98, gl: 16, t: 3, txt: '⚡', scatter: 60 }), 450);
+    setTimeout(() => _msSpawn(cx, cy, 40, { c: '#00f0ff', l: 3, sp: 1 + Math.random() * 3, g: 0, d: 0.99, gl: 12, t: 2, s: 10 + Math.random() * 16, scatter: 20 }), 700);
+  }
+  _msRender();
+}
+
+function _showMsCongrats(name, type) {
+  const el = document.getElementById('sc-ms-congrats');
+  if (!el) return;
+  const who = String(name || 'BATTER').toUpperCase();
+  const sub = type === 'haul3'
+    ? '3-WICKET HAUL BY ' + who
+    : (type === 100 ? 'CENTURY' : type === 150 ? '150 UP' : 'FIFTY') + ' FOR ' + who;
+  el.querySelector('.msc-title').textContent = 'CONGRATULATIONS';
+  el.querySelector('.msc-sub').textContent = sub;
+  el.classList.remove('show');
+  void el.offsetWidth;
+  el.classList.add('show');
+  if (_msCongratsTimer) { clearTimeout(_msCongratsTimer); _msCongratsTimer = null; }
+  _msCongratsTimer = setTimeout(() => { el.classList.remove('show'); _msCongratsTimer = null; }, 4600);
+}
+
+function _triggerMilestoneAnim(card, type, name) {
+  const layer = document.getElementById('sc-ms-layer');
+  if (!card || !layer) return;
+  const cls = type === 'haul3' ? 'sc-ms-3' : 'sc-ms-' + type;
+  if (_msAnimTimer) { clearTimeout(_msAnimTimer); _msAnimTimer = null; }
+  card.classList.remove('sc-ms-50', 'sc-ms-100', 'sc-ms-150', 'sc-ms-3');
+  layer.classList.remove('active');
+  void card.offsetWidth;
+  card.classList.add(cls);
+  layer.classList.add('active');
+  _msSpawnEvent(type);
+  _showMsCongrats(name, type);
+  _msAnimTimer = setTimeout(() => {
+    card.classList.remove('sc-ms-50', 'sc-ms-100', 'sc-ms-150', 'sc-ms-3');
+    layer.classList.remove('active');
+    _msAnimTimer = null;
+  }, 4000);
+}
+
+// Returns the biggest milestone crossed this update, or null. Never fires on
+// the first snapshot (the caller gates on prev) so a half-watched match does
+// not celebrate milestones that fell before the overlay opened.
+function _detectMilestones(merged) {
+  if (!merged || !Array.isArray(merged.batsmen)) return null;
+  let out = null;
+  (merged.batsmen || []).forEach(b => {
+    if (!b || !b.name) return;
+    const runs = parseInt(b.runs, 10);
+    if (isNaN(runs)) return;
+    const set = _msBatter[b.name] || (_msBatter[b.name] = new Set());
+    // Same name back below 30 = a fresh innings, allow the milestone again.
+    if (runs < 30 && set.has(50)) set.clear();
+    const crossed = [50, 100, 150].filter(m => runs >= m && !set.has(m));
+    if (crossed.length) {
+      const m = crossed[crossed.length - 1];
+      set.add(m);
+      out = { type: m, name: b.name };
+    }
+  });
+  const bw = merged.bowler;
+  if (bw && bw.name) {
+    const wk = parseInt(bw.wickets, 10);
+    const wkNum = isNaN(wk) ? 0 : wk;
+    if (!_msBowler || _msBowler.name !== bw.name) {
+      _msBowler = { name: bw.name, lastWk: wkNum };
+    } else {
+      if (wkNum >= 3 && _msBowler.lastWk < 3) out = { type: 'haul3', name: bw.name };
+      _msBowler.lastWk = Math.max(_msBowler.lastWk, wkNum);
+    }
+  }
+  return out;
+}
+
+/* ── milestone demo mode (?mode=milestone-demo) ──────────────────────────── */
+const _msDemoBatter = 'Virat Kohli';
+const _msDemoBowler = 'Jasprit Bumrah';
+let _msDemoTimer = null;
+let _msDemoRunning = false;
+
+function _msDemoScore(runs, bowlerWk, seq) {
+  return {
+    teams: [
+      { name: 'India', abbr: 'IND', score: runs + '/1', overs: '24.3' },
+      { name: 'Australia', abbr: 'AUS', score: '110/5', overs: '28.0' },
+    ],
+    batsmen: [
+      { name: _msDemoBatter, runs: String(runs), balls: String(Math.round(runs * 1.1 + 14)), striker: true },
+      { name: 'Rohit Sharma', runs: '12', balls: '18' },
+    ],
+    bowler: { name: _msDemoBowler, wickets: String(bowlerWk), runs: '32', overs: '8' },
+    currentOver: ['1', '4', '1', '2'],
+    lastBallSeq: seq,
+    format: 'ODI',
+    crr: '6.4',
+    status: 'India need 210 runs from 150 balls',
+    source: 'milestone-demo',
+  };
+}
+
+function _msDemoResetTrackers() { _msBatter = {}; _msBowler = null; }
+
+function _msDemoStop() {
+  _msDemoRunning = false;
+  if (_msDemoTimer) { clearTimeout(_msDemoTimer); _msDemoTimer = null; }
+}
+
+function _msDemoBase() {
+  _msDemoResetTrackers();
+  demoApplyScore(38, 1, 40);
+}
+
+function _msDemoAuto() {
+  if (_msDemoRunning) return;
+  _msDemoStop();
+  _msDemoRunning = true;
+  _msDemoBase();
+  const steps = [
+    { t: 3800, fn: () => demoApplyScore(54, 1, 41), }     // crosses 50 -> FIFTY
+    { t: 7900, fn: () => demoApplyScore(106, 1, 42), }    // crosses 100 -> CENTURY
+    { t: 12000, fn: () => demoApplyScore(152, 1, 43), }   // crosses 150 -> 150 UP
+    { t: 16100, fn: () => demoApplyScore(152, 3, 44), }   // bowler takes 3rd -> HAUL
+    { t: 20200, fn: () => demoApplyScore(152, 3, 45), }   // hold, then loop
+  ];
+  steps.forEach(s => {
+    _msDemoTimer = setTimeout(() => { if (_msDemoRunning) s.fn(); }, s.t);
+  });
+  _msDemoTimer = setTimeout(() => { _msDemoStop(); _msDemoAuto(); }, 23800);
+}
+
+function _msDemoFire(type) {
+  const card = document.getElementById('scorecard');
+  _msDemoResetTrackers();
+  if (type === '50') _triggerMilestoneAnim(card, 50, _msDemoBatter);
+  else if (type === '100') _triggerMilestoneAnim(card, 100, _msDemoBatter);
+  else if (type === '150') _triggerMilestoneAnim(card, 150, _msDemoBatter);
+  else if (type === 'haul3') _triggerMilestoneAnim(card, 'haul3', _msDemoBowler);
+}
+
+window.__msDemo = {
+  auto: () => { _msDemoAuto(); },
+  stop: () => _msDemoStop(),
+  fire: (type) => { _msDemoStop(); _msDemoFire(type); },
+};
+window.addEventListener('message', ev => {
+  const d = ev.data;
+  if (!d || !d.__msDemo) return;
+  if (d.__msDemo === 'auto') window.__msDemo.auto();
+  else if (d.__msDemo === 'stop') window.__msDemo.stop();
+  else window.__msDemo.fire(String(d.__msDemo));
+});
+
+
+/* ── standalone lab driver (NOT part of chat-overlay.html) ─────────────────── */
+const $ms = id => document.getElementById(id);
+let demoArmed = false;
+
+function demoApplyScore(runs, bowlerWk, seq) {
+  $ms('demo-t1-runs').textContent = runs;
+  $ms('demo-batter-runs').textContent = runs;
+  $ms('demo-bowler-wk').textContent = bowlerWk;
+  const m = _detectMilestones(_msDemoScore(runs, bowlerWk, seq));
+  if (m && demoArmed) {
+    _triggerMilestoneAnim(document.getElementById('scorecard'), m.type, m.name);
+    const label = m.type === 'haul3' ? '3-WICKET HAUL' : (m.type === 100 ? 'CENTURY' : m.type === 150 ? '150 UP' : 'FIFTY');
+    const el = $ms('demo-last');
+    el.textContent = label + ' — ' + m.name;
+    el.className = 'ro-last ' + (m.type === 'haul3' ? 'haul' : 'ms-' + m.type);
+  }
+  demoArmed = true;
+}
+
+function demoFire(type) {
+  _msDemoStop();
+  _msDemoResetTrackers();
+  const label = { '50': 'FIFTY', '100': 'CENTURY', '150': '150 UP', 'haul3': '3-WICKET HAUL' }[type];
+  const who = type === 'haul3' ? _msDemoBowler : _msDemoBatter;
+  _triggerMilestoneAnim(document.getElementById('scorecard'), type === '50' ? 50 : type === '100' ? 100 : type === '150' ? 150 : 'haul3', who);
+  const el = $ms('demo-last');
+  el.textContent = label + ' — ' + who;
+  el.className = 'ro-last ' + (type === 'haul3' ? 'haul' : 'ms-' + type);
+}
+
+function demoAuto() { window.__msDemo.auto(); }
+function demoStop() { window.__msDemo.stop(); $ms('demo-last').textContent = 'stopped'; $ms('demo-last').className = 'ro-last'; }
+function demoReset() {
+  _msDemoStop();
+  _msDemoResetTrackers();
+  demoArmed = false;
+  demoApplyScore(38, 1, 40);
+  $ms('demo-last').textContent = 'baseline armed (38/1)';
+  $ms('demo-last').className = 'ro-last';
+}
+</script>
+</body>
+</html>
+
+

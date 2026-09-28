@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Hockey Score Overlay</title>
+<style>
+  :root {
+    --bg: rgba(10, 14, 24, 0.88);
+    --accent: #38bdf8;
+    --live: #f43f5e;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: transparent; font-family: 'Segoe UI', Arial, sans-serif; color: var(--text); overflow: hidden; }
+  #hockey-widget {
+    position: fixed; top: 24px; left: 24px; width: 380px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .brand {
+    font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--accent); padding: 2px 4px;
+  }
+  .brand .dot { color: var(--live); animation: pulse 1.4s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.25 } }
+  .match-card {
+    background: var(--bg); border-radius: 12px; padding: 12px 16px;
+    border-left: 4px solid var(--muted);
+    box-shadow: 0 4px 18px rgba(0,0,0,0.45);
+  }
+  .match-card.live { border-left-color: var(--live); }
+  .match-card.done { opacity: 0.75; border-left-color: var(--accent); }
+  .tour { font-size: 11px; color: var(--muted); margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .team { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .flag {
+    width: 34px; height: 24px; border-radius: 4px; flex: none;
+    background: linear-gradient(135deg, #334155, #1e293b);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; color: var(--text);
+    overflow: hidden;
+  }
+  .flag img { width: 100%; height: 100%; object-fit: contain; }
+  .tname { font-size: 17px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tscore { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; min-width: 28px; text-align: right; }
+  .meta {
+    margin-top: 6px; font-size: 11px; color: var(--muted);
+    display: flex; justify-content: space-between; gap: 8px;
+  }
+  .status-live { color: var(--live); font-weight: 700; }
+  .section-title { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); padding: 4px; }
+  .mini-row {
+    background: var(--bg); border-radius: 8px; padding: 7px 12px;
+    font-size: 13px; display: flex; justify-content: space-between; gap: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+  }
+  .mini-row .teams { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mini-row .sc { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="hockey-widget">
+  <div class="brand"><span id="hb-dot" class="dot">&#9679;</span> HOCKEY <span id="hb-state">connecting&hellip;</span></div>
+
+  <div id="live-section">
+    <!-- live match cards injected here -->
+  </div>
+</div>
+
+<script>
+(function () {
+  var qs = new URLSearchParams(location.search);
+  var WS_URL = qs.get('ws') || (window.HOCKEY_WS_URL || 'ws://localhost:8790');
+  // Match picker precedence: ?team= URL param > .env HOCKEY_TEAM stamped by
+  // the poller into every payload. Empty = show all live matches.
+  var teamParam = (qs.get('team') || '').trim();
+  var TEAM = teamParam.toLowerCase();
+  // Official FIH flag CDN, keyed by the same short code the feed provides
+  // (USA, NZL, NED...). Falls back to the text code if a flag is missing.
+  var FLAG_CDN = 'https://hockey-cdn.altius.live/resources/flags/round/';
+
+  var el = function (id) { return document.getElementById(id); };
+  var stateEl = el('hb-state');
+  var esc = function (s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  };
+
+  function teamHtml(t) {
+    if (!t) return '';
+    var code = t.short || (t.name || '?').slice(0, 3);
+    var flag = '<div class="flag"><img src="' + FLAG_CDN + encodeURIComponent(code.toUpperCase()) +
+      '.png" alt="" onerror="this.onerror=null;this.replaceWith(document.createTextNode(\'' +
+      esc(code).replace(/'/g, '') + '\'))"></div>';
+    return '<div class="team">' + flag +
+      '<span class="tname">' + esc(t.name) + '</span></div>' +
+      '<span class="tscore">' + (t.score == null ? '-' : t.score) + '</span>';
+  }
+
+  function renderTeams(m) {
+    return '<div class="row">' + teamHtml(m.home) + '</div>' +
+      '<div class="row">' + teamHtml(m.away) + '</div>';
+  }
+
+  function statusText(m) {
+    if (m.clock) return '<span id="clock-' + esc(String(m.id)) + '">' + esc(m.clock.status) + '</span>';
+    if (m.live) return m.period ? esc(m.status) + ' &middot; ' + esc(m.period) : esc(m.status) || 'LIVE';
+    if (m.finished) return 'FT';
+    return esc(m.startTime) + ' &middot; ' + esc(m.date);
+  }
+
+  function matchHasTeam(m, t) {
+    return [m.home, m.away].some(function (p) {
+      if (!p) return false;
+      return (p.name || '').toLowerCase().indexOf(t) !== -1 ||
+        p.short && p.short.toLowerCase() === t;
+    });
+  }
+
+  // live > next scheduled > latest finished. Without a team filter this is a
+  // pass-through so the default overlay behaves exactly as before.
+  function selectMatches(payload) {
+    var live = payload.liveMatches || [];
+    if (!TEAM) return { live: live, next: null, result: null };
+    var mine = function (m) { return matchHasTeam(m, TEAM); };
+    var nextUp = (payload.upcoming || []).filter(mine)
+      .sort(function (a, b) { return (a.date + a.startTime).localeCompare(b.date + b.startTime); });
+    var done = (payload.results || []).filter(mine)
+      .sort(function (a, b) { return (b.date + b.startTime).localeCompare(a.date + a.startTime); });
+    return { live: live.filter(mine), next: nextUp[0] || null, result: done[0] || null };
+  }
+
+  function waitingHtml(sel) {
+    if (!TEAM) {
+      return '<div class="match-card"><div class="tour">koi match live nahi hai</div></div>';
+    }
+    var label = '<div class="tour">' + esc(TEAM) + '</div>';
+    if (sel.next) {
+      return '<div class="match-card">' + label +
+        '<div class="row"><div class="team">' +
+        '<div class="flag"><img src="' + FLAG_CDN + encodeURIComponent((sel.next.home.short || '?').toUpperCase()) +
+        '.png" alt=""></div><span class="tname">v</span>' +
+        '<div class="flag"><img src="' + FLAG_CDN + encodeURIComponent((sel.next.away.short || '?').toUpperCase()) +
+        '.png" alt=""></div></div></div>' +
+        '<div class="meta"><span>next &middot; ' + esc(sel.next.startTime) + ' &middot; ' +
+        esc(sel.next.date) + '</span><span>' + esc(sel.next.venue) + '</span></div></div>';
+    }
+    if (sel.result) {
+      return '<div class="match-card done">' + label + renderTeams(sel.result) +
+        '<div class="meta"><span>FT</span><span>' + esc(sel.result.venue) + '</span></div></div>';
+    }
+    return '<div class="match-card">' + label +
+      '<div class="tour">is team ka koi match nahi mila</div></div>';
+  }
+
+  function renderLive(sel) {
+    var sec = el('live-section');
+    if (!sel.live.length) {
+      sec.innerHTML = waitingHtml(sel);
+      return;
+    }
+    sec.innerHTML = sel.live.map(function (m) {
+      return '<div class="match-card' + (m.live ? ' live' : '') + '">' +
+        '<div class="tour">' + esc(m.tournament) + (m.stage ? ' &middot; ' + esc(m.stage) : '') + '</div>' +
+        renderTeams(m) +
+        '<div class="meta"><span class="' + (m.live ? 'status-live' : '') + '">' + statusText(m) + '</span>' +
+        '<span>' + esc(m.venue) + '</span></div></div>';
+    }).join('');
+  }
+
+  var STALE_AFTER_MS = 120000; // 4x the 30s poll interval
+  var lastMessageTs = 0;
+  // Local clock interpolation between 30s polls.
+  var tickBase = null; // { seconds, at, plus, status }
+
+  function isFrozenStatus(s) {
+    return /half|full|pending|upcoming|completed|finished|shoot\s?out/i.test(s || '');
+  }
+
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+
+  function interpolatedClock() {
+    if (!tickBase) return null;
+    if (tickBase.plus || isFrozenStatus(tickBase.status)) return { text: tickBase.status };
+    var cur = tickBase.seconds + Math.floor((Date.now() - tickBase.at) / 1000);
+    var min = Math.floor(cur / 60);
+    var q = min < 15 ? 'Q1' : min < 30 ? 'Q2' : min < 45 ? 'Q3' : 'Q4';
+    return { text: q + ' ' + min + ':' + pad(cur % 60) };
+  }
+
+  setInterval(function () {
+    if (!tickBase) return;
+    var c = interpolatedClock();
+    var el2 = document.getElementById('clock-' + tickBase.matchId);
+    if (c && el2) el2.innerHTML = c.text;
+  }, 1000);
+
+  function refreshStaleness() {
+    if (!lastMessageTs) return;
+    var silent = Date.now() - lastMessageTs > STALE_AFTER_MS;
+    el('hb-dot').style.color = silent ? 'var(--muted)' : '';
+    if (silent && !/stale/i.test(stateEl.textContent)) {
+      stateEl.textContent = 'stale \u2014 no data ' + Math.round(STALE_AFTER_MS / 1000) + 's+';
+    }
+  }
+  setInterval(refreshStaleness, 15000);
+
+  function update(payload) {
+    lastMessageTs = Date.now();
+    if (!teamParam && payload.teamFilter) TEAM = String(payload.teamFilter).toLowerCase();
+    var sel = selectMatches(payload);
+    stateEl.textContent = TEAM ? 'team: ' + TEAM : payload.total + ' matches';
+    renderLive(sel);
+    var live = sel.live[0];
+    if (live && live.clock) {
+      tickBase = {
+        matchId: String(live.id),
+        seconds: live.clock.seconds,
+        at: Date.now(),
+        plus: live.clock.plus,
+        status: live.clock.status,
+      };
+    } else if (!live) {
+      tickBase = null;
+    }
+  }
+
+  function connect(attempt) {
+    var ws = new WebSocket(WS_URL);
+    ws.onopen = function () { lastMessageTs = Date.now(); stateEl.textContent = 'connected'; };
+    ws.onmessage = function (ev) {
+      var data;
+      try {
+        data = JSON.parse(ev.data);
+      } catch (e) {
+        console.error('malformed frame:', e.message);
+        return;
+      }
+      if (data.type === 'hockey') {
+        try { update(data); } catch (e) { console.error('render error:', e); }
+      }
+    };
+    ws.onclose = function () {
+      stateEl.textContent = 'reconnecting\u2026';
+      var delay = Math.min(5000 * Math.pow(2, attempt || 0), 60000);
+      setTimeout(function () { connect(Math.min((attempt || 0) + 1, 5)); }, delay);
+    };
+    ws.onerror = function () { ws.close(); };
+  }
+
+  connect(0);
+})();
+</script>
+</body>
+</html>

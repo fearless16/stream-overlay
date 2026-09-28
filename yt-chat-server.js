@@ -763,7 +763,7 @@ async function connectOBS() {
     ws.on('message', raw => {
       try {
         const data = JSON.parse(raw.toString());
-        if (['score', 'goals', 'show-comment', 'hide-comment', 'youtube-chat', 'replay', 'score-visible'].includes(data.type)) {
+        if (['score', 'goals', 'show-comment', 'hide-comment', 'youtube-chat', 'replay', 'score-visible', 'new_user_alert'].includes(data.type)) {
           wss.clients.forEach(client => {
             if (client !== ws && client.readyState === WebSocket.OPEN) client.send(raw.toString());
           });
