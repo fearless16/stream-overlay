@@ -12,7 +12,8 @@
     "hockey:bare": "node hockey-score-poller.js",
     "test": "node test-parser.js",
     "local-test": "powershell -ExecutionPolicy Bypass -NoProfile -File local-test.ps1",
-    "obs-connect": "node obs-connect.js"
+    "obs-connect": "node obs-connect.js",
+    "multistream": "node multistream/index.js"
   },
   "dependencies": {
     "cheerio": "^1.2.0",
