@@ -8,6 +8,7 @@ class Platform {
     this.key = config.key;
     this.inputStreamUrl = inputStreamUrl;
     this.process = null;
+    this.isIntentionalStop = false;
   }
 
   // Derived classes can override this to add custom FFmpeg arguments
@@ -34,10 +35,20 @@ class Platform {
       return false;
     }
 
+    if (this.process) {
+      console.warn(`[${this.name}] Stream is already running.`);
+      return false;
+    }
+
+    this.isIntentionalStop = false;
     const args = this.getFfmpegArgs();
     console.log(`[${this.name}] Starting stream to ${this.url}...`);
     
     this.process = spawn('ffmpeg', args);
+
+    this.process.on('error', (err) => {
+      console.error(`[${this.name}] Failed to start FFmpeg process:`, err.message);
+    });
 
     this.process.stdout.on('data', (data) => {
       // ffmpeg typically logs to stderr, but capturing stdout just in case
@@ -53,8 +64,8 @@ class Platform {
       console.log(`[${this.name}] Stream process exited with code ${code}`);
       this.process = null;
       
-      // Auto-restart logic could go here
-      if (code !== 0) {
+      // Auto-restart logic
+      if (!this.isIntentionalStop && code !== 0) {
         console.log(`[${this.name}] Attempting to reconnect in 5 seconds...`);
         setTimeout(() => this.start(), 5000);
       }
@@ -64,6 +75,7 @@ class Platform {
   }
 
   stop() {
+    this.isIntentionalStop = true;
     if (this.process) {
       console.log(`[${this.name}] Stopping stream...`);
       this.process.kill('SIGINT');
