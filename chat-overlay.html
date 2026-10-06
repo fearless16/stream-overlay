@@ -2846,7 +2846,7 @@ function addMsg(data, options = {}) {
   if (type === 'superchat' && amount) {
     const si = document.createElement('div');
     si.className = 'sp-item';
-    si.innerHTML = `<span class="sp-name">${esc(name)}</span><span class="sp-text">${segments ? renderSegments(segments) : renderEmoji(esc(text.substring(0, 45)))}</span><span class="sp-amt">$${esc(amount)}</span>`;
+    si.innerHTML = `<span class="sp-name">${esc(name)}</span><span class="sp-text">${segments ? renderSegments(segments) : renderEmoji(esc(text.substring(0, 45)))}</span><span class="sp-amt">${esc(amount)}</span>`;
     if (DOM.spList.firstChild) DOM.spList.insertBefore(si, DOM.spList.firstChild);
     else DOM.spList.appendChild(si);
     while (DOM.spList.children.length > 5) DOM.spList.lastChild.remove();
@@ -2935,7 +2935,7 @@ function showCommentOnScreen(name, text, type, userColor, profileImageUrl, segme
   } else {
     card.classList.remove('membership');
     card.style.borderLeftColor = c;
-    b.textContent = t === 'superchat' ? `Super Chat${amount ? ' ' + esc(amount) : ''}` : t.charAt(0).toUpperCase() + t.slice(1);
+    b.textContent = t === 'superchat' ? `Super Chat${amount ? ' ' + amount : ''}` : t.charAt(0).toUpperCase() + t.slice(1);
     b.style.background = `${c}33`;
     b.style.color = c;
     b.style.borderColor = 'transparent';
