@@ -2910,7 +2910,7 @@ let scDismissTimer = null;
 function showCommentOnScreen(name, text, type, userColor, profileImageUrl, segments, isMember) {
   const t = type || 'chat';
   const c = userColor || 'var(--neon-red)';
-  const isMem = (t === 'membership') || isMember;
+  const isMem = (t === 'membership') || (t === 'chat' && isMember);
 
   const avatarEl = $('sc-avatar');
   if (profileImageUrl) {
