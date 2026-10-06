@@ -2786,7 +2786,7 @@ function addMsg(data, options = {}) {
   if (state.pinnedId === msgId) el.classList.add('pinned');
 
   let badge = '';
-  if (type === 'superchat') badge = `<span class="badge superchat">Super Chat${amount ? ' $' + esc(amount) : ''}</span>`;
+  if (type === 'superchat') badge = `<span class="badge superchat">Super Chat${amount ? ' ' + esc(amount) : ''}</span>`;
   else if (type === 'membership') badge = `<span class="badge membership">Member</span>`;
   else if (type === 'moderator') badge = `<span class="badge moderator">Mod</span>`;
   else if (type === 'announcement') badge = `<span class="badge announcement">Announce</span>`;
@@ -2808,7 +2808,7 @@ function addMsg(data, options = {}) {
   });
   el.querySelector('.msg-action-btn.show').addEventListener('click', (e) => {
     e.stopPropagation();
-    showCommentOnScreen(name, text, type, userColor, profileImageUrl, segments, isMember);
+    showCommentOnScreen(name, text, type, userColor, profileImageUrl, segments, isMember, amount);
   });
   el.querySelector('.msg-action-btn.del').addEventListener('click', (e) => {
     e.stopPropagation();
@@ -2818,7 +2818,7 @@ function addMsg(data, options = {}) {
   if (!noAnim) el.classList.add('new-entry');
 
   el.addEventListener('click', () => {
-    showCommentOnScreen(name, text, type, userColor, profileImageUrl, segments, isMember);
+    showCommentOnScreen(name, text, type, userColor, profileImageUrl, segments, isMember, amount);
     el.style.boxShadow = '0 0 0 2px rgba(255,255,255,0.3), 0 0 20px rgba(255,255,255,0.1)';
     setTimeout(() => el.style.boxShadow = '', 300);
   });
@@ -2907,7 +2907,7 @@ function clearChat(event) {
    ════════════════════════════════════════ */
 let scDismissTimer = null;
 
-function showCommentOnScreen(name, text, type, userColor, profileImageUrl, segments, isMember) {
+function showCommentOnScreen(name, text, type, userColor, profileImageUrl, segments, isMember, amount) {
   const t = type || 'chat';
   const c = userColor || 'var(--neon-red)';
   const isMem = (t === 'membership') || (t === 'chat' && isMember);
@@ -2935,7 +2935,7 @@ function showCommentOnScreen(name, text, type, userColor, profileImageUrl, segme
   } else {
     card.classList.remove('membership');
     card.style.borderLeftColor = c;
-    b.textContent = t === 'superchat' ? 'Super Chat' : t.charAt(0).toUpperCase() + t.slice(1);
+    b.textContent = t === 'superchat' ? `Super Chat${amount ? ' ' + esc(amount) : ''}` : t.charAt(0).toUpperCase() + t.slice(1);
     b.style.background = `${c}33`;
     b.style.color = c;
     b.style.borderColor = 'transparent';
@@ -2978,7 +2978,7 @@ function replayHistory() {
     }
     const m = state.msgHistory[state.replayIndex++];
     const color = m.userColor || getUserColor(m.name || 'Viewer');
-    showCommentOnScreen(m.name, m.text, m.type || 'chat', color, m.profileImageUrl, m.segments, m.isMember);
+    showCommentOnScreen(m.name, m.text, m.type || 'chat', color, m.profileImageUrl, m.segments, m.isMember, m.amount);
     state.replayTimer = setTimeout(showNext, 3500);
   }
   showNext();
@@ -4557,7 +4557,7 @@ window.addEventListener('storage', e => {
       const d = JSON.parse(e.newValue);
       if (d.hide) { hideComment(); return; }
       const color = d.userColor || getUserColor(d.name || 'Viewer');
-      showCommentOnScreen(d.name, d.text, d.msgType || d.type || 'chat', color, d.profileImageUrl || null, d.segments || null, d.isMember || false);
+          showCommentOnScreen(d.name, d.text, d.msgType || d.type || 'chat', color, d.profileImageUrl || null, d.segments || null, d.isMember || false, d.amount);
     }
     else if (e.key === 'cricket-score-visible') {
       setScorecardVisible(e.newValue !== '0');
@@ -4627,7 +4627,7 @@ function connectWS() {
           updateScore(d.data, d.source);
           // Removed auto-popup snippet to respect manual toggles
         } else if (d.type === 'show-comment') {
-          showCommentOnScreen(d.name, d.text, d.msgType || 'chat', null, null, d.segments);
+          showCommentOnScreen(d.name, d.text, d.msgType || 'chat', null, null, d.segments, d.isMember, d.amount);
         } else if (d.type === 'hide-comment') {
           hideComment();
         } else if (d.type === 'replay') {
