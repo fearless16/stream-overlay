@@ -229,7 +229,18 @@ function parseChatAction(action) {
   const profileImageUrl = renderer.authorPhoto?.thumbnails?.[0]?.url || null;
   const authorChannelId = renderer.authorExternalChannelId || null;
 
-  return { id, authorChannelId, type: 'youtube-chat', name: authorName, text, segments, msgType, amount, profileImageUrl };
+  let isMember = false;
+  if (renderer.authorBadges) {
+    for (const badge of renderer.authorBadges) {
+      const iconType = badge?.liveChatAuthorBadgeRenderer?.icon?.iconType;
+      const tooltip = badge?.liveChatAuthorBadgeRenderer?.tooltip || '';
+      if (iconType === 'MEMBER' || tooltip.toLowerCase().includes('member')) {
+        isMember = true;
+      }
+    }
+  }
+
+  return { id, authorChannelId, type: 'youtube-chat', name: authorName, text, segments, msgType, amount, profileImageUrl, isMember };
 }
 
 async function pollChat() {

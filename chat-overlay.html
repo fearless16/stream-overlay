@@ -303,7 +303,7 @@ body {
    ════════════════════════════════════════ */
 #show-comment {
   position: fixed; inset: 0;
-  z-index: 100;
+  z-index: 2000;
   display: none; align-items: flex-end; justify-content: flex-start;
   padding: 0 0 40px 80px;
   pointer-events: none;
@@ -330,6 +330,12 @@ body {
   pointer-events: auto;
   overflow: visible;
   display: flex; flex-direction: row; align-items: center; gap: 24px;
+}
+
+.sc-card.membership {
+  background: linear-gradient(90deg, rgba(0,230,118,0.06), rgba(255,255,255,0.02)), linear-gradient(160deg, rgba(12,9,20,0.95), rgba(6,4,14,0.97));
+  border: 1px solid rgba(0,230,118,0.25);
+  border-left: 4px solid var(--green);
 }
 
 .sc-card::before {
@@ -1844,6 +1850,85 @@ body {
 #like-overlay.active .like-ring-3 { animation-delay: 0.3s; }
 #like-overlay.active .like-ring-4 { animation-delay: 0.45s; }
 
+/* ════════════════════════════════════════
+   MEMBER JOIN OVERLAY
+   ════════════════════════════════════════ */
+#member-join-overlay {
+  position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+  background: radial-gradient(circle at center, rgba(0, 230, 118, 0.15) 0%, transparent 70%);
+}
+#member-join-overlay.active {
+  opacity: 1; visibility: visible;
+}
+.mj-content {
+  position: relative; z-index: 10;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 16px;
+  will-change: transform, opacity;
+  transform: scale(0.5); opacity: 0;
+}
+.mj-icon {
+  background: rgba(0, 230, 118, 0.15); border-radius: 50%;
+  padding: 30px;
+  box-shadow: 0 0 80px rgba(0, 230, 118, 0.6), inset 0 0 30px rgba(0, 230, 118, 0.4);
+  animation: mjPulse 2s infinite cubic-bezier(0.4, 0, 0.2, 1);
+}
+.mj-subtitle {
+  color: var(--green); font-size: 32px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 4px;
+  text-shadow: 0 4px 20px rgba(0, 230, 118, 0.8);
+}
+.mj-name {
+  color: #fff; font-size: 72px; font-weight: 800; font-style: italic;
+  text-shadow: 0 6px 30px rgba(0, 230, 118, 0.6), 0 2px 4px rgba(0,0,0,0.8);
+  letter-spacing: 2px;
+}
+.mj-ring {
+  position: absolute; width: 600px; height: 600px; border-radius: 50%;
+  border: 4px solid var(--green);
+  opacity: 0; pointer-events: none;
+  box-shadow: 0 0 60px rgba(0, 230, 118, 0.4), inset 0 0 60px rgba(0, 230, 118, 0.4);
+  will-change: transform, opacity;
+}
+.mj-particles {
+  position: absolute; inset: 0; pointer-events: none; z-index: 5;
+}
+
+@keyframes mjContentIn {
+  0% { transform: scale(0.5); opacity: 0; }
+  20% { transform: scale(1.1); opacity: 1; }
+  35% { transform: scale(1); opacity: 1; }
+  90% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(0.8); opacity: 0; }
+}
+@keyframes mjRingExpand {
+  0% { transform: scale(0.2); opacity: 0.8; }
+  100% { transform: scale(2.5); opacity: 0; border-width: 0px; }
+}
+@keyframes mjPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); box-shadow: 0 0 100px rgba(0, 230, 118, 0.8), inset 0 0 40px rgba(0, 230, 118, 0.6); }
+}
+
+#member-join-overlay.active .mj-content {
+  animation: mjContentIn 10s cubic-bezier(0.25, 0.75, 0.2, 1) forwards;
+}
+#member-join-overlay.active .mj-ring-1 {
+  animation: mjRingExpand 3s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  animation-delay: 0s;
+}
+#member-join-overlay.active .mj-ring-2 {
+  animation: mjRingExpand 3s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  animation-delay: 1s;
+}
+#member-join-overlay.active .mj-ring-3 {
+  animation: mjRingExpand 3s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  animation-delay: 2s;
+}
+
 @keyframes likeContentIn {
   0% { transform: scale(0) rotate(-10deg); opacity: 0;  }
   50% { transform: scale(1.18) rotate(2deg); opacity: 1;  }
@@ -2204,6 +2289,22 @@ body:has(#scorecard[class*="sc-ms-"])::after {
     <div class="like-count" id="like-count"></div>
   </div>
   <div class="like-particles" id="like-particles"></div>
+</div>
+
+<div id="member-join-overlay">
+  <div class="mj-ring mj-ring-1"></div>
+  <div class="mj-ring mj-ring-2"></div>
+  <div class="mj-ring mj-ring-3"></div>
+  <div class="mj-content">
+    <div class="mj-icon">
+      <svg viewBox="0 0 24 24" width="130" height="130" fill="var(--green)">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+      </svg>
+    </div>
+    <div class="mj-subtitle">New Member Joined!</div>
+    <div class="mj-name" id="mj-name">Welcome</div>
+  </div>
+  <div class="mj-particles" id="mj-particles"></div>
 </div>
 
 <div id="brb-overlay">
@@ -2663,17 +2764,21 @@ function addMsg(data, options = {}) {
   const profileImageUrl = data.profileImageUrl || null;
   const segments = data.segments || null;
   const ytId = data.ytId || null;
+  const isMember = data.isMember || false;
 
   if (!isDemo) {
     state.hasRealData = true;
-    state.msgHistory.push({ name, text, type, amount, profileImageUrl, segments, userColor: getUserColor(name) });
+    state.msgHistory.push({ name, text, type, amount, profileImageUrl, segments, userColor: getUserColor(name), isMember });
     if (state.msgHistory.length > 20) state.msgHistory.shift();
   }
 
   const userColor = getUserColor(name);
   const el = document.createElement('div');
   const msgId = Date.now() + Math.random().toString(36).substr(2, 9);
-  el.className = `msg ${type}`;
+  
+  // If isMember is true and it's a regular chat, force membership class so it highlights green
+  el.className = `msg ${type}${type === 'chat' && isMember ? ' membership' : ''}`;
+  
   el.dataset.id = msgId;
   if (ytId) el.dataset.ytId = ytId;
   el.dataset.userColor = userColor;
@@ -2685,6 +2790,7 @@ function addMsg(data, options = {}) {
   else if (type === 'membership') badge = `<span class="badge membership">Member</span>`;
   else if (type === 'moderator') badge = `<span class="badge moderator">Mod</span>`;
   else if (type === 'announcement') badge = `<span class="badge announcement">Announce</span>`;
+  else if (isMember) badge = `<span class="badge membership">Member</span>`;
 
   el.innerHTML = `
     <div class="msg-actions">
@@ -2702,7 +2808,7 @@ function addMsg(data, options = {}) {
   });
   el.querySelector('.msg-action-btn.show').addEventListener('click', (e) => {
     e.stopPropagation();
-    showCommentOnScreen(name, text, type, userColor, profileImageUrl, segments);
+    showCommentOnScreen(name, text, type, userColor, profileImageUrl, segments, isMember);
   });
   el.querySelector('.msg-action-btn.del').addEventListener('click', (e) => {
     e.stopPropagation();
@@ -2712,7 +2818,7 @@ function addMsg(data, options = {}) {
   if (!noAnim) el.classList.add('new-entry');
 
   el.addEventListener('click', () => {
-    showCommentOnScreen(name, text, type, userColor, profileImageUrl, segments);
+    showCommentOnScreen(name, text, type, userColor, profileImageUrl, segments, isMember);
     el.style.boxShadow = '0 0 0 2px rgba(255,255,255,0.3), 0 0 20px rgba(255,255,255,0.1)';
     setTimeout(() => el.style.boxShadow = '', 300);
   });
@@ -2801,9 +2907,10 @@ function clearChat(event) {
    ════════════════════════════════════════ */
 let scDismissTimer = null;
 
-function showCommentOnScreen(name, text, type, userColor, profileImageUrl, segments) {
+function showCommentOnScreen(name, text, type, userColor, profileImageUrl, segments, isMember) {
   const t = type || 'chat';
   const c = userColor || 'var(--neon-red)';
+  const isMem = (t === 'membership') || isMember;
 
   const avatarEl = $('sc-avatar');
   if (profileImageUrl) {
@@ -2811,17 +2918,28 @@ function showCommentOnScreen(name, text, type, userColor, profileImageUrl, segme
   } else {
     avatarEl.textContent = initials(name || 'V');
   }
-  avatarEl.style.borderColor = c;
+  avatarEl.style.borderColor = isMem ? 'var(--green)' : c;
 
   $('sc-name').textContent = name || 'Viewer';
 
   const card = document.querySelector('.sc-card');
-  card.style.borderLeftColor = c;
-
   const b = $('sc-badge');
-  b.textContent = t === 'superchat' ? 'Super Chat' : t.charAt(0).toUpperCase() + t.slice(1);
-  b.style.background = `${c}33`;
-  b.style.color = c;
+  
+  if (isMem) {
+    card.classList.add('membership');
+    card.style.borderLeftColor = 'var(--green)';
+    b.textContent = 'Member';
+    b.style.background = 'rgba(0,230,118,0.12)';
+    b.style.color = 'var(--green)';
+    b.style.borderColor = 'rgba(0,230,118,0.25)';
+  } else {
+    card.classList.remove('membership');
+    card.style.borderLeftColor = c;
+    b.textContent = t === 'superchat' ? 'Super Chat' : t.charAt(0).toUpperCase() + t.slice(1);
+    b.style.background = `${c}33`;
+    b.style.color = c;
+    b.style.borderColor = 'transparent';
+  }
 
   $('sc-msg').innerHTML = segments ? renderSegments(segments) : renderEmoji(esc(text || ''));
 
@@ -2860,7 +2978,7 @@ function replayHistory() {
     }
     const m = state.msgHistory[state.replayIndex++];
     const color = m.userColor || getUserColor(m.name || 'Viewer');
-    showCommentOnScreen(m.name, m.text, m.type || 'chat', color, m.profileImageUrl, m.segments);
+    showCommentOnScreen(m.name, m.text, m.type || 'chat', color, m.profileImageUrl, m.segments, m.isMember);
     state.replayTimer = setTimeout(showNext, 3500);
   }
   showNext();
@@ -4439,7 +4557,7 @@ window.addEventListener('storage', e => {
       const d = JSON.parse(e.newValue);
       if (d.hide) { hideComment(); return; }
       const color = d.userColor || getUserColor(d.name || 'Viewer');
-      showCommentOnScreen(d.name, d.text, d.msgType || 'chat', color, d.profileImageUrl, d.segments);
+      showCommentOnScreen(d.name, d.text, d.msgType || d.type || 'chat', color, d.profileImageUrl || null, d.segments || null, d.isMember || false);
     }
     else if (e.key === 'cricket-score-visible') {
       setScorecardVisible(e.newValue !== '0');
@@ -4499,7 +4617,10 @@ function connectWS() {
           state.pinnedId = null;
           state.userScrolledUp = false;
         } else if (d.type === 'youtube-chat') {
-          addMsg({ name: d.name, text: d.text, msgType: d.msgType || 'chat', amount: d.amount, profileImageUrl: d.profileImageUrl, segments: d.segments, ytId: d.id }, d.isHistory ? { noAnim: true } : {});
+          addMsg({ name: d.name, text: d.text, msgType: d.msgType || 'chat', amount: d.amount, profileImageUrl: d.profileImageUrl, segments: d.segments, ytId: d.id, isMember: d.isMember }, d.isHistory ? { noAnim: true } : {});
+          if (d.msgType === 'membership' && !d.isHistory) {
+            triggerMemberJoin(d.name);
+          }
         } else if (d.type === 'new_user_alert') {
           showNewUserAlert(d.name);
         } else if (d.type === 'score') {
@@ -4592,6 +4713,59 @@ function spawnLikeParticles(count) {
     container.appendChild(el);
     setTimeout(() => el.remove(), dur * 1000 + 200);
   }
+}
+
+let mjAnimTimer = null;
+function triggerMemberJoin(name) {
+  if (mjAnimTimer) {
+    clearTimeout(mjAnimTimer);
+    $('member-join-overlay').classList.remove('active');
+    void $('member-join-overlay').offsetWidth;
+  }
+  
+  const overlay = $('member-join-overlay');
+  $('mj-name').textContent = name;
+  overlay.classList.add('active');
+  
+  // High FPS DOM particles
+  const container = $('mj-particles');
+  container.innerHTML = '';
+  const colors = ['#00e676', '#69f0ae', '#b9f6ca', '#ffffff'];
+  for (let i = 0; i < 40; i++) {
+    const el = document.createElement('div');
+    const size = 6 + Math.random() * 12;
+    el.style.cssText = `
+      position: absolute; left: 50%; top: 50%;
+      width: ${size}px; height: ${size}px;
+      background: ${colors[Math.floor(Math.random() * colors.length)]};
+      border-radius: 50%; opacity: 0;
+      box-shadow: 0 0 15px var(--green);
+      transform: translate3d(-50%, -50%, 0);
+      will-change: transform, opacity;
+    `;
+    container.appendChild(el);
+    const a = Math.random() * Math.PI * 2;
+    const dist = 400 + Math.random() * 600;
+    const tx = Math.cos(a) * dist;
+    const ty = Math.sin(a) * dist;
+    const dur = (4 + Math.random() * 5) * 1000;
+    const delay = Math.random() * 800;
+    el.animate([
+      { transform: 'translate3d(-50%, -50%, 0) scale(0)', opacity: 0, offset: 0 },
+      { transform: `translate3d(calc(-50% + ${tx * 0.1}px), calc(-50% + ${ty * 0.1}px), 0) scale(1.5)`, opacity: 1, offset: 0.1 },
+      { transform: `translate3d(calc(-50% + ${tx}px), calc(-50% + ${ty}px), 0) scale(0)`, opacity: 0, offset: 1 }
+    ], {
+      duration: dur,
+      delay: delay,
+      easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+      fill: 'forwards'
+    });
+  }
+  
+  mjAnimTimer = setTimeout(() => {
+    overlay.classList.remove('active');
+    mjAnimTimer = null;
+  }, 10000);
 }
 
 function triggerLikeAnimation(name, count) {
