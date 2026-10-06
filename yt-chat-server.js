@@ -195,7 +195,7 @@ function parseChatAction(action) {
   if (!id || seenIds.has(id)) return null;
   seenIds.add(id);
 
-  const messageRuns = renderer.message?.runs;
+  const messageRuns = renderer.message?.runs || renderer.headerSubtext?.runs;
   let text = '';
   const segments = [];
 
@@ -214,6 +214,9 @@ function parseChatAction(action) {
   } else if (renderer.message?.simpleText) {
     text = renderer.message.simpleText;
     segments.push({ type: 'text', value: renderer.message.simpleText });
+  } else if (renderer.headerSubtext?.simpleText) {
+    text = renderer.headerSubtext.simpleText;
+    segments.push({ type: 'text', value: renderer.headerSubtext.simpleText });
   }
 
   let authorName = 'Viewer';
@@ -230,6 +233,9 @@ function parseChatAction(action) {
   const authorChannelId = renderer.authorExternalChannelId || null;
 
   let isMember = false;
+  if (msgType === 'membership') {
+    isMember = true;
+  }
   if (renderer.authorBadges) {
     for (const badge of renderer.authorBadges) {
       const iconType = badge?.liveChatAuthorBadgeRenderer?.icon?.iconType;
