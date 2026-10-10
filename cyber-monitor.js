@@ -86,9 +86,9 @@ async function checkLLM(url) {
       }).on('error', () => {
         resolve(false);
       });
-      req.setTimeout(2000, () => {
+    req.setTimeout(2000, () => {
         req.destroy();
-        resolve(false);
+        // Request error handles the resolve(false)
       });
     } catch(e) {
       resolve(false);
@@ -96,11 +96,24 @@ async function checkLLM(url) {
   });
 }
 
+// Execute a command, but timeout after 3 seconds so we don't freeze the daemon
+// if the user provided a blocking server command instead of a background launch.
 function executeCommand(cmd) {
   return new Promise((resolve) => {
-    exec(cmd, (err) => {
-      resolve(!err);
+    let settled = false;
+    const proc = exec(cmd, (err) => {
+      if (!settled) {
+        settled = true;
+        resolve(!err);
+      }
     });
+    
+    setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        resolve(true); // Assume it's a long-running process that successfully started
+      }
+    }, 3000);
   });
 }
 
@@ -140,7 +153,7 @@ ${C.BRIGHT_GREEN}     _____ ____  ______   ____  _____  ________
 
   // 2. Camera Check
   process.stdout.write(`${D.DIAG} Scanning video endpoints for '${TARGET_CAM}'...`);
-  // Re-fetch in case a device just plugged in
+  devices = await getConnectedDevices(); // Re-fetch in case a device just plugged in
   let foundCam = devices.some(d => d.includes(TARGET_CAM.toLowerCase()));
   if (foundCam) {
     overwriteLine(`${D.OK} Video Link Established -> [${TARGET_CAM} Camera Connected]`);
@@ -160,7 +173,6 @@ ${C.BRIGHT_GREEN}     _____ ____  ______   ____  _____  ________
     sysState.llm = true;
   } else {
     overwriteLine(`${D.FAIL} Neural Uplink Offline -> [LLM is UNRESPONSIVE]`);
-    allGreen = false;
     
     // Auto-fix attempt
     if (LLM_START_CMD) {
@@ -172,7 +184,6 @@ ${C.BRIGHT_GREEN}     _____ ____  ______   ____  _____  ________
       if (llmOk) {
         overwriteLine(`${D.OK} Neural Uplink RESTORED -> [Auto-fix Successful]`);
         sysState.llm = true;
-        allGreen = true; // Recovered!
       } else {
         overwriteLine(`${D.FAIL} Auto-fix failed. Network unresponsive.`);
       }
@@ -184,7 +195,11 @@ ${C.BRIGHT_GREEN}     _____ ____  ______   ____  _____  ________
 
   await sleep(400);
   console.log('==================================================================');
-  if (allGreen) {
+  
+  // Verify final aggregate state
+  const isAllGreen = sysState.mic && sysState.cam && sysState.llm;
+
+  if (isAllGreen) {
     await printAnimated(`${C.BRIGHT_GREEN}>>> CLEAR TO LAUNCH. ALL CHECKPOINTS PASSED. <<<${C.RESET}\n`);
     await sleep(400);
     console.log(`\n${D.INFO} Transferring control to background DAEMON mode...`);
@@ -203,43 +218,54 @@ ${C.BRIGHT_GREEN}     _____ ____  ______   ____  _____  ________
 function runDaemon() {
   console.log(`${C.GRAY}[DAEMON] Active and watching system metrics (Tick: ${POLL_INTERVAL_MS}ms)${C.RESET}\n`);
   
+  let isPolling = false;
+
   setInterval(async () => {
-    // 1. Fetch hardware
-    const devices = await getConnectedDevices();
-    const micNow = devices.some(d => d.includes(TARGET_MIC.toLowerCase()));
-    const camNow = devices.some(d => d.includes(TARGET_CAM.toLowerCase()));
-    
-    // 2. Fetch LLM
-    let llmNow = await checkLLM(LLM_URL);
+    if (isPolling) return;
+    isPolling = true;
 
-    // 3. Compare & Alert
-    if (micNow !== sysState.mic) {
-      if (micNow) console.log(`\n${D.OK} DAEMON ALERT: [${TARGET_MIC} Microphone] RECONNECTED!`);
-      else console.log(`\n${D.FAIL} DAEMON ALERT: [${TARGET_MIC} Microphone] DISCONNECTED OR LOST!`);
-      sysState.mic = micNow;
-    }
+    try {
+      // 1. Fetch hardware
+      const devices = await getConnectedDevices();
+      const micNow = devices.some(d => d.includes(TARGET_MIC.toLowerCase()));
+      const camNow = devices.some(d => d.includes(TARGET_CAM.toLowerCase()));
+      
+      // 2. Fetch LLM
+      let llmNow = await checkLLM(LLM_URL);
 
-    if (camNow !== sysState.cam) {
-      if (camNow) console.log(`\n${D.OK} DAEMON ALERT: [${TARGET_CAM} Camera] RECONNECTED!`);
-      else console.log(`\n${D.FAIL} DAEMON ALERT: [${TARGET_CAM} Camera] DISCONNECTED OR LOST!`);
-      sysState.cam = camNow;
-    }
+      // 3. Compare & Alert
+      if (micNow !== sysState.mic) {
+        if (micNow) console.log(`\n${D.OK} DAEMON ALERT: [${TARGET_MIC} Microphone] RECONNECTED!`);
+        else console.log(`\n${D.FAIL} DAEMON ALERT: [${TARGET_MIC} Microphone] DISCONNECTED OR LOST!`);
+        sysState.mic = micNow;
+      }
 
-    if (llmNow !== sysState.llm) {
-      if (llmNow) {
-        console.log(`\n${D.OK} DAEMON ALERT: [LLM Network] RESTORED AND RESPONSIVE!`);
-        sysState.llm = true;
-      } else {
-        console.log(`\n${D.FAIL} DAEMON ALERT: [LLM Network] CONNECTION LOST!`);
-        sysState.llm = false;
+      if (camNow !== sysState.cam) {
+        if (camNow) console.log(`\n${D.OK} DAEMON ALERT: [${TARGET_CAM} Camera] RECONNECTED!`);
+        else console.log(`\n${D.FAIL} DAEMON ALERT: [${TARGET_CAM} Camera] DISCONNECTED OR LOST!`);
+        sysState.cam = camNow;
+      }
 
-        if (LLM_START_CMD) {
-          console.log(`${D.FIX} Auto-initiating backend recovery...`);
-          await executeCommand(LLM_START_CMD);
+      if (llmNow !== sysState.llm) {
+        if (llmNow) {
+          console.log(`\n${D.OK} DAEMON ALERT: [LLM Network] RESTORED AND RESPONSIVE!`);
+          sysState.llm = true;
         } else {
-          console.log(`${D.WARN} ${C.RED}FALLBACK PROTOCOL ACTIVE: Utilizing local saved bot responses!${C.RESET}`);
+          console.log(`\n${D.FAIL} DAEMON ALERT: [LLM Network] CONNECTION LOST!`);
+          sysState.llm = false;
+
+          if (LLM_START_CMD) {
+            console.log(`${D.FIX} Auto-initiating backend recovery...`);
+            await executeCommand(LLM_START_CMD);
+          } else {
+            console.log(`${D.WARN} ${C.RED}FALLBACK PROTOCOL ACTIVE: Utilizing local saved bot responses!${C.RESET}`);
+          }
         }
       }
+    } catch (err) {
+      // Catch any unexpected polling errors to keep daemon alive
+    } finally {
+      isPolling = false;
     }
   }, POLL_INTERVAL_MS);
 }
