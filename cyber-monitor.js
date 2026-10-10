@@ -17,8 +17,8 @@ const C = {
 };
 
 const D = {
-  OK: `${C.BRIGHT_GREEN}[ OK ]${C.RESET}`,
-  FAIL: `${C.BRIGHT_RED}[FAIL]${C.RESET}`,
+  OK: `${C.BRIGHT_GREEN}[ \u2714 ]${C.RESET}`,
+  FAIL: `${C.BRIGHT_RED}[ \u2718 ]${C.RESET}`,
   WARN: `${C.YELLOW}[WARN]${C.RESET}`,
   INFO: `${C.CYAN}[INFO]${C.RESET}`,
   DIAG: `${C.GRAY}[SCAN]${C.RESET}`,
@@ -59,19 +59,29 @@ function overwriteLine(text) {
 // SCANNING ROUTINES
 // ------------------------------------------------------------------
 
-// Powershell is a bulletproof way to get actively connected PnP devices on Windows
-async function getConnectedDevices() {
+// Check whether a specific process is running (e.g. to see if Iriun app is actually open)
+async function isProcessRunning(processName) {
   return new Promise((resolve) => {
-    const cmd = `powershell -NoProfile -Command "Get-PnpDevice -Status OK | Select-Object -ExpandProperty FriendlyName"`;
-    exec(cmd, { encoding: 'utf8', maxBuffer: 1024 * 1024 }, (err, stdout) => {
-      if (err) {
-        resolve([]);
-      } else {
-        const devices = stdout.split('\n').map(l => l.trim().toLowerCase()).filter(l => l.length > 0);
-        resolve(devices);
-      }
+    exec(`tasklist | findstr /I "${processName}"`, (err, stdout) => {
+      resolve(stdout.toLowerCase().includes(processName.toLowerCase()));
     });
   });
+}
+
+// Combines Powershell PnP query with FFmpeg DirectShow query for bulletproof device hunting
+async function getConnectedDevices() {
+  const p1 = new Promise((resolve) => {
+    const cmd = `powershell -NoProfile -Command "Get-PnpDevice -PresentOnly | Select-Object -ExpandProperty FriendlyName"`;
+    exec(cmd, { encoding: 'utf8', maxBuffer: 1024 * 1024 }, (err, stdout) => resolve(stdout || ""));
+  });
+
+  const p2 = new Promise((resolve) => {
+    // FFmpeg dshow outputs exactly what OBS sees in the Windows media foundation
+    exec('ffmpeg -list_devices true -f dshow -i dummy', (err, stdout, stderr) => resolve(stdout + stderr));
+  });
+
+  const [wmiOut, ffmpegOut] = await Promise.all([p1, p2]);
+  return (wmiOut + "\n" + ffmpegOut).toLowerCase();
 }
 
 // Ping the LLM to see if it responds (local or remote)
@@ -139,26 +149,44 @@ ${C.BRIGHT_GREEN}     _____ ____  ______   ____  _____  ________
 
   // 1. Microphone Check
   process.stdout.write(`${D.DIAG} Scanning audio endpoints for '${TARGET_MIC}'...`);
-  let devices = await getConnectedDevices();
-  let foundMic = devices.some(d => d.includes(TARGET_MIC.toLowerCase()));
+  let deviceString = await getConnectedDevices();
+  let foundMic = deviceString.includes(TARGET_MIC.toLowerCase());
+  
   if (foundMic) {
     overwriteLine(`${D.OK} Audio Link Established -> [${TARGET_MIC} Microphone Connected]`);
     sysState.mic = true;
   } else {
     overwriteLine(`${D.FAIL} Audio Link Failed -> [${TARGET_MIC} Microphone MISSING]`);
-    console.log(`${D.INFO} ${C.GRAY}Check USB connections or verify device manager.${C.RESET}`);
+    console.log(`${D.INFO} ${C.GRAY}Make sure the mic isn't disabled in Windows Sound Control Panel.${C.RESET}`);
+    console.log(`${D.INFO} ${C.GRAY}If the name changed (e.g. "USB Audio"), update DIAG_MIC_NAME in .env${C.RESET}`);
     allGreen = false;
   }
   await sleep(400);
 
   // 2. Camera Check
   process.stdout.write(`${D.DIAG} Scanning video endpoints for '${TARGET_CAM}'...`);
-  devices = await getConnectedDevices(); // Re-fetch in case a device just plugged in
-  let foundCam = devices.some(d => d.includes(TARGET_CAM.toLowerCase()));
+  deviceString = await getConnectedDevices(); // Re-fetch in case a device just plugged in
+  let foundCam = deviceString.includes(TARGET_CAM.toLowerCase());
+  
+  // Advanced check: If it's a virtual camera like Iriun, the driver always exists. 
+  // We MUST check if the actual application is running to know if the phone is linked.
+  if (foundCam && TARGET_CAM.toLowerCase().includes('iriun')) {
+    process.stdout.write(`\r\x1b[K${D.DIAG} Driver found. Verifying Iriun app is actively running...`);
+    let iriunActive = await isProcessRunning('iriun');
+    if (!iriunActive) {
+      foundCam = false;
+      overwriteLine(`${D.FAIL} Video Link Failed -> [Iriun App is CLOSED - Phone cannot route video]`);
+      console.log(`${D.INFO} ${C.GRAY}Please open the Iriun Webcam application on Windows.${C.RESET}`);
+      allGreen = false;
+    }
+  }
+
   if (foundCam) {
-    overwriteLine(`${D.OK} Video Link Established -> [${TARGET_CAM} Camera Connected]`);
+    overwriteLine(`${D.OK} Video Link Established -> [${TARGET_CAM} Camera Active]`);
     sysState.cam = true;
-  } else {
+  } else if (!TARGET_CAM.toLowerCase().includes('iriun')) {
+    // We only print the standard missing message if it wasn't Iriun 
+    // (since Iriun already printed its custom missing message above)
     overwriteLine(`${D.FAIL} Video Link Failed -> [${TARGET_CAM} Camera MISSING]`);
     console.log(`${D.INFO} ${C.GRAY}Ensure camera app/hardware is active and unlocked.${C.RESET}`);
     allGreen = false;
@@ -226,9 +254,15 @@ function runDaemon() {
 
     try {
       // 1. Fetch hardware
-      const devices = await getConnectedDevices();
-      const micNow = devices.some(d => d.includes(TARGET_MIC.toLowerCase()));
-      const camNow = devices.some(d => d.includes(TARGET_CAM.toLowerCase()));
+      const deviceString = await getConnectedDevices();
+      let micNow = deviceString.includes(TARGET_MIC.toLowerCase());
+      let camNow = deviceString.includes(TARGET_CAM.toLowerCase());
+      
+      // Advanced check for Virtual Cameras (like Iriun)
+      if (camNow && TARGET_CAM.toLowerCase().includes('iriun')) {
+        let iriunActive = await isProcessRunning('iriun');
+        if (!iriunActive) camNow = false;
+      }
       
       // 2. Fetch LLM
       let llmNow = await checkLLM(LLM_URL);
