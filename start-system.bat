@@ -2,9 +2,6 @@
 title Cricket Overlay - System Start
 cd /d "%~dp0"
 
-echo [INFO] Engaging Cyber-Monitor Diagnostics Daemon...
-start "SYSTEM CYBER-MONITOR" cmd /k "node cyber-monitor.js"
-
 echo.
 echo ===================================================
 echo   Cricket Overlay System Starter
@@ -12,6 +9,10 @@ echo ===================================================
 echo.
 echo Do you want to start Multi-Stream (Twitch/Kick)? (y/n)
 set /p multistream_choice="> "
+
+echo.
+echo [INFO] Engaging Cyber-Monitor Diagnostics Daemon...
+start "SYSTEM CYBER-MONITOR" cmd /k "node cyber-monitor.js"
 
 if /i "%multistream_choice%"=="y" (
     echo [INFO] Starting MultiStream Manager...

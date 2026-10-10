@@ -27,7 +27,7 @@ const D = {
 };
 
 // --- CONFIGURATION FROM ENV ---
-const TARGET_MIC = process.env.DIAG_MIC_NAME || 'Maono';
+const TARGET_MIC = process.env.DIAG_MIC_NAME || 'PD200X';
 const TARGET_CAM = process.env.DIAG_CAM_NAME || 'Iriun';
 const LLM_URL = process.env.DIAG_LLM_URL || 'http://127.0.0.1:11434'; // Default to Ollama
 const LLM_START_CMD = process.env.DIAG_LLM_START_CMD || ''; // e.g. "ollama serve"
@@ -182,7 +182,11 @@ ${C.BRIGHT_GREEN}     _____ ____  ______   ____  _____  ________
   }
 
   if (foundCam) {
-    overwriteLine(`${D.OK} Video Link Established -> [${TARGET_CAM} Camera Active]`);
+    if (TARGET_CAM.toLowerCase().includes('iriun')) {
+      overwriteLine(`${D.OK} Video Link Established -> [${TARGET_CAM} App Active - VERIFY PHONE CONNECTION!]`);
+    } else {
+      overwriteLine(`${D.OK} Video Link Established -> [${TARGET_CAM} Camera Active]`);
+    }
     sysState.cam = true;
   } else if (!TARGET_CAM.toLowerCase().includes('iriun')) {
     // We only print the standard missing message if it wasn't Iriun 
