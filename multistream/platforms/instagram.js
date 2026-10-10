@@ -10,13 +10,13 @@ class InstagramPlatform extends Platform {
 
     // Instagram prefers 9:16 vertical video.
     // We re-encode for Instagram to crop the 16:9 video into 9:16 (center crop).
-    // Using h264_nvenc (Zero-CPU GPU encode) instead of libx264.
+    // Using h264_amf (AMD AMF GPU encode) instead of libx264 or nvenc.
     return [
       '-i', this.inputStreamUrl,
       '-vf', 'crop=ih*(9/16):ih', // Center crop to 9:16 aspect ratio
-      '-c:v', 'h264_nvenc',       // Use GPU encoding
-      '-preset', 'p4',            // NVENC preset (p4 is a good balance of quality/performance)
-      '-b:v', '3000k',            // Similar to maxrate
+      '-c:v', 'h264_amf',         // Use AMD GPU encoding
+      '-quality', 'speed',        // AMF equivalent preset to favor speed/performance
+      '-b:v', '3000k',            // Target bitrate
       '-maxrate', '3000k',
       '-bufsize', '6000k',
       '-pix_fmt', 'yuv420p',

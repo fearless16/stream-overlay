@@ -56,8 +56,8 @@ async function startFeed() {
         console.log("==================================================");
         console.log("             IMPORTANT VERIFICATION               ");
         console.log("==================================================");
-        console.log(" 1. OBS Recording Encoder MUST be 'NVIDIA NVENC H.264'");
-        console.log("    so we use GPU instead of CPU.");
+        console.log(" 1. OBS Recording Encoder MUST be 'AMD HW H.264 (AMF)'");
+        console.log("    so we use your AMD GPU instead of CPU.");
         console.log(" 2. OBS Custom FFmpeg URL must be: rtmp://127.0.0.1/live/obs");
         console.log("==================================================\n");
         console.log("This window will close automatically...");

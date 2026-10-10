@@ -56,7 +56,7 @@ class MultiStreamManager {
     console.log(" - Settings > Output > Recording");
     console.log(" - Type: Standard (or Custom Output)");
     console.log(" - Action: Start Recording will trigger Multistream.");
-    console.log(" - Video Encoder: NVIDIA NVENC H.264 (Crucial for GPU)");
+    console.log(" - Video Encoder: AMD HW H.264 (AMF) (Crucial for AMD GPUs)");
     console.log("=======================================================\n");
 
     // Initialize and start the local RTMP server

@@ -20,7 +20,7 @@ class MultistreamServer {
   }
 
   setupEvents() {
-    this.nms.on('prePublish', (id, StreamPath, args) => {
+    this.nms.on('postPublish', (id, StreamPath, args) => {
       console.log(`[RTMP Server] Receiving stream at: ${StreamPath}`);
       // Usually StreamPath is /live/obs
       if (typeof this.onStreamStart === 'function') {
