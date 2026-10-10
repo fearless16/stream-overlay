@@ -2,6 +2,9 @@
 title Cricket Overlay - System Start
 cd /d "%~dp0"
 
+echo [INFO] Engaging Cyber-Monitor Diagnostics Daemon...
+start "SYSTEM CYBER-MONITOR" cmd /k "node cyber-monitor.js"
+
 echo.
 echo ===================================================
 echo   Cricket Overlay System Starter

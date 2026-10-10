@@ -13,6 +13,7 @@
     "test": "node test-parser.js",
     "local-test": "powershell -ExecutionPolicy Bypass -NoProfile -File local-test.ps1",
     "obs-connect": "node obs-connect.js",
+    "monitor": "node cyber-monitor.js",
     "multistream": "node multistream/index.js"
   },
   "dependencies": {
