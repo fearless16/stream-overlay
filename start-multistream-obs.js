@@ -53,6 +53,13 @@ async function startFeed() {
     try {
         await obs.call('StartRecord');
         console.log("\n[🚀 SUCCESS] OBS is now pushing the feed to the MultiStream Manager!");
+        console.log("==================================================");
+        console.log("             IMPORTANT VERIFICATION               ");
+        console.log("==================================================");
+        console.log(" 1. OBS Recording Encoder MUST be 'AMD HW H.264 (AMF)'");
+        console.log("    so we use your AMD GPU instead of CPU.");
+        console.log(" 2. OBS Custom FFmpeg URL must be: rtmp://127.0.0.1/live/obs");
+        console.log("==================================================\n");
         console.log("This window will close automatically...");
     } catch (err) {
         const errorMsg = String(err.message || err.error || err);

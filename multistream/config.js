@@ -1,9 +1,10 @@
 require('dotenv').config();
 
 module.exports = {
-  // Input stream configuration (e.g., from OBS local RTMP or UDP)
-  // By default, assuming OBS streams to a local RTMP server or UDP port
-  INPUT_STREAM_URL: process.env.INPUT_STREAM_URL || 'rtmp://127.0.0.1/live/obs',
+  // Input stream configuration
+  // The multistream system now strictly requires the local RTMP server to act as the central hub.
+  // We ignore legacy env overrides (like UDP) to ensure the Node Media Server catches the stream.
+  INPUT_STREAM_URL: 'rtmp://127.0.0.1/live/obs',
 
   // Platforms configuration
   PLATFORMS: {
