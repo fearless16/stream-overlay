@@ -207,7 +207,9 @@ function parseChatAction(action) {
       } else if (r.emoji) {
         const shortcut = r.emoji.shortcuts?.[0] || '';
         const url = r.emoji.image?.thumbnails?.[0]?.url || null;
-        segments.push({ type: 'emoji', value: shortcut, url });
+        // emojiId carries the stable identifier (`UC.../name`) for custom
+        // channel emoji; sticker animations match on it instead of the URL.
+        segments.push({ type: 'emoji', value: shortcut, url, emojiId: r.emoji.emojiId || null });
         text += shortcut || '';
       }
     }
