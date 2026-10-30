@@ -424,6 +424,7 @@
     if (!cr.width || !sr.width) return;
     cloud.active = true;
     cloud.start = performance.now();
+    cloudCanvas.style.visibility = 'visible';
     const k = W / cr.width;
     const size = sr.width * k;
     const cx = (sr.left + sr.width / 2 - cr.left) * k;
@@ -476,9 +477,18 @@
     const fadeOut = Math.max(0, Math.min(1, (p - TL.solidify) / 340));
     const alpha = fadeIn * (1 - fadeOut);
 
+    // Once the cloud has faded into the artwork, stop paying for a full-screen
+    // blend layer for the remaining 4.8 s of the performance.
+    if (alpha <= 0.002) {
+      cloudCtx.globalCompositeOperation = 'source-over';
+      cloudCtx.clearRect(0, 0, W, H);
+      cloudCanvas.style.visibility = 'hidden';
+      cloud.active = false;
+      return;
+    }
+
     cloudCtx.globalCompositeOperation = 'lighter';
     cloudCtx.clearRect(0, 0, W, H);
-    if (alpha <= 0.002) return;
 
     const t = p / 1000;
 

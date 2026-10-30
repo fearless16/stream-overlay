@@ -123,6 +123,9 @@ Built for a 24/7 OBS browser source:
   decoded once at boot. Particles are grouped by palette bucket, so the whole
   cloud is ~17 `fillStyle` changes per frame, not 4,600. The canvas is
   composited with `mix-blend-mode: screen`, so dark palette buckets add nothing.
+- The cloud canvas is hidden as soon as it finishes fading into the artwork,
+  so the remaining 4.8 s of the moment composites only the ember canvas and
+  DOM. Verified in OBS: 60.0 fps, `renderSkippedFrames` unchanged.
 - The cloud is sampled offline from the PNG alpha. This is required: under
   `file://` (OBS), drawing the PNG to a canvas taints it and `getImageData`
   would throw.
