@@ -1,0 +1,509 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   STICKER FX — fullscreen "DISGUSTING" sticker moment
+   Self-contained. Every selector is scoped to #sfx-root and every keyframe is
+   prefixed `sfx-` so this file cannot leak into the chat overlay.
+
+   Beat sheet (times injected by sticker-fx.js as --sfx-t-* custom properties):
+     0.00  floor embers, hellgate fades up
+     1.72  the artwork starts condensing inside the particle cloud
+     2.42  solidify + flash
+     3.02  ROAR — lunge, screen shake, shockwave, spark blast
+     3.55  sender name, 3.75 caption
+     7.60  curtain
+
+   Perf contract:
+   - only transform / opacity animate on the compositor
+   - no animated filters, no box-shadow transitions, no layout animation
+   - the whole tree is display:none when idle (zero paint, zero GPU memory)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+#sfx-root {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: none;
+  overflow: hidden;
+  pointer-events: none;
+  contain: layout paint style;
+  --sfx-orange: #ff7a18;
+  --sfx-red: #ff2f1a;
+  --sfx-gold: #ffd166;
+  --sfx-size: min(66vh, 58vw);
+  --sfx-t-condense: 1720ms;
+  --sfx-t-solidify: 2420ms;
+  --sfx-t-roar: 3020ms;
+  --sfx-t-kicker: 3120ms;
+  --sfx-t-name: 3550ms;
+  --sfx-t-sub: 3750ms;
+  --sfx-t-float: 4000ms;
+  font-family: 'Montserrat', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#sfx-root.sfx-active {
+  display: block;
+}
+
+/* Boot warm-up: painted by the compositor but effectively invisible. Not 0,
+   because browsers may skip rasterisation entirely at zero opacity. */
+#sfx-root.sfx-warm {
+  opacity: 0.001;
+}
+
+#sfx-root.sfx-out {
+  opacity: 0;
+  transition: opacity 620ms cubic-bezier(0.4, 0, 1, 1);
+}
+
+/* Slightly oversized so the roar shake never exposes the scene at the edges. */
+.sfx-world {
+  position: absolute;
+  inset: 0;
+  transform: scale(1.045);
+  will-change: transform;
+}
+#sfx-root.sfx-active .sfx-world {
+  animation: sfxShake 560ms var(--sfx-t-roar) both;
+}
+
+/* ── backdrop ─────────────────────────────────────────────────────────── */
+.sfx-backdrop {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: #080103;
+  will-change: opacity;
+}
+#sfx-root.sfx-active .sfx-backdrop {
+  animation: sfxBackdropIn 340ms ease-out both;
+}
+
+.sfx-hellgate {
+  position: absolute;
+  inset: -25%;
+  opacity: 0.9;
+  background:
+    radial-gradient(ellipse 62% 58% at 50% 50%,
+      rgba(255, 92, 12, 0.30) 0%,
+      rgba(168, 18, 0, 0.22) 32%,
+      rgba(60, 4, 0, 0.10) 55%,
+      rgba(8, 1, 3, 0) 74%),
+    repeating-conic-gradient(from 0deg at 50% 50%,
+      rgba(255, 72, 0, 0.055) 0deg 1.6deg,
+      rgba(255, 72, 0, 0) 1.6deg 7deg);
+  transform-origin: 50% 50%;
+  will-change: transform;
+  animation: sfxGateSpin 26s linear infinite;
+}
+
+.sfx-ground {
+  position: absolute;
+  left: 50%;
+  bottom: -16vh;
+  width: 120vw;
+  height: 52vh;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at 50% 100%,
+    rgba(255, 110, 20, 0.34) 0%,
+    rgba(190, 26, 0, 0.22) 38%,
+    rgba(10, 1, 2, 0) 70%);
+  opacity: 0.85;
+}
+
+.sfx-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 78% 78% at 50% 48%,
+      rgba(0, 0, 0, 0) 38%,
+      rgba(0, 0, 0, 0.55) 76%,
+      rgba(0, 0, 0, 0.92) 100%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0) 22%, rgba(0, 0, 0, 0) 78%, rgba(0, 0, 0, 0.65) 100%);
+}
+
+/* Soft blurred silhouette of the sticker itself, generated at build time so
+   there is no runtime blur filter. */
+.sfx-aura {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: calc(var(--sfx-size) * 1.58);
+  height: calc(var(--sfx-size) * 1.58);
+  margin-left: calc(var(--sfx-size) * -0.79);
+  margin-top: calc(var(--sfx-size) * -0.79);
+  background: url('assets/disgusting-glow.png') center / contain no-repeat;
+  opacity: 0;
+  will-change: transform, opacity;
+  mix-blend-mode: screen;
+}
+#sfx-root.sfx-active .sfx-aura {
+  animation: sfxAura 5.4s ease-in-out var(--sfx-t-solidify) infinite;
+}
+
+/* impact flash: one soft pop at solidify, one hard hit at the roar */
+.sfx-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  opacity: 0;
+  background: radial-gradient(circle at 50% 44%,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 176, 74, 0.72) 12%,
+    rgba(255, 66, 0, 0.34) 30%,
+    rgba(255, 66, 0, 0) 58%);
+  mix-blend-mode: screen;
+  will-change: opacity;
+}
+#sfx-root.sfx-active .sfx-flash {
+  animation:
+    sfxFlashSoft 520ms var(--sfx-t-solidify) both,
+    sfxFlash 620ms var(--sfx-t-roar) forwards;
+}
+
+/* heat rings — the roar shockwave */
+.sfx-heatring {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  z-index: 3;
+  width: 46vh;
+  height: 46vh;
+  margin-left: -23vh;
+  margin-top: -23vh;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 122, 24, 0.55);
+  opacity: 0;
+  will-change: transform, opacity;
+}
+#sfx-root.sfx-active .sfx-heatring-1 { animation: sfxRing 1200ms cubic-bezier(0.16, 1, 0.3, 1) var(--sfx-t-roar) both; }
+#sfx-root.sfx-active .sfx-heatring-2 { animation: sfxRing 1500ms cubic-bezier(0.16, 1, 0.3, 1) calc(var(--sfx-t-roar) + 150ms) both; }
+
+/* roar speed lines, in front of the face */
+.sfx-scream {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  z-index: 5;
+  width: 96vh;
+  height: 96vh;
+  margin: -48vh 0 0 -48vh;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg at 50% 50%,
+    rgba(255, 196, 120, 0.55) 0deg 0.26deg,
+    rgba(255, 90, 0, 0) 0.26deg 4.6deg);
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, transparent 16%, #000 34%, transparent 62%);
+  mask-image: radial-gradient(circle at 50% 50%, transparent 16%, #000 34%, transparent 62%);
+  mix-blend-mode: screen;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+#sfx-root.sfx-active .sfx-scream {
+  animation: sfxScream 620ms var(--sfx-t-roar) both;
+}
+
+/* ── canvas layers ────────────────────────────────────────────────────── */
+.sfx-cloud {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+  /* additive on the page too: the canvas buffer itself is source-over, so
+     without this the dark palette buckets would paint black specks */
+  mix-blend-mode: screen;
+}
+
+.sfx-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* ── stage / sticker ──────────────────────────────────────────────────── */
+.sfx-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding-bottom: 2vh;
+}
+
+.sfx-kicker {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-family: 'Orbitron', 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 11px;
+  text-transform: uppercase;
+  color: var(--sfx-gold);
+  text-shadow: 0 0 18px rgba(255, 140, 20, 0.75), 0 2px 10px rgba(0, 0, 0, 0.9);
+  opacity: 0;
+  will-change: transform, opacity;
+}
+.sfx-kicker::before,
+.sfx-kicker::after {
+  content: '';
+  display: block;
+  width: 74px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(255, 122, 24, 0), rgba(255, 170, 40, 0.9));
+  box-shadow: 0 0 12px rgba(255, 122, 24, 0.8);
+}
+.sfx-kicker::after {
+  transform: scaleX(-1);
+}
+#sfx-root.sfx-active .sfx-kicker {
+  animation: sfxKickerIn 420ms cubic-bezier(0.16, 1, 0.3, 1) var(--sfx-t-kicker) both;
+}
+
+.sfx-sticker-wrap {
+  position: relative;
+  width: var(--sfx-size);
+  height: var(--sfx-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  will-change: transform;
+}
+#sfx-root.sfx-active .sfx-sticker-wrap {
+  animation: sfxFloat 4.8s ease-in-out var(--sfx-t-float) infinite;
+}
+
+.sfx-sticker {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform-origin: 50% 56%;
+  opacity: 0;
+  backface-visibility: hidden;
+  will-change: transform, opacity;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+/* condense in the cloud → solidify → roar lunge.
+   Later animations win on the transform channel, so the order matters.
+   Only the first one fills backwards: with `both` on the later two their
+   "from" pose would clamp the sticker from frame 0 (a permanent ghost). */
+#sfx-root.sfx-active .sfx-sticker {
+  animation:
+    sfxCondense 700ms ease-in var(--sfx-t-condense) both,
+    sfxSolidify 360ms cubic-bezier(0.2, 0.9, 0.3, 1) var(--sfx-t-solidify) forwards,
+    sfxRoarLunge 900ms cubic-bezier(0.22, 1, 0.36, 1) var(--sfx-t-roar) forwards;
+}
+
+.sfx-echo {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0;
+  mix-blend-mode: screen;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+#sfx-root.sfx-active .sfx-echo {
+  animation:
+    sfxEcho 620ms cubic-bezier(0.16, 1, 0.3, 1) var(--sfx-t-solidify) both,
+    sfxEchoBlast 700ms cubic-bezier(0.16, 1, 0.3, 1) var(--sfx-t-roar) forwards;
+}
+
+.sfx-fallback {
+  display: none;
+  position: relative;
+  z-index: 2;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 900;
+  font-style: italic;
+  font-size: calc(var(--sfx-size) * 0.15);
+  letter-spacing: -2px;
+  color: #fff;
+  text-shadow:
+    0 0 24px rgba(255, 90, 0, 0.9),
+    0 8px 40px rgba(0, 0, 0, 0.9);
+}
+#sfx-root.sfx-no-image .sfx-sticker,
+#sfx-root.sfx-no-image .sfx-echo {
+  display: none;
+}
+#sfx-root.sfx-no-image .sfx-fallback {
+  display: block;
+}
+
+/* caption */
+.sfx-caption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: 84vw;
+  text-align: center;
+}
+
+.sfx-name {
+  font-size: clamp(38px, 5.4vh, 58px);
+  line-height: 1.05;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: -1px;
+  text-transform: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 84vw;
+  color: #fff;
+  background: linear-gradient(100deg, #fff 0%, #fff 34%, #ffe9b8 50%, #ffc35a 66%, #fff 88%, #fff 100%);
+  background-size: 240% 100%;
+  background-position: 16% 50%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  opacity: 0;
+  padding-right: 10px;
+  filter: drop-shadow(0 0 26px rgba(255, 150, 40, 0.45)) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.8));
+  will-change: opacity, transform;
+}
+#sfx-root.sfx-active .sfx-name {
+  animation: sfxNameIn 560ms cubic-bezier(0.16, 1, 0.3, 1) var(--sfx-t-name) both;
+}
+
+.sfx-sub {
+  font-family: 'Orbitron', 'Montserrat', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 4.5px;
+  text-transform: uppercase;
+  color: rgba(255, 232, 196, 0.82);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.9);
+  opacity: 0;
+  will-change: transform, opacity;
+}
+.sfx-sub b {
+  color: var(--sfx-gold);
+  font-weight: 900;
+  text-shadow: 0 0 16px rgba(255, 140, 20, 0.8);
+}
+#sfx-root.sfx-active .sfx-sub {
+  animation: sfxSubIn 520ms cubic-bezier(0.22, 1, 0.36, 1) var(--sfx-t-sub) both;
+}
+
+/* edge ember wash */
+.sfx-edge {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    radial-gradient(ellipse 30% 12% at 50% 100%, rgba(255, 96, 10, 0.30) 0%, rgba(255, 96, 10, 0) 100%),
+    linear-gradient(90deg, rgba(255, 60, 0, 0.10) 0%, rgba(255, 60, 0, 0) 16%, rgba(255, 60, 0, 0) 84%, rgba(255, 60, 0, 0.10) 100%);
+  opacity: 0;
+}
+#sfx-root.sfx-active .sfx-edge {
+  animation: sfxEdgeIn 900ms ease-out 220ms both;
+}
+
+/* ── keyframes ────────────────────────────────────────────────────────── */
+@keyframes sfxBackdropIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes sfxGateSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes sfxAura {
+  0%, 100% { opacity: 0.30; transform: scale(0.94) translateY(0); }
+  50%      { opacity: 0.50; transform: scale(1.04) translateY(-5px); }
+}
+@keyframes sfxFlashSoft {
+  0%   { opacity: 0; }
+  18%  { opacity: 0.55; }
+  100% { opacity: 0; }
+}
+@keyframes sfxFlash {
+  0%   { opacity: 0; }
+  8%   { opacity: 0.95; }
+  100% { opacity: 0; }
+}
+@keyframes sfxRing {
+  0%   { opacity: 0;    transform: scale(0.30); }
+  12%  { opacity: 0.75; }
+  100% { opacity: 0;    transform: scale(2.6); }
+}
+@keyframes sfxEdgeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes sfxKickerIn {
+  from { opacity: 0; transform: translate3d(0, -22px, 0) scaleX(1.25); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0) scaleX(1); }
+}
+@keyframes sfxCondense {
+  from { opacity: 0;    transform: scale(0.960); }
+  to   { opacity: 0.24; transform: scale(0.972); }
+}
+@keyframes sfxSolidify {
+  0%   { opacity: 0.24; transform: scale(0.982); }
+  42%  { opacity: 1;    transform: scale(1.016); }
+  100% { opacity: 1;    transform: scale(1); }
+}
+@keyframes sfxRoarLunge {
+  0%   { transform: scale(1)     rotate(0deg); }
+  14%  { transform: scale(0.952) rotate(-0.9deg); }
+  30%  { transform: scale(1.115) rotate(1.1deg); }
+  44%  { transform: scale(1.028) rotate(-0.6deg); }
+  58%  { transform: scale(1.070) rotate(0.35deg); }
+  74%  { transform: scale(1.008) rotate(-0.18deg); }
+  100% { transform: scale(1)     rotate(0deg); }
+}
+@keyframes sfxShake {
+  0%   { transform: scale(1.045) translate3d(0, 0, 0) rotate(0deg); }
+  8%   { transform: scale(1.045) translate3d(-16px, 11px, 0) rotate(-0.5deg); }
+  18%  { transform: scale(1.045) translate3d(14px, -13px, 0) rotate(0.45deg); }
+  28%  { transform: scale(1.045) translate3d(-12px, -8px, 0) rotate(-0.35deg); }
+  40%  { transform: scale(1.045) translate3d(10px, 9px, 0) rotate(0.3deg); }
+  52%  { transform: scale(1.045) translate3d(-7px, -6px, 0) rotate(-0.2deg); }
+  66%  { transform: scale(1.045) translate3d(4px, 5px, 0) rotate(0.12deg); }
+  80%  { transform: scale(1.045) translate3d(-2px, -2px, 0) rotate(-0.06deg); }
+  100% { transform: scale(1.045) translate3d(0, 0, 0) rotate(0deg); }
+}
+@keyframes sfxScream {
+  0%   { opacity: 0;    transform: scale(0.35) rotate(0deg); }
+  16%  { opacity: 0.8; }
+  100% { opacity: 0;    transform: scale(1.32) rotate(4deg); }
+}
+@keyframes sfxFloat {
+  0%, 100% { transform: translate3d(0, 7px, 0) rotate(-0.9deg); }
+  50%      { transform: translate3d(0, -9px, 0) rotate(0.9deg); }
+}
+@keyframes sfxEcho {
+  0%   { opacity: 0;    transform: scale(1) rotate(0deg); }
+  20%  { opacity: 0.30; }
+  100% { opacity: 0;    transform: scale(1.22) rotate(1.6deg); }
+}
+@keyframes sfxEchoBlast {
+  0%   { opacity: 0;    transform: scale(1.02) rotate(0deg); }
+  14%  { opacity: 0.42; }
+  100% { opacity: 0;    transform: scale(1.5) rotate(3.2deg); }
+}
+@keyframes sfxNameIn {
+  from { opacity: 0; transform: translate3d(0, 26px, 0) scale(0.94); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes sfxSubIn {
+  from { opacity: 0; transform: translate3d(0, 14px, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}

@@ -2257,6 +2257,8 @@ body:has(#scorecard[class*="sc-ms-"])::after {
 }
 
 </style>
+<!-- Fullscreen sticker moment styles (isolated module; see sticker-fx/README.md) -->
+<link rel="stylesheet" href="sticker-fx/sticker-fx.css">
 </head>
 <body>
 
@@ -4568,6 +4570,7 @@ window.addEventListener('storage', e => {
 // --- User Alert Animation ---
 let userAlertTimer;
 function showNewUserAlert(name) {
+  if (window.StickerFX && window.StickerFX.isBusy()) return; // sticker stage owns the screen
   const alertOverlay = document.getElementById('user-alert-overlay');
   const alertNameEl = document.getElementById('user-alert-name');
   const alertCannon = document.getElementById('user-alert-cannon');
@@ -4618,6 +4621,10 @@ function connectWS() {
           state.userScrolledUp = false;
         } else if (d.type === 'youtube-chat') {
           addMsg({ name: d.name, text: d.text, msgType: d.msgType || 'chat', amount: d.amount, profileImageUrl: d.profileImageUrl, segments: d.segments, ytId: d.id, isMember: d.isMember }, d.isHistory ? { noAnim: true } : {});
+          // Sticker moment: live messages only, never replayed history.
+          if (window.StickerFX) {
+            window.StickerFX.handleChat({ id: d.id, name: d.name, text: d.text, amount: d.amount, segments: d.segments, isHistory: !!d.isHistory });
+          }
           if (d.msgType === 'membership' && !d.isHistory) {
             triggerMemberJoin(d.name);
           }
@@ -4717,6 +4724,7 @@ function spawnLikeParticles(count) {
 
 let mjAnimTimer = null;
 function triggerMemberJoin(name) {
+  if (window.StickerFX && window.StickerFX.isBusy()) return; // sticker stage owns the screen
   if (mjAnimTimer) {
     clearTimeout(mjAnimTimer);
     $('member-join-overlay').classList.remove('active');
@@ -4769,6 +4777,7 @@ function triggerMemberJoin(name) {
 }
 
 function triggerLikeAnimation(name, count) {
+  if (window.StickerFX && window.StickerFX.isBusy()) return; // sticker stage owns the screen
   if (likeAnimTimer) {
     clearTimeout(likeAnimTimer);
     dismissLikeAnimation(true);
@@ -4905,6 +4914,10 @@ function triggerLikeAnimation(name, count) {
 }
 
 function dismissLikeAnimation(instant) {
+  // Cancel the auto-dismiss timer even on an instant dismiss: the sticker
+  // overlay pre-empts a running like animation, and an orphaned timer would
+  // otherwise dismiss the *next* like overlay a few seconds later.
+  if (likeAnimTimer) { clearTimeout(likeAnimTimer); likeAnimTimer = null; }
   const overlay = $('like-overlay');
   if (instant) {
     overlay.classList.remove('active', 'dismissing');
@@ -4932,5 +4945,8 @@ if (isAdmin) {
 DOM.scorecard.classList.add('sc-enter');
 setTimeout(() => DOM.scorecard.classList.remove('sc-enter'), 900);
 </script>
+<!-- Sticker FX: synchronous so the module exists before the first WS message. -->
+<script src="sticker-fx/assets/disgusting-cloud.js"></script>
+<script src="sticker-fx/sticker-fx.js"></script>
 </body>
 </html>
