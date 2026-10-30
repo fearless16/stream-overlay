@@ -34,7 +34,14 @@ class MultiStreamManager {
       console.warn('[MultiStream] No platforms enabled. Check your .env file.');
       return;
     }
-    
+
+    // Guard: don't double-start if OBS reconnects while streams are already active
+    const alreadyRunning = this.platforms.some(p => p.process !== null);
+    if (alreadyRunning) {
+      console.warn('[MultiStream] Platforms already running — ignoring duplicate OBS publish event.');
+      return;
+    }
+
     console.log(`[MultiStream] Triggering FFmpeg relays from ${this.inputStreamUrl}...`);
     this.platforms.forEach(platform => {
       platform.start();
@@ -65,15 +72,19 @@ class MultiStreamManager {
       (streamPath) => {
         // e.g. /live/obs
         const targetPath = new URL(this.inputStreamUrl).pathname;
-        if (streamPath === targetPath || targetPath.includes(streamPath)) {
+        console.log(`[MultiStream] Stream event received: "${streamPath}" (expected target: "${targetPath}")`);
+        if (streamPath === targetPath || (streamPath && targetPath.includes(streamPath)) || (streamPath && streamPath.includes(targetPath))) {
           console.log(`[MultiStream] OBS feed detected! Starting external streams...`);
           this.startPlatforms();
+        } else {
+          console.warn(`[MultiStream] Stream path mismatch: received "${streamPath}", expected "${targetPath}"`);
         }
       },
       // On Stream Stop
       (streamPath) => {
         const targetPath = new URL(this.inputStreamUrl).pathname;
-        if (streamPath === targetPath || targetPath.includes(streamPath)) {
+        console.log(`[MultiStream] Stream stop event received: "${streamPath}"`);
+        if (streamPath === targetPath || (streamPath && targetPath.includes(streamPath)) || (streamPath && streamPath.includes(targetPath))) {
           console.log(`[MultiStream] OBS feed lost! Stopping external streams...`);
           this.stopPlatforms();
         }
@@ -93,6 +104,14 @@ class MultiStreamManager {
 
 // If run directly
 if (require.main === module) {
+  process.on('uncaughtException', (err) => {
+    console.error('[MultiStream UNCAUGHT EXCEPTION]:', err);
+  });
+
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error('[MultiStream UNHANDLED REJECTION]:', reason);
+  });
+
   const manager = new MultiStreamManager();
   manager.startAll();
 

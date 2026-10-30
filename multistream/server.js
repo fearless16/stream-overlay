@@ -9,6 +9,10 @@ class MultistreamServer {
         gop_cache: true,
         ping: 30,
         ping_timeout: 60
+      },
+      http: {
+        port: 8000,        // Health/stats endpoint: http://localhost:8000/api/streams
+        allow_origin: '*'
       }
     };
 
@@ -20,25 +24,28 @@ class MultistreamServer {
   }
 
   setupEvents() {
-    this.nms.on('postPublish', (id, StreamPath, args) => {
-      console.log(`[RTMP Server] Receiving stream at: ${StreamPath}`);
-      // Usually StreamPath is /live/obs
+    this.nms.on('postPublish', (session, StreamPath, args) => {
+      const streamPath = (session && session.streamPath) || StreamPath || (typeof session === 'string' ? session : null);
+      console.log(`[RTMP Server] Receiving stream at: ${streamPath}`);
+
       if (typeof this.onStreamStart === 'function') {
-        this.onStreamStart(StreamPath);
+        this.onStreamStart(streamPath);
       }
     });
 
-    this.nms.on('donePublish', (id, StreamPath, args) => {
-      console.log(`[RTMP Server] Stream stopped: ${StreamPath}`);
+    this.nms.on('donePublish', (session, StreamPath, args) => {
+      const streamPath = (session && session.streamPath) || StreamPath || (typeof session === 'string' ? session : null);
+      console.log(`[RTMP Server] Stream stopped: ${streamPath}`);
       if (typeof this.onStreamStop === 'function') {
-        this.onStreamStop(StreamPath);
+        this.onStreamStop(streamPath);
       }
     });
   }
 
   start() {
     this.nms.run();
-    console.log('[RTMP Server] Started waiting for OBS feed on rtmp://127.0.0.1:1935/live/obs');
+    console.log('[RTMP Server] Started — waiting for OBS feed on rtmp://127.0.0.1:1935/live/obs');
+    console.log('[RTMP Server] Health/stats: http://localhost:8000/api/streams');
   }
 
   stop() {
