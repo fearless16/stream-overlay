@@ -4914,6 +4914,10 @@ function triggerLikeAnimation(name, count) {
 }
 
 function dismissLikeAnimation(instant) {
+  // Cancel the auto-dismiss timer even on an instant dismiss: the sticker
+  // overlay pre-empts a running like animation, and an orphaned timer would
+  // otherwise dismiss the *next* like overlay a few seconds later.
+  if (likeAnimTimer) { clearTimeout(likeAnimTimer); likeAnimTimer = null; }
   const overlay = $('like-overlay');
   if (instant) {
     overlay.classList.remove('active', 'dismissing');

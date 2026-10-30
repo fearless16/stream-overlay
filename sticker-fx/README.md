@@ -43,8 +43,10 @@ Wired into `chat-overlay.html` with exactly two lines:
 Matching (case-insensitive substring) checks, in order:
 
 1. `segments[].value` — e.g. `:disguxting:`
-2. `segments[].emojiId` — e.g. `UCxxxx/disguxting` (added in `yt-chat-server.js`)
-3. `segments[].name` / `segments[].shortcut`
+2. `segments[].emojiId` — YouTube's opaque custom-emoji id (`UC…/<id>`, *not*
+   the shortcut). Only matches if you add that exact string to `triggers`;
+   useful as a rename-proof escape hatch.
+3. `segments[].name` / `segments[].shortcut` — defensive, for other producers
 4. raw `message.text` fallback — only for a colon-delimited shortcut such as
    `:disguxting:` (plain prose like "that was disgusting" never triggers it)
 
@@ -72,7 +74,8 @@ The module owns a single fullscreen stage and enforces exclusivity both ways:
   wins) and starts after a 1.4 s anti-spam cooldown.
 - Turning BRB on mid-performance stops the sticker immediately (MutationObserver).
 
-Nothing else in `chat-overlay.html` changes.
+Nothing else in `chat-overlay.html` changes: no markup, no z-index, no
+existing animation timing is touched.
 
 ## Performance contract
 
