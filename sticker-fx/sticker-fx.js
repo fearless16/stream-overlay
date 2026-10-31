@@ -292,6 +292,7 @@
      the first viewer trigger is warm. It is cancelled the moment a real
      performance (or stop) arrives. */
   function warm() {
+    if (window.AnimationStage?.isBusy()) return;
     if (state.warmed || state.playing || state.warming || document.hidden) return;
     build();
     if (!root || !stickerImg) return;
@@ -651,7 +652,7 @@
     build();
     if (!root || state.playing) return false;
 
-    preemptTransientOverlays();
+    if (!window.AnimationStage) preemptTransientOverlays();
 
     const rawName = (req && req.name) || 'Viewer';
     const displayName = /^@/.test(rawName) ? rawName : '@' + rawName;
@@ -757,6 +758,13 @@
 
   function request(req) {
     if (state.warming) endWarm();
+    if (window.AnimationStage) {
+      return window.AnimationStage.enqueue('sticker', () => {
+        if (state.warming) endWarm();
+        start(req);
+        return () => { if (state.playing) stop('stage-release'); };
+      }, TL.duration + 80);
+    }
     if (state.playing) {
       state.pending = req; // latest wins; one queued performance max
       log('busy — queued', req.name);
@@ -848,6 +856,9 @@
     initPool();
     if (!initCloud()) log('particle cloud missing — assemble phase disabled');
     build();
+    document.addEventListener('animation-stage', e => {
+      if (e.detail.type === 'start' && state.warming) endWarm();
+    });
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && state.playing) stop('operator-escape');

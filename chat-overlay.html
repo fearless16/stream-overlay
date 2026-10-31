@@ -2259,6 +2259,7 @@ body:has(#scorecard[class*="sc-ms-"])::after {
 </style>
 <!-- Fullscreen sticker moment styles (isolated module; see sticker-fx/README.md) -->
 <link rel="stylesheet" href="sticker-fx/sticker-fx.css">
+<link rel="stylesheet" href="money-fx/money-fx.css">
 </head>
 <body>
 
@@ -2451,6 +2452,13 @@ body:has(#scorecard[class*="sc-ms-"])::after {
     </div>
 
     <div class="ctrl-section">
+      <div class="ctrl-label">Animations</div>
+      <div class="ctrl-fields">
+        <a class="ctrl-btn blue" href="money-fx/preview.html" target="_blank" rel="noopener" style="text-decoration:none">Preview Super Chat (separate tab)</a>
+      </div>
+    </div>
+
+    <div class="ctrl-section">
       <div class="ctrl-label">Stream</div>
       <div class="ctrl-fields">
         <button class="ctrl-btn blue" onclick="toggleBRB(event)">Toggle BRB</button>
@@ -2469,6 +2477,7 @@ body:has(#scorecard[class*="sc-ms-"])::after {
   <div class="bb-social">youtube.com/@prajjwal • #CricketWithPrajjwal</div>
 </div>
 
+<script src="animation-stage.js"></script>
 <script>
 const CONFIG = {
   maxMessages: 200,
@@ -2729,12 +2738,16 @@ function setSubscriberCount(count, goal) {
 }
 
 // Replay the gold bump/burst celebration each time a new subscriber arrives.
-function triggerSubBump() {
+function triggerSubBump(fromStage = false) {
+  if (!fromStage && window.AnimationStage) return AnimationStage.enqueue('subscriber', () => {
+    triggerSubBump(true);
+    return () => DOM.subWidget.classList.remove('bumping');
+  }, 8050);
   const widget = DOM.subWidget;
   widget.classList.remove('bumping');
   void widget.offsetWidth;
   widget.classList.add('bumping');
-  widget.addEventListener('animationend', () => widget.classList.remove('bumping'), { once: true });
+  if (!window.AnimationStage) widget.addEventListener('animationend', () => widget.classList.remove('bumping'), { once: true });
 }
 
 function setHealth(status) {
@@ -3363,6 +3376,7 @@ function _shouldFireBoundaryAnim(type, currOver, seq) {
 let _scCtx = null;
 let _scW = 0, _scH = 0;
 let _scParts = [];
+const _scBurstTimers = new Set();
 let _scAnimFrame = null;
 let _cricketAnimTimer = null;
 
@@ -3404,6 +3418,7 @@ function _scP(x, y, o) {
 }
 
 function _scSpawn(cx, cy, n, o) {
+  if (window.AnimationStage && !String(AnimationStage.status().active || '').startsWith('cricket-')) return;
   for (let i = 0; i < n; i++) _scParts.push(_scP(cx, cy, o));
 }
 
@@ -3511,6 +3526,10 @@ function _scRender() {
 }
 
 function _scSpawnEvent(eventType) {
+  const setTimeout = (fn, delay) => {
+    const id = window.setTimeout(() => { _scBurstTimers.delete(id); fn(); }, delay);
+    _scBurstTimers.add(id); return id;
+  };
   _scCanvasInit();
   _scParts = [];
   if (_scAnimFrame) { cancelAnimationFrame(_scAnimFrame); _scAnimFrame = null; }
@@ -3553,7 +3572,19 @@ function _scSpawnEvent(eventType) {
   _scRender();
 }
 
-function _triggerCricketAnim(card, eventType) {
+function _triggerCricketAnim(card, eventType, fromStage = false) {
+  if (!fromStage && window.AnimationStage) return AnimationStage.enqueue('cricket-' + eventType, () => {
+    _triggerCricketAnim(card, eventType, true);
+    return () => {
+      clearTimeout(_cricketAnimTimer); _cricketAnimTimer = null;
+      _scBurstTimers.forEach(id => clearTimeout(id)); _scBurstTimers.clear();
+      if (_scAnimFrame) cancelAnimationFrame(_scAnimFrame);
+      _scAnimFrame = null; _scParts = [];
+      _scCtx?.clearRect(0, 0, _scW, _scH);
+      card.classList.remove('sc-cricket-' + eventType, 'sc-flash-wicket', 'sc-flash-boundary', 'sc-shake');
+      $('sc-anim-layer').classList.remove('active');
+    };
+  }, 4050);
   // A milestone celebration owns the screen — queue this classic event and
   // play it the moment the milestone ends, so the two never overlap.
   if (_msAnimTimer) { _scQueued = eventType; return; }
@@ -3611,6 +3642,7 @@ function _scDemoLoop() {
    are untouched.
    ════════════════════════════════════════ */
 let _msCtx = null, _msW = 0, _msH = 0, _msParts = [], _msFrame = null;
+const _msBurstTimers = new Set();
 let _msAnimTimer = null;
 let _msQueued = null;   // milestone held while a classic celebration runs
 let _scQueued = null;   // classic celebration held while a milestone runs
@@ -3678,6 +3710,7 @@ function _msCanvasInit() {
 }
 
 function _msSpawn(cx, cy, n, o) {
+  if (window.AnimationStage && !String(AnimationStage.status().active || '').startsWith('milestone-')) return;
   for (let i = 0; i < n && _msParts.length < _MAX_PARTS; i++) _msParts.push(_scP(cx, cy, o));
 }
 
@@ -3766,6 +3799,10 @@ function _msRender() {
 }
 
 function _msSpawnEvent(type) {
+  const setTimeout = (fn, delay) => {
+    const id = window.setTimeout(() => { _msBurstTimers.delete(id); fn(); }, delay);
+    _msBurstTimers.add(id); return id;
+  };
   _msCanvasInit();
   _msParts = [];
   if (_msFrame) { cancelAnimationFrame(_msFrame); _msFrame = null; }
@@ -3824,7 +3861,19 @@ function _msSpawnEvent(type) {
   _msRender();
 }
 
-function _triggerMilestoneAnim(card, type, name) {
+function _triggerMilestoneAnim(card, type, name, fromStage = false) {
+  if (!fromStage && window.AnimationStage) return AnimationStage.enqueue('milestone-' + type, () => {
+    _triggerMilestoneAnim(card, type, name, true);
+    return () => {
+      clearTimeout(_msAnimTimer); _msAnimTimer = null;
+      _msBurstTimers.forEach(id => clearTimeout(id)); _msBurstTimers.clear();
+      if (_msFrame) cancelAnimationFrame(_msFrame);
+      _msFrame = null; _msParts = [];
+      _msCtx?.clearRect(0, 0, _msW, _msH);
+      card.classList.remove('sc-ms-50', 'sc-ms-100', 'sc-ms-150', 'sc-ms-200', 'sc-ms-250', 'sc-ms-3', 'sc-ms-4', 'sc-ms-5');
+      $('sc-ms-layer').classList.remove('active');
+    };
+  }, 4050);
   const layer = document.getElementById('sc-ms-layer');
   if (!card || !layer) return;
   // A classic celebration owns the screen — hold this milestone and play it
@@ -4401,7 +4450,7 @@ function updateScore(data, source) {
   // A wicket that is merely PARKED (still waiting on its how-out text) does
   // not block a boundary — the pending wicket owns only the sc-update flash,
   // not the whole screen. A running cricket animation does block it.
-  if (events.boundary && !_cricketAnimTimer && _shouldFireBoundaryAnim(events.boundary, merged.currentOver, merged.lastBallSeq)) {
+  if (events.boundary && (window.AnimationStage || !_cricketAnimTimer) && _shouldFireBoundaryAnim(events.boundary, merged.currentOver, merged.lastBallSeq)) {
     _triggerCricketAnim(DOM.scorecard, events.boundary === '6' ? '6' : '4');
     animHandled = true;
   }
@@ -4510,6 +4559,7 @@ function toggleBRB(e) {
 
 function resetAll(e) {
   if (e) e.stopPropagation();
+  window.AnimationStage?.cancelAll('reset');
   clearChat();
   DOM.spList.innerHTML = '';
   currentScore = null;
@@ -4569,7 +4619,15 @@ window.addEventListener('storage', e => {
 
 // --- User Alert Animation ---
 let userAlertTimer;
-function showNewUserAlert(name) {
+function showNewUserAlert(name, fromStage = false) {
+  if (!fromStage && window.AnimationStage) return AnimationStage.enqueue('new-viewer', () => {
+    showNewUserAlert(name, true);
+    return () => {
+      clearTimeout(userAlertTimer);
+      $('user-alert-overlay').classList.remove('active');
+      $('user-alert-cannon').replaceChildren();
+    };
+  }, 5250);
   if (window.StickerFX && window.StickerFX.isBusy()) return; // sticker stage owns the screen
   const alertOverlay = document.getElementById('user-alert-overlay');
   const alertNameEl = document.getElementById('user-alert-name');
@@ -4621,8 +4679,11 @@ function connectWS() {
           state.userScrolledUp = false;
         } else if (d.type === 'youtube-chat') {
           addMsg({ name: d.name, text: d.text, msgType: d.msgType || 'chat', amount: d.amount, profileImageUrl: d.profileImageUrl, segments: d.segments, ytId: d.id, isMember: d.isMember }, d.isHistory ? { noAnim: true } : {});
+          // Paid messages get the money routine; a custom emoji in the same
+          // donation must not launch a second celebration for that message.
+          if (d.msgType === 'superchat' && window.MoneyFX) window.MoneyFX.handleChat(d);
           // Sticker moment: live messages only, never replayed history.
-          if (window.StickerFX) {
+          if (window.StickerFX && d.msgType !== 'superchat') {
             window.StickerFX.handleChat({ id: d.id, name: d.name, text: d.text, amount: d.amount, segments: d.segments, isHistory: !!d.isHistory });
           }
           if (d.msgType === 'membership' && !d.isHistory) {
@@ -4670,6 +4731,7 @@ connectWS();
    LIKE ANIMATION — Futuristic Fullscreen
    ════════════════════════════════════════ */
 let likeAnimTimer = null;
+let likeDismissTimer = null;
 let likeCanvasCtx = null;
 let likeAnimFrame = null;
 
@@ -4723,7 +4785,16 @@ function spawnLikeParticles(count) {
 }
 
 let mjAnimTimer = null;
-function triggerMemberJoin(name) {
+function triggerMemberJoin(name, fromStage = false) {
+  if (!fromStage && window.AnimationStage) return AnimationStage.enqueue('membership', () => {
+    triggerMemberJoin(name, true);
+    return () => {
+      clearTimeout(mjAnimTimer); mjAnimTimer = null;
+      $('member-join-overlay').classList.remove('active');
+      $('mj-particles').getAnimations({ subtree: true }).forEach(a => a.cancel());
+      $('mj-particles').replaceChildren();
+    };
+  }, 10050);
   if (window.StickerFX && window.StickerFX.isBusy()) return; // sticker stage owns the screen
   if (mjAnimTimer) {
     clearTimeout(mjAnimTimer);
@@ -4776,7 +4847,11 @@ function triggerMemberJoin(name) {
   }, 10000);
 }
 
-function triggerLikeAnimation(name, count) {
+function triggerLikeAnimation(name, count, fromStage = false) {
+  if (!fromStage && window.AnimationStage) return AnimationStage.enqueue('like', () => {
+    triggerLikeAnimation(name, count, true);
+    return () => { dismissLikeAnimation(true); $('like-particles').replaceChildren(); };
+  }, 7200);
   if (window.StickerFX && window.StickerFX.isBusy()) return; // sticker stage owns the screen
   if (likeAnimTimer) {
     clearTimeout(likeAnimTimer);
@@ -4914,6 +4989,7 @@ function triggerLikeAnimation(name, count) {
 }
 
 function dismissLikeAnimation(instant) {
+  if (likeDismissTimer) { clearTimeout(likeDismissTimer); likeDismissTimer = null; }
   // Cancel the auto-dismiss timer even on an instant dismiss: the sticker
   // overlay pre-empts a running like animation, and an orphaned timer would
   // otherwise dismiss the *next* like overlay a few seconds later.
@@ -4925,7 +5001,8 @@ function dismissLikeAnimation(instant) {
     if (likeCanvasCtx) likeCanvasCtx.clearRect(0, 0, likeCanvasCtx.canvas.width, likeCanvasCtx.canvas.height);
   } else {
     overlay.classList.add('dismissing');
-    setTimeout(() => {
+    likeDismissTimer = setTimeout(() => {
+      likeDismissTimer = null;
       overlay.classList.remove('active', 'dismissing');
       if (likeAnimFrame) { cancelAnimationFrame(likeAnimFrame); likeAnimFrame = null; }
       if (likeCanvasCtx) likeCanvasCtx.clearRect(0, 0, likeCanvasCtx.canvas.width, likeCanvasCtx.canvas.height);
@@ -4948,5 +5025,6 @@ setTimeout(() => DOM.scorecard.classList.remove('sc-enter'), 900);
 <!-- Sticker FX: synchronous so the module exists before the first WS message. -->
 <script src="sticker-fx/assets/disgusting-cloud.js"></script>
 <script src="sticker-fx/sticker-fx.js"></script>
+<script src="money-fx/money-fx.js"></script>
 </body>
 </html>

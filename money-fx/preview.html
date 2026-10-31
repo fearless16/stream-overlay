@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Note Udaana — Super Chat Preview</title>
+<link rel="stylesheet" href="money-fx.css">
+<style>
+body { margin:0; background:#202731; color:#fff; font-family:Arial,sans-serif; }
+.camera { position:fixed; inset:0; background:repeating-conic-gradient(#222c35 0% 25%,#28343d 0% 50%) 0/48px 48px; color:#a5b4bc; font-size:13px; }
+.camera span { position:absolute; bottom:110px; left:24px; letter-spacing:2px; }
+.controls { position:fixed; left:20px; right:20px; bottom:18px; z-index:10000; display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:#18212be8; border:1px solid #58636a; border-radius:12px; padding:14px; }
+.controls h1 { font-size:18px; margin:0 10px 0 0; } .controls small { display:block; font-size:11px; margin-top:5px; color:#acbcc2; }
+input,button { padding:10px; font-size:14px; border-radius:8px; border:1px solid #556; } input { width:165px; }
+button { cursor:pointer; background:#ffcf73; color:#342522; font-weight:bold; }
+details { position:fixed; top:20px; left:20px; z-index:10000; padding:10px; background:#18212bd9; border-radius:8px; font-size:12px; }
+pre { white-space:pre-wrap; max-height:200px; max-width:340px; overflow:auto; } #brb-overlay.active { position:fixed; inset:0; background:#131b24; z-index:9000; display:grid; place-items:center; font-size:50px; }
+</style></head><body>
+<div class="camera"><span>CHECKERBOARD = TRANSPARENCY REFERENCE ONLY • 1920 × 1080 SCENE</span></div>
+<div id="brb-overlay"></div>
+<div class="controls"><h1>Note udaana <small>15s • Scene V5 • Cinematic emerald shower • Silent</small></h1>
+<input id="name" value="Rahul Sharma" aria-label="Sender name"><input id="amount" value="₹500" aria-label="Super Chat amount">
+<button id="play">Play / queue Super Chat</button><button id="burst">Queue 3 donations</button>
+<button id="pause">Toggle BRB</button><button id="stop">Stop + clear queue</button></div>
+<details><summary>Scene / queue diagnostics</summary><pre id="status"></pre></details>
+<script src="../animation-stage.js"></script><script src="money-fx.js"></script>
+<script>
+const byId = id => document.getElementById(id);
+byId('play').onclick = () => MoneyFX.play({name:byId('name').value,amount:byId('amount').value});
+byId('burst').onclick = () => ['₹100','₹500','US$10.00'].forEach((amount,i) => MoneyFX.play({name:'Viewer '+(i+1),amount}));
+byId('pause').onclick = () => { const brb=byId('brb-overlay'); brb.classList.toggle('active'); brb.textContent=brb.classList.contains('active')?'BE RIGHT BACK':''; };
+byId('stop').onclick = () => AnimationStage.cancelAll();
+let statusFrame=0, statusAt=0;
+function status() {
+  const money=MoneyFX.status(); delete money.releases;
+  byId('status').textContent=JSON.stringify({stage:AnimationStage.status(),money},null,2);
+  if (MoneyFX.status().playing && !statusFrame) statusFrame=requestAnimationFrame(liveStatus);
+}
+function liveStatus(now) { statusFrame=0; if(now-statusAt>300){statusAt=now;status();} if(MoneyFX.status().playing&&!statusFrame)statusFrame=requestAnimationFrame(liveStatus); }
+document.addEventListener('animation-stage',status); document.addEventListener('money-fx',status); status();
+</script></body></html>

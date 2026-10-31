@@ -7,3 +7,8 @@ node_modules/
 
 .chat_history.json
 data/
+
+# Local score-page snapshots and generated review artifacts
+/_cb-*.html
+/_crex-*.html
+/money-fx-review*/

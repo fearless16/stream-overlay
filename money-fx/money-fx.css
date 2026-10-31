@@ -1,0 +1,22 @@
+/* Transparent foreground scene. Geometry lives in a 1920 x 1080 world. */
+#money-fx { position:fixed; inset:0; z-index:8500; pointer-events:none; display:none; overflow:hidden; background:transparent; }
+#money-fx.mfx-active { display:block; }
+#money-fx .mfx-world { position:absolute; width:1920px; height:1080px; left:0; top:0; transform-origin:top left; }
+#money-fx canvas { position:absolute; inset:0; width:1920px; height:1080px; }
+#money-fx .mfx-actor { position:absolute; top:var(--mfx-rig-top); left:var(--mfx-rig-left); width:var(--mfx-rig-width); height:var(--mfx-rig-height); will-change:transform; z-index:2; }
+#money-fx .mfx-actor-right { left:var(--mfx-rig-right); }
+#money-fx .mfx-actor svg { width:100%; height:100%; overflow:visible; }
+#money-fx .mfx-bubble { position:absolute; bottom:102%; left:55%; width:max-content; max-width:250px; padding:10px 17px; border:3px solid #42233d; border-radius:19px 19px 19px 3px; background:#fff4d4; color:#42233d; font:900 19px/1.1 'Poppins',Arial,sans-serif; letter-spacing:.5px; box-shadow:3px 4px 0 #e89b45; opacity:0; transform-origin:bottom left; }
+#money-fx .mfx-actor-right .mfx-bubble { left:auto; right:55%; border-radius:19px 19px 3px 19px; transform-origin:bottom right; }
+#money-fx .mfx-hero-anchor { position:absolute; left:50%; top:49%; width:1120px; transform:translate(-50%,-50%); z-index:3; text-align:center; }
+#money-fx .mfx-donor { color:#fff7dc; font-family:'Poppins','Inter',Arial,sans-serif; opacity:0; transform-origin:center; will-change:transform,opacity; }
+#money-fx .mfx-emblem { display:block; width:108px; height:96px; margin:0 auto 5px; }
+#money-fx .mfx-label { color:#ffe299; font-size:20px; font-weight:900; letter-spacing:7px; text-transform:uppercase; text-shadow:0 2px 0 #201025; }
+#money-fx .mfx-name-wrap { margin:4px 0; }
+#money-fx .mfx-name { display:inline-block; max-width:1080px; font-size:86px; font-weight:900; line-height:1.24; letter-spacing:-2px; overflow-wrap:anywhere; color:#fff8e6; text-shadow:0 3px 0 #6b3646,0 6px 0 #382638; }
+#money-fx .mfx-name-glint { color:#fff2cf; }
+#money-fx .mfx-payment { display:flex; align-items:center; justify-content:center; gap:20px; margin-top:8px; }
+#money-fx .mfx-payment::before,#money-fx .mfx-payment::after { content:''; width:80px; height:2px; background:linear-gradient(90deg,transparent,#ffd279); box-shadow:0 0 9px #ffbf4c66; }
+#money-fx .mfx-payment::after { transform:rotate(180deg); }
+#money-fx .mfx-amount { font-size:61px; line-height:1.16; letter-spacing:-1px; font-weight:900; color:#ffd06d; text-shadow:0 3px 0 #6b3646,0 6px 0 #382638; overflow-wrap:anywhere; max-width:880px; }
+#money-fx .mfx-thanks { margin-top:16px; color:#fcf2db; font-size:19px; font-weight:800; letter-spacing:4px; text-shadow:0 2px 0 #492536; }

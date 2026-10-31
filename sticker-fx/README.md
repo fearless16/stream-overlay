@@ -70,6 +70,13 @@ de-duplicated, so an OBS refresh or WS reconnect never re-fires the moment.
 
 ## No-overlap guarantee
 
+**Current overlay integration:** `animation-stage.js` now supplies a shared
+FIFO. In `chat-overlay.html`, stickers wait their turn instead of pre-empting
+or dropping likes/member/viewer alerts. Super Chats use `money-fx/` instead;
+even a donation containing this emoji gets only the money routine. The legacy
+standalone preview (without AnimationStage) retains the fallback described
+below. See `money-fx/README.md` for BRB/cancellation and queue limits.
+
 The module owns a single fullscreen stage and enforces exclusivity both ways:
 
 - On start it pre-empts the transient fullscreen overlays (`like`,
