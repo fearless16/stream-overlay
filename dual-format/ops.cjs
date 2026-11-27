@@ -95,18 +95,26 @@ class Feed {
         this.picture = { at, state: cameraSample(sample.imageData) };
       } else if (portrait && !cam) this.picture = null;
       if (this.changed) throw Object.assign(new Error('OBS state changed during sample'), { code: 'unstable' });
-      const total = Math.max(0, stream.outputTotalFrames - (before?.frames ?? stream.outputTotalFrames));
-      const drops = Math.max(0, stream.outputSkippedFrames - (before?.drops ?? stream.outputSkippedFrames));
+      // OBS output counters restart with each stream session: the baseline is the previous sample only if it
+      // was sending in this session. Otherwise counting starts from zero, so old drops cannot hide new ones.
+      const sameSession = before?.sending === true && stream.outputActive === true;
+      const total = Math.max(0, stream.outputTotalFrames - (sameSession ? before.frames : 0));
+      const drops = Math.max(0, stream.outputSkippedFrames - (sameSession ? before.drops : 0));
       const bytes = stream.outputBytes;
       const kbps = before?.sending && stream.outputActive && before.bytes <= bytes && at > before.at
         ? Math.round((bytes - before.bytes) * 8 / (at - before.at)) : null;
       const frameSkips = stats.outputSkippedFrames > (before?.encoderSkipped ?? stats.outputSkippedFrames) ||
         stats.renderSkippedFrames > (before?.renderSkipped ?? stats.renderSkippedFrames);
-      const state = stream.outputReconnecting ? 'Recovering' : drops > 0 || frameSkips || (stream.outputActive && kbps === 0) ? 'Warning'
-        : stream.outputActive ? 'Healthy' : 'Idle';
+      // Healthy needs a measured, nonzero throughput. The first sample after StartStream has none yet.
+      const state = stream.outputReconnecting ? 'Recovering' : !stream.outputActive ? 'Idle'
+        : drops > 0 || frameSkips || kbps === null || kbps === 0 ? 'Warning' : 'Healthy';
+      const reason = state === 'Healthy' || state === 'Idle' ? null
+        : stream.outputReconnecting ? 'OBS is reconnecting'
+        : drops > 0 || frameSkips ? 'Frames dropped or skipped'
+        : kbps === 0 ? 'No bytes sent in the last sample' : 'Throughput not measured yet';
       this.failures = 0;
       this.retryAt = 0;
-      return this.last = { state, at, version: version.obsVersion, profile: profile.currentProfileName,
+      return this.last = { state, ...(reason && { reason }), at, version: version.obsVersion, profile: profile.currentProfileName,
         collection: collection.currentSceneCollectionName, scene: scene.currentProgramSceneName,
         canvas: [video.baseWidth, video.baseHeight], output: [video.outputWidth, video.outputHeight],
         targetFps: video.fpsNumerator / video.fpsDenominator, fps: Math.round(stats.activeFps * 10) / 10,
