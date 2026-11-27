@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const http = require('node:http');
 const { test } = require('node:test');
-const { gate } = require('../dual-format/ops.cjs');
+const { Feed, gate } = require('../dual-format/ops.cjs');
 const { createGoLive, ARM_MS } = require('../dual-format/go-live.cjs');
 const { createControlServer } = require('../dual-format/control.cjs');
 
@@ -236,6 +236,59 @@ test('status reports blockers and the last result without secrets', async () => 
   assert.equal(after.last.action, 'go-live');
   assert.equal(after.last.ok, false);
   assert.equal(after.armed, null);
+});
+
+// ---- Feed sampling ------------------------------------------------------
+// A real Feed with a stubbed OBS client. Feed.connect is replaced so no socket opens; each
+// connect() call is counted, and the stream object is read on every sample.
+
+const idleStream = () => ({ outputActive: false, outputReconnecting: false, outputBytes: 0, outputTotalFrames: 0, outputSkippedFrames: 0 });
+
+function stubbedFeed(label, stream = idleStream()) {
+  const feed = new Feed(label, '', label === 'vertical' ? 4456 : 4455);
+  feed.calls = { connect: 0, requests: [] };
+  feed.stream = stream;
+  const responses = {
+    GetVersion: { obsVersion: '33.0.2' },
+    GetVideoSettings: { baseWidth: 1920, baseHeight: 1080, outputWidth: 1920, outputHeight: 1080, fpsNumerator: 30, fpsDenominator: 1 },
+    GetStats: { activeFps: 30, cpuUsage: 10, memoryUsage: 500, outputSkippedFrames: 0, renderSkippedFrames: 0 },
+    GetStreamStatus: () => ({ ...feed.stream }),
+    GetRecordStatus: { outputActive: false },
+    GetVirtualCamStatus: { outputActive: false },
+    GetProfileList: { currentProfileName: 'Untitled' },
+    GetSceneCollectionList: { currentSceneCollectionName: 'Untitled' },
+    GetSceneList: { currentProgramSceneName: 'Scene' },
+    GetInputList: { inputs: [] },
+    GetSceneItemList: { sceneItems: [] },
+  };
+  feed.connect = async function connect() {
+    feed.calls.connect += 1;
+    this.obs = {
+      async call(request) {
+        feed.calls.requests.push(request);
+        await new Promise(resolve => setTimeout(resolve, 5));
+        const value = responses[request];
+        return typeof value === 'function' ? value() : value;
+      },
+      async disconnect() {},
+    };
+  };
+  return feed;
+}
+
+test('concurrent inspect() calls share one sample: one connect and one set of OBS requests', async () => {
+  const feed = stubbedFeed('horizontal');
+  const [a, b] = await Promise.all([feed.inspect(), feed.inspect()]);
+  assert.equal(feed.calls.connect, 1);
+  assert.equal(feed.calls.requests.filter(r => r === 'GetVersion').length, 1);
+  assert.strictEqual(a, b);
+});
+
+test('sequential inspect() calls each take a fresh sample', async () => {
+  const feed = stubbedFeed('horizontal');
+  await feed.inspect();
+  await feed.inspect();
+  assert.equal(feed.calls.requests.filter(r => r === 'GetVersion').length, 2);
 });
 
 // ---- HTTP surface -------------------------------------------------------
