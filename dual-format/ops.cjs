@@ -37,7 +37,7 @@ async function bounded(action, ms = 3500) {
 
 class Feed {
   constructor(label, base, port) {
-    Object.assign(this, { label, base, port, obs: null, retryAt: 0, failures: 0, last: null, changed: false });
+    Object.assign(this, { label, base, port, obs: null, retryAt: 0, failures: 0, last: null, changed: false, inflight: null });
   }
   async disconnect() {
     const obs = this.obs;
@@ -60,8 +60,14 @@ class Feed {
     await bounded(obs.connect(`ws://127.0.0.1:${this.port}`, config.server_password, { rpcVersion: 1 }));
   }
   call(request, data) { return bounded(this.obs.call(request, data)); }
-  async inspect() {
-    if (Date.now() < this.retryAt) return this.last;
+  // One sample at a time per feed. Overlapping callers (status polls, stop's wait loop) share the
+  // in-flight sample; without this a second caller could race connect() and disconnect the first.
+  inspect() {
+    if (Date.now() < this.retryAt) return Promise.resolve(this.last);
+    this.inflight ??= this.#sample().finally(() => { this.inflight = null; });
+    return this.inflight;
+  }
+  async #sample() {
     const before = this.last;
     try {
       await this.connect();
