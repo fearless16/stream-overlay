@@ -41,8 +41,13 @@ function createControlServer({ controller, port = 8768, log = () => {} }) {
       });
       req.on('end', () => {
         if (size > MAX_BODY) return reject(Object.assign(new Error('Request body too large'), { status: 413 }));
-        try { resolve(size ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : {}); }
-        catch { reject(Object.assign(new Error('Body must be JSON'), { status: 400 })); }
+        try {
+          const value = size ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : {};
+          // Only a JSON object is a request body: null, arrays and scalars would reach body.action as a TypeError.
+          if (value === null || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('not an object');
+          resolve(value);
+        }
+        catch { reject(Object.assign(new Error('Body must be a JSON object'), { status: 400 })); }
       });
       req.on('error', reject);
     });

@@ -300,6 +300,14 @@ test('oversized bodies and unknown routes are refused', async t => {
   assert.equal((await raw(port, { path: '/nope' })).status, 404);
 });
 
+test('bodies that are not a JSON object get 400, never a server error', async t => {
+  const { port } = await serve(t);
+  for (const body of ['null', '[]', '"go-live"', '5', '{bad json']) {
+    const res = await raw(port, { method: 'POST', path: '/api/arm', headers: control, body });
+    assert.equal(res.status, 400, `body ${body}`);
+  }
+});
+
 test('arm and go-live work end to end over HTTP and report the sequence', async t => {
   const { port, base, events } = await serve(t);
   const origin = { origin: `http://127.0.0.1:${port}` };
