@@ -96,6 +96,7 @@ test('blockers refuse the whole sequence before any OBS command is sent', async 
     ['horizontal off Scene', rig({ wideState: wide({ scene: 'Game' }) }), /Horizontal must be on Scene/],
     ['stale portrait heartbeat', rig({ browser: { status: 'waiting', browserAgeMs: 30_000 } }), /heartbeat/],
     ['keys not distinct', rig({ keys: false }), KEY_BLOCKER],
+    ['portrait Virtual Camera on', rig({ tallState: tall({ virtualCam: true }) }), /Virtual Camera/],
   ];
   for (const [label, r, pattern] of cases) {
     const { token } = r.controller.arm('go-live');
@@ -104,6 +105,11 @@ test('blockers refuse the whole sequence before any OBS command is sent', async 
     assert.match(result.blockers.join('\n'), pattern, label);
     assert.deepEqual(r.events, [], label);
   }
+});
+
+test('gate blocks portrait Virtual Camera and passes when it is off', () => {
+  assert.deepEqual(gate(wide(), tall(), BROWSER_OK), []);
+  assert.match(gate(wide(), tall({ virtualCam: true }), BROWSER_OK).join('\n'), /Virtual Camera/);
 });
 
 test('happy path: horizontal starts first, portrait starts only after horizontal is Healthy', async () => {

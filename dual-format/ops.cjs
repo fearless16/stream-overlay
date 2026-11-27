@@ -143,6 +143,8 @@ function gate(horizontal, vertical, browser) {
       !vertical.browserInScene || !vertical.micInScene || vertical.micMuted !== false) {
     issues.push('Portrait Live needs its camera, graphics and explicitly unmuted commentary mic');
   }
+  // Portable OBS never publishes Virtual Camera (plan: the horizontal camera is the only shared source).
+  if (vertical?.virtualCam) issues.push('Portrait Virtual Camera is on; turn it off in portable OBS (it must never publish Virtual Camera)');
   if (vertical?.scene === live && vertical.picture !== 'picture present') issues.push(`Portrait camera: ${vertical.picture || 'unverified'}`);
   if (vertical?.scene === live && !vertical.fullBleed) issues.push('Portrait Live camera does not cover the full canvas');
   if (!browser || browser.browserAgeMs == null || browser.browserAgeMs > 12_000 || browser.status !== 'healthy') {
