@@ -134,10 +134,10 @@
       ? `${result.action} · ${result.ok ? 'completed' : 'not completed'}\n${result.message}\n\n${(result.steps || []).join('\n')}`
       : 'No action yet this session.';
     const busy = inFlight || !!status.busy;
-    const sending = status.horizontal.sending || status.vertical.sending;
     $('arm-live').disabled = busy || status.blockers.length > 0 || !!pending;
-    $('arm-stop-portrait').disabled = busy || !status.vertical.sending || !!pending;
-    $('arm-stop-all').disabled = busy || !sending || !!pending;
+    // Stop stays available while a feed state is unreadable; only an explicit idle disables it.
+    $('arm-stop-portrait').disabled = busy || !status.controls.stopPortrait || !!pending;
+    $('arm-stop-all').disabled = busy || !status.controls.stopAll || !!pending;
   }
 
   function showPending() {
