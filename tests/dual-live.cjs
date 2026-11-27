@@ -464,6 +464,7 @@ async function openControlPage(t, controller) {
   const page = await browser.newPage();
   await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'load' });
   await page.waitForFunction(() => document.getElementById('v-state').textContent !== '…', { timeout: 5000 });
+  page.controlService = service;                              // lets a test take the server down
   return page;
 }
 
@@ -480,4 +481,34 @@ test('page stop buttons follow the server: offered while a state is unreadable, 
   await idle.waitForFunction(() => document.getElementById('v-state').textContent === 'Idle', { timeout: 5000 });
   assert.equal(await idle.$eval('#arm-stop-portrait', b => b.disabled), true);
   assert.equal(await idle.$eval('#arm-stop-all', b => b.disabled), true);
+});
+
+test('page keeps a refused arm message visible past the next status poll', { timeout: 40_000 }, async t => {
+  const r = rig();
+  const controller = { ...r.controller, arm: () => { throw Object.assign(new Error('Another action is running: go-live'), { status: 409 }); } };
+  const page = await openControlPage(t, controller);
+  if (!page) return t.skip('Set CHROME_PATH to run the browser coverage');
+  await page.click('#arm-live');
+  await new Promise(resolve => setTimeout(resolve, 2500));   // longer than the 2 s status poll
+  assert.match(await page.$eval('#error', el => el.textContent), /Another action is running/);
+});
+
+test('page keeps a refused confirmation message visible after the confirm request returns', { timeout: 40_000 }, async t => {
+  const r = rig();
+  const page = await openControlPage(t, r.controller);
+  if (!page) return t.skip('Set CHROME_PATH to run the browser coverage');
+  await page.click('#arm-live');
+  await page.waitForFunction(() => !document.getElementById('confirm-row').hidden, { timeout: 5000 });
+  r.c.advance(ARM_MS + 1);                                   // the armed confirmation has expired on the server
+  await page.click('#confirm');
+  await new Promise(resolve => setTimeout(resolve, 2500));
+  assert.match(await page.$eval('#error', el => el.textContent), /Arm this action first/);
+});
+
+test('page reports an unreachable control server on its connection line', { timeout: 40_000 }, async t => {
+  const page = await openControlPage(t, rig().controller);
+  if (!page) return t.skip('Set CHROME_PATH to run the browser coverage');
+  await page.controlService.close();
+  await new Promise(resolve => setTimeout(resolve, 2500));
+  assert.match(await page.$eval('#conn', el => el.textContent), /Control server unreachable/);
 });

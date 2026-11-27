@@ -35,6 +35,7 @@
 <body>
   <h1>Dual stream · Go live</h1>
   <p class="sub">Horizontal 16:9 and portrait 9:16 each send to YouTube from their own OBS. One event, one shared chat.</p>
+  <p id="conn" class="note" role="status"></p>
 
   <div class="grid">
     <section class="card" aria-labelledby="h-title">
@@ -181,8 +182,9 @@
   async function refresh() {
     if (refreshing) return;
     refreshing = true;
-    try { render(await api('/api/status')); fail(''); }
-    catch (error) { fail(`Control server unreachable: ${error.message}`); }
+    // Connection status has its own line: a status poll must never erase an action's error message.
+    try { render(await api('/api/status')); $('conn').textContent = ''; }
+    catch (error) { $('conn').textContent = `Control server unreachable: ${error.message}`; }
     finally { refreshing = false; showPending(); }
   }
 
