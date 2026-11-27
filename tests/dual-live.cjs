@@ -291,6 +291,37 @@ test('sequential inspect() calls each take a fresh sample', async () => {
   assert.equal(feed.calls.requests.filter(r => r === 'GetVersion').length, 2);
 });
 
+test('the first sample after StartStream with no bytes yet is not Healthy', async () => {
+  const feed = stubbedFeed('horizontal');
+  await feed.inspect();
+  Object.assign(feed.stream, { outputActive: true });          // StartStream acknowledged, nothing sent yet
+  const first = await feed.inspect();
+  assert.notEqual(first.state, 'Healthy');
+  assert.equal(first.reason, 'Throughput not measured yet');
+});
+
+test('Healthy needs measured throughput: a second sample with bytes flowing', async () => {
+  const feed = stubbedFeed('horizontal');
+  await feed.inspect();
+  Object.assign(feed.stream, { outputActive: true, outputBytes: 0 });
+  await feed.inspect();
+  await new Promise(resolve => setTimeout(resolve, 20));
+  Object.assign(feed.stream, { outputBytes: 60_000, outputTotalFrames: 60 });
+  const second = await feed.inspect();
+  assert.equal(second.state, 'Healthy');
+  assert.ok(second.kbps > 0);
+});
+
+test('a new stream session starts its drop and frame counters from zero', async () => {
+  const feed = stubbedFeed('horizontal');
+  Object.assign(feed.stream, { outputActive: false, outputTotalFrames: 1000, outputSkippedFrames: 500 }); // previous session
+  await feed.inspect();
+  Object.assign(feed.stream, { outputActive: true, outputBytes: 0, outputTotalFrames: 300, outputSkippedFrames: 3 });
+  const sample = await feed.inspect();
+  assert.equal(sample.recentDropPct, 1);                       // 3 dropped of 300 frames
+  assert.equal(sample.state, 'Warning');
+});
+
 // ---- HTTP surface -------------------------------------------------------
 
 async function serve(t, options) {
