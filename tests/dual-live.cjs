@@ -24,7 +24,7 @@ function clock() {
 function fakeFeed(label, state, events) {
   const feed = {
     label, state, startsIn: 0, startDelay: 1, startState: 'Healthy', neverSends: false,
-    rejectOn: new Set(), onCall: () => {},
+    rejectOn: new Set(), timeoutOn: new Set(), onCall: () => {},
     async inspect() {
       if (feed.startsIn > 0 && --feed.startsIn === 0) {
         feed.state.sending = true;
@@ -35,6 +35,7 @@ function fakeFeed(label, state, events) {
     async call(request) {
       feed.onCall(request);
       events.push(`${label}:${request}`);
+      if (feed.timeoutOn.has(request)) throw Object.assign(new Error('OBS request timed out'), { code: 'timeout' });
       if (feed.rejectOn.has(request)) throw Object.assign(new Error('rejected'), { code: 'rejected' });
       if (request === 'StartStream' && !feed.neverSends) feed.startsIn = feed.startDelay;
       if (request === 'StopStream') { feed.state.sending = false; feed.state.state = 'Idle'; }
@@ -215,6 +216,33 @@ test('a stop confirmation cannot be reused for a different scope', async () => {
   const { token } = r.controller.arm('stop-portrait');
   await assert.rejects(r.controller.stop('all', token), { status: 409 });
   assert.deepEqual(r.events, []);
+});
+
+test('a timed-out horizontal StartStream may or may not be running, and portrait is not started', async () => {
+  const r = rig({ wideOpts: { timeoutOn: new Set(['StartStream']) } });
+  const { token } = r.controller.arm('go-live');
+  const result = await r.controller.goLive(token);
+  assert.equal(result.ok, false);
+  assert.match(result.message, /may or may not be running/);
+  assert.deepEqual(r.events, ['horizontal:StartStream']);
+});
+
+test('a timed-out portrait StartStream may or may not be running, and horizontal is left running', async () => {
+  const r = rig({ tallOpts: { timeoutOn: new Set(['StartStream']) } });
+  const { token } = r.controller.arm('go-live');
+  const result = await r.controller.goLive(token);
+  assert.equal(result.ok, false);
+  assert.match(result.message, /may or may not be running/);
+  assert.deepEqual(r.events, ['horizontal:StartStream', 'vertical:StartStream']);
+  assert.equal(r.H.state.sending, true);
+});
+
+test('a rejected horizontal StartStream still says it did not start', async () => {
+  const r = rig({ wideOpts: { rejectOn: new Set(['StartStream']) } });
+  const { token } = r.controller.arm('go-live');
+  const result = await r.controller.goLive(token);
+  assert.match(result.message, /Horizontal did not start/);
+  assert.doesNotMatch(result.message, /may or may not/);
 });
 
 test('stop-portrait sends StopStream when the portrait state is unreadable', async () => {
