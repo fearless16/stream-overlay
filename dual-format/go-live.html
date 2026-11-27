@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dual stream · Go live</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0f1311; --card:#17201b; --line:#2b3a31; --text:#e8f0ea; --muted:#9fb1a4; --ok:#6fdc8c; --warn:#f2c14e; --bad:#ff7a7a; --info:#7ab7ff; --accent:#e3ff9a; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px; background: var(--bg); color: var(--text); font: 15px/1.45 "Segoe UI", system-ui, sans-serif; }
+    h1 { margin: 0 0 4px; font-size: 22px; }
+    .sub { color: var(--muted); margin: 0 0 20px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+    .card h2 { margin: 0 0 10px; font-size: 16px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .chip { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; border: 1px solid currentColor; letter-spacing: .04em; text-transform: uppercase; }
+    .Healthy { color: var(--ok); } .Warning { color: var(--warn); } .Recovering { color: var(--info); }
+    .Offline, .Idle, .unknown { color: var(--muted); } .Error { color: var(--bad); }
+    dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; font-size: 14px; }
+    dt { color: var(--muted); } dd { margin: 0; overflow-wrap: anywhere; }
+    .panel { margin-top: 16px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+    .panel h2 { margin: 0 0 8px; font-size: 16px; }
+    ul { margin: 0; padding-left: 20px; }
+    li.bad { color: var(--bad); } li.good { color: var(--ok); }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; align-items: center; }
+    button { font: inherit; font-weight: 700; padding: 10px 16px; border-radius: 8px; border: 1px solid var(--line); background: #1f2b24; color: var(--text); cursor: pointer; }
+    button.primary { background: #2c4a1f; border-color: #4f7d36; color: var(--accent); }
+    button.danger { background: #4a1f1f; border-color: #7d3636; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    .note { color: var(--muted); font-size: 13px; margin-top: 12px; }
+    #result { white-space: pre-wrap; }
+    #error { color: var(--bad); min-height: 1.4em; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Dual stream · Go live</h1>
+  <p class="sub">Horizontal 16:9 and portrait 9:16 each send to YouTube from their own OBS. One event, one shared chat.</p>
+
+  <div class="grid">
+    <section class="card" aria-labelledby="h-title">
+      <h2 id="h-title">Horizontal 16:9 <span class="chip unknown" id="h-state">…</span></h2>
+      <dl id="h-facts"></dl>
+    </section>
+    <section class="card" aria-labelledby="v-title">
+      <h2 id="v-title">Portrait 9:16 <span class="chip unknown" id="v-state">…</span></h2>
+      <dl id="v-facts"></dl>
+    </section>
+  </div>
+
+  <section class="panel" aria-labelledby="b-title">
+    <h2 id="b-title">Readiness</h2>
+    <p id="browser" class="note" style="margin:0 0 8px"></p>
+    <ul id="blockers"></ul>
+  </section>
+
+  <section class="panel" aria-labelledby="a-title">
+    <h2 id="a-title">Actions</h2>
+    <p class="note">Each action needs two clicks: arm, then confirm within 20 seconds. Nothing starts or stops on page load.</p>
+    <div class="actions">
+      <button class="primary" id="arm-live" type="button">Arm: go live both feeds</button>
+      <button class="danger" id="arm-stop-portrait" type="button">Arm: stop portrait</button>
+      <button class="danger" id="arm-stop-all" type="button">Arm: stop both feeds</button>
+    </div>
+    <div class="actions" id="confirm-row" hidden>
+      <button class="primary" id="confirm" type="button"></button>
+      <button id="cancel" type="button">Cancel</button>
+    </div>
+    <div id="error" role="alert"></div>
+    <p class="note">Going live on YouTube is still the manual Go live click in Studio after both previews and the shared chat check out.</p>
+  </section>
+
+  <section class="panel" aria-labelledby="r-title">
+    <h2 id="r-title">Last action</h2>
+    <div id="result" class="note">No action yet this session.</div>
+  </section>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const LABEL = { 'go-live': 'Confirm: go live both feeds', 'stop-portrait': 'Confirm: stop portrait', 'stop-all': 'Confirm: stop both feeds' };
+  const FACTS = [['profile', 'Profile'], ['scene', 'Scene'], ['sending', 'Sending'], ['kbps', 'Kbps'], ['fps', 'FPS'],
+    ['drops', 'Dropped frames'], ['recentDropPct', 'Recent drop %'], ['micMuted', 'Mic muted'], ['virtualCam', 'Virtual Camera'], ['reason', 'Reason']];
+  let pending = null;
+  let inFlight = false;
+  let latest = null;
+
+  async function api(path, body) {
+    const res = await fetch(path, {
+      method: body ? 'POST' : 'GET', cache: 'no-store',
+      headers: body ? { 'Content-Type': 'application/json', 'X-Dual-Control': '1' } : {},
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+    return data;
+  }
+  const fail = message => { $('error').textContent = message || ''; };
+
+  function renderFeed(prefix, feed) {
+    const state = feed?.state || 'unknown';
+    const chip = $(`${prefix}-state`);
+    chip.textContent = state;
+    chip.className = `chip ${state}`;
+    const dl = $(`${prefix}-facts`);
+    dl.replaceChildren();
+    for (const [key, label] of FACTS) {
+      if (!feed || feed[key] === undefined || feed[key] === null) continue;
+      const value = key === 'sending' || key === 'micMuted' || key === 'virtualCam' ? (feed[key] ? 'yes' : 'no')
+        : key === 'fps' && feed.targetFps ? `${feed.fps} / ${feed.targetFps}`
+        : key === 'recentDropPct' ? `${feed[key]}%`
+        : String(feed[key]);
+      const dt = document.createElement('dt'); dt.textContent = label;
+      const dd = document.createElement('dd'); dd.textContent = value;
+      dl.append(dt, dd);
+    }
+  }
+
+  function render(status) {
+    latest = status;
+    renderFeed('h', status.horizontal);
+    renderFeed('v', status.vertical);
+    $('browser').textContent = `Portrait chat overlay heartbeat: ${status.browser}`;
+    const list = $('blockers');
+    list.replaceChildren();
+    const items = status.blockers.length ? status.blockers : ['Ready: no blockers.'];
+    for (const text of items) {
+      const li = document.createElement('li');
+      li.textContent = text;
+      li.className = status.blockers.length ? 'bad' : 'good';
+      list.append(li);
+    }
+    const result = status.last;
+    $('result').textContent = result
+      ? `${result.action} · ${result.ok ? 'completed' : 'not completed'}\n${result.message}\n\n${(result.steps || []).join('\n')}`
+      : 'No action yet this session.';
+    const busy = inFlight || !!status.busy;
+    const sending = status.horizontal.sending || status.vertical.sending;
+    $('arm-live').disabled = busy || status.blockers.length > 0 || !!pending;
+    $('arm-stop-portrait').disabled = busy || !status.vertical.sending || !!pending;
+    $('arm-stop-all').disabled = busy || !sending || !!pending;
+  }
+
+  function showPending() {
+    const row = $('confirm-row');
+    row.hidden = !pending;
+    if (!pending) return;
+    const seconds = Math.max(0, Math.ceil((pending.expires - Date.now()) / 1000));
+    $('confirm').textContent = `${LABEL[pending.action]} (${seconds}s)`;
+    $('confirm').disabled = inFlight;
+    if (seconds === 0) pending = null;
+    row.hidden = !pending;
+  }
+
+  async function arm(action) {
+    fail('');
+    try {
+      const armed = await api('/api/arm', { action });
+      pending = { action, token: armed.token, expires: Date.now() + armed.expiresInMs };
+    } catch (error) { fail(error.message); }
+    showPending();
+    if (latest) render(latest);
+  }
+
+  async function confirmPending() {
+    const request = pending;
+    pending = null;
+    showPending();
+    if (!request) return;
+    inFlight = true;
+    fail('');
+    try {
+      const body = { token: request.token };
+      const path = request.action === 'go-live' ? '/api/go-live' : '/api/stop';
+      if (request.action !== 'go-live') body.scope = request.action === 'stop-all' ? 'all' : 'portrait';
+      await api(path, body);
+    } catch (error) { fail(error.message); }
+    finally { inFlight = false; await refresh(); }
+  }
+
+  let refreshing = false;
+  async function refresh() {
+    if (refreshing) return;
+    refreshing = true;
+    try { render(await api('/api/status')); fail(''); }
+    catch (error) { fail(`Control server unreachable: ${error.message}`); }
+    finally { refreshing = false; showPending(); }
+  }
+
+  $('arm-live').addEventListener('click', () => arm('go-live'));
+  $('arm-stop-portrait').addEventListener('click', () => arm('stop-portrait'));
+  $('arm-stop-all').addEventListener('click', () => arm('stop-all'));
+  $('confirm').addEventListener('click', confirmPending);
+  $('cancel').addEventListener('click', () => { pending = null; showPending(); if (latest) render(latest); });
+  setInterval(showPending, 250);
+  setInterval(refresh, 2000);
+  refresh();
+})();
+</script>
+</body>
+</html>

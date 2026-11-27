@@ -1,0 +1,45 @@
+:root {
+  color-scheme: dark;
+  --paper: #fff;
+  --accent: #e3ff9a;
+  font-family: "Segoe UI", "Nirmala UI", sans-serif;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; color: var(--paper); }
+#canvas {
+  position: absolute; width: 720px; height: 1280px; top: 50%; left: 50%;
+  transform: translate(-50%, -50%) scale(var(--scale, 1)); overflow: hidden;
+}
+.comment {
+  position: absolute; left: 48px; right: 144px; bottom: 338px;
+  isolation: isolate;
+  text-shadow: 0 2px 5px #000, 0 1px 18px #000;
+  animation: comment-in 180ms ease-out both;
+}
+.comment::before {
+  content: ""; position: absolute; z-index: -1; inset: -54px -56px;
+  background: radial-gradient(ellipse at 43% 52%, #000b 18%, #0008 46%, transparent 75%);
+  pointer-events: none;
+}
+.byline { display: flex; align-items: baseline; gap: 14px; font-size: 25px; font-weight: 700; }
+.chat-label { flex: none; color: var(--accent); font-size: 19px; font-weight: 750; letter-spacing: .13em; }
+#comment-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#comment-text {
+  margin: 5px 0 0; font-size: 40px; font-weight: 720; line-height: 1.13;
+  text-align: left; overflow-wrap: anywhere; overflow: hidden;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3;
+}
+@keyframes comment-in { from { opacity: 0; transform: translateY(8px); } }
+@media (prefers-reduced-motion: reduce) { .comment { animation: none; } }
+.slate { display: none; }
+body:not([data-mode="live"]) #canvas {
+  background: radial-gradient(ellipse at 12% 24%, #243226, transparent 66%), #101412;
+}
+body:not([data-mode="live"]) .slate { display: block; position: absolute; top: 380px; left: 48px; right: 144px; }
+.eyebrow { color: var(--accent); font-size: 20px; font-weight: 750; letter-spacing: .13em; }
+.slate h1 { font-size: 84px; font-weight: 800; letter-spacing: -.065em; line-height: .98; margin: 18px 0; }
+.slate p { font-size: 29px; line-height: 1.25; color: #d0dbd2; margin: 0; }
+.slate-motif { width: 50px; height: 4px; margin-bottom: 26px; background: var(--accent); }
+.guides { position: absolute; inset: 0; border: 48px solid #ff30794d; border-width: 70px 144px 300px 48px; pointer-events: none; }
+.guides span { position: absolute; bottom: -270px; left: 14px; color: white; font-size: 22px; letter-spacing: .12em; }

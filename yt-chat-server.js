@@ -81,6 +81,9 @@ httpServer.listen(HTTP_PORT, () => console.log(`HTTP server on http://localhost:
 const wss = new WebSocket.Server({ port: WS_PORT });
 console.log(`WebSocket server on ws://localhost:${WS_PORT}`);
 console.log(`Mode: ${MODE}, Video: ${VIDEO_ID}`);
+const portrait = process.env.PORTRAIT_ENABLED === '1'
+  ? require('./dual-format/feed.cjs').createPortraitFeed()
+  : null;
 
 let seenIds = new Set();
 let continuationToken = null;
@@ -359,6 +362,7 @@ async function pollChat() {
 
     // ── Broadcast retracted messages ────────────────────────────────────────
     for (const r of retractedIds) {
+      if (portrait) portrait.retract(r.id);
       const retractedMsg = messageCache.get(r.id) || null;
       const payload = JSON.stringify({
         type: 'retracted',
@@ -765,7 +769,7 @@ async function connectOBS() {
   startSubscriberPolling();
   connectOBS();
 
-  wss.on('connection', ws => {
+  wss.on('connection', (ws, request) => {
     console.log('Client connected');
      ws.send(JSON.stringify({ type: 'connected', message: 'YouTube Chat Bridge ready', fake: false, mode: MODE }));
     ws.send(JSON.stringify({ type: 'viewers', count: currentViewers }));
@@ -782,6 +786,9 @@ async function connectOBS() {
     ws.on('message', raw => {
       try {
         const data = JSON.parse(raw.toString());
+        if (portrait && raw.length <= 32_768 && ['portrait-comment', 'portrait-hide-comment'].includes(data.type)) {
+          portrait.ingest(request.socket.remoteAddress, data);
+        }
         if (['score', 'goals', 'show-comment', 'hide-comment', 'youtube-chat', 'replay', 'score-visible', 'new_user_alert'].includes(data.type)) {
           wss.clients.forEach(client => {
             if (client !== ws && client.readyState === WebSocket.OPEN) client.send(raw.toString());

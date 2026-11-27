@@ -2824,10 +2824,17 @@ function addMsg(data, options = {}) {
   el.querySelector('.msg-action-btn.show').addEventListener('click', (e) => {
     e.stopPropagation();
     showCommentOnScreen(name, text, type, userColor, profileImageUrl, segments, isMember, amount);
+    // Only the explicit Show action nominates a real comment for portrait.
+    if (ytId && !isDemo && state.ws?.readyState === WebSocket.OPEN && state.ws.bufferedAmount < 32768) {
+      state.ws.send(JSON.stringify({ type: 'portrait-comment', id: ytId, name: name.slice(0, 112), text: text.slice(0, 384) }));
+    }
   });
   el.querySelector('.msg-action-btn.del').addEventListener('click', (e) => {
     e.stopPropagation();
     deleteMessage(msgId);
+    if (ytId && !isDemo && state.ws?.readyState === WebSocket.OPEN && state.ws.bufferedAmount < 32768) {
+      state.ws.send(JSON.stringify({ type: 'portrait-hide-comment', id: ytId }));
+    }
   });
 
   if (!noAnim) el.classList.add('new-entry');
@@ -4584,6 +4591,9 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     if (state.replayTimer) { clearTimeout(state.replayTimer); state.replayTimer = null; state.replayIndex = -1; }
     hideComment();
+    if (state.ws?.readyState === WebSocket.OPEN && state.ws.bufferedAmount < 32768) {
+      state.ws.send('{"type":"portrait-hide-comment"}');
+    }
     if (state.brbActive) toggleBRB();
   }
   if (!e.ctrlKey) return;
