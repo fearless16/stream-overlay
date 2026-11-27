@@ -1,8 +1,11 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const http = require('node:http');
+const path = require('node:path');
 const { test } = require('node:test');
+const { launch } = require('puppeteer');
 const { Feed, gate } = require('../dual-format/ops.cjs');
 const { createGoLive, ARM_MS } = require('../dual-format/go-live.cjs');
 const { createControlServer } = require('../dual-format/control.cjs');
@@ -214,6 +217,46 @@ test('a stop confirmation cannot be reused for a different scope', async () => {
   assert.deepEqual(r.events, []);
 });
 
+test('stop-portrait sends StopStream when the portrait state is unreadable', async () => {
+  const r = rig();
+  r.V.inspect = async () => ({ state: 'Recovering', reason: 'No stable authenticated sample' });
+  const { token } = r.controller.arm('stop-portrait');
+  await r.controller.stop('portrait', token);
+  assert.deepEqual(r.events, ['vertical:StopStream']);
+});
+
+test('an unreadable portrait state is never reported as idle or stopped', async () => {
+  const r = rig({ tallOpts: { rejectOn: new Set(['StopStream']) } });
+  r.V.inspect = async () => ({ state: 'Recovering' });
+  const { token } = r.controller.arm('stop-portrait');
+  const result = await r.controller.stop('portrait', token);
+  assert.equal(result.ok, false);
+  assert.match(result.message, /could not be confirmed/);
+  assert.doesNotMatch(result.message, /Nothing was sending/);
+});
+
+test('StopStream acknowledged, then an unreadable sample, is not reported as stopped', async () => {
+  const r = rig({ tallState: tall({ sending: true, state: 'Healthy' }) });
+  let acknowledged = false;
+  r.V.call = async request => { r.events.push(`vertical:${request}`); if (request === 'StopStream') acknowledged = true; return {}; };
+  r.V.inspect = async () => (acknowledged ? { state: 'Recovering' } : { state: 'Healthy', sending: true });
+  const { token } = r.controller.arm('stop-portrait');
+  const result = await r.controller.stop('portrait', token);
+  assert.equal(result.ok, false);
+  assert.doesNotMatch(result.message, /^Stopped/);
+});
+
+test('status offers stop while a feed state is unreadable, and not when both feeds are explicitly idle', async () => {
+  const unreadable = rig();
+  unreadable.V.inspect = async () => ({ state: 'Recovering' });
+  const offered = await unreadable.controller.status();
+  assert.equal(offered.controls.stopPortrait, true);
+  assert.equal(offered.controls.stopAll, true);
+  const idle = await rig().controller.status();
+  assert.equal(idle.controls.stopPortrait, false);
+  assert.equal(idle.controls.stopAll, false);
+});
+
 test('stop when nothing is sending changes nothing', async () => {
   const r = rig();
   const { token } = r.controller.arm('stop-all');
@@ -406,4 +449,35 @@ test('arm and go-live work end to end over HTTP and report the sequence', async 
   assert.equal(status.last.ok, true);
   assert.equal(status.horizontal.sending, true);
   assert.equal(status.vertical.sending, true);
+});
+
+// ---- Operator page in a real browser --------------------------------------
+
+async function openControlPage(t, controller) {
+  const executablePath = process.env.CHROME_PATH || (process.platform === 'win32'
+    ? path.join(process.env.ProgramFiles || '', 'Google/Chrome/Application/chrome.exe') : undefined);
+  if (executablePath && !fs.existsSync(executablePath)) return null;
+  const service = createControlServer({ controller, port: 0, log: () => {} });
+  const port = await service.listen();
+  const browser = await launch({ executablePath, headless: true, args: ['--no-first-run'] });
+  t.after(async () => { await browser.close(); await service.close(); });
+  const page = await browser.newPage();
+  await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'load' });
+  await page.waitForFunction(() => document.getElementById('v-state').textContent !== '…', { timeout: 5000 });
+  return page;
+}
+
+test('page stop buttons follow the server: offered while a state is unreadable, off when both feeds are idle', { timeout: 40_000 }, async t => {
+  const unreadable = rig();
+  unreadable.V.inspect = async () => ({ state: 'Recovering' });
+  const offered = await openControlPage(t, unreadable.controller);
+  if (!offered) return t.skip('Set CHROME_PATH to run the browser coverage');
+  await offered.waitForFunction(() => document.getElementById('v-state').textContent === 'Recovering', { timeout: 5000 });
+  assert.equal(await offered.$eval('#arm-stop-portrait', b => b.disabled), false);
+  assert.equal(await offered.$eval('#arm-stop-all', b => b.disabled), false);
+
+  const idle = await openControlPage(t, rig().controller);
+  await idle.waitForFunction(() => document.getElementById('v-state').textContent === 'Idle', { timeout: 5000 });
+  assert.equal(await idle.$eval('#arm-stop-portrait', b => b.disabled), true);
+  assert.equal(await idle.$eval('#arm-stop-all', b => b.disabled), true);
 });

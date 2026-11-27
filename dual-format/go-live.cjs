@@ -143,6 +143,9 @@ function createGoLive({ horizontal, vertical, browserHealth, gate, keysOk, now =
     });
   }
 
+  // Only an explicit sending === false means idle. True, or an unreadable sample, may still be live.
+  const mayBeLive = sample => sample?.sending !== false;
+
   async function stop(scope, token) {
     if (scope !== 'portrait' && scope !== 'all') throw fail(400, 'Scope must be portrait or all');
     const action = scope === 'all' ? 'stop-all' : 'stop-portrait';
@@ -150,19 +153,26 @@ function createGoLive({ horizontal, vertical, browserHealth, gate, keysOk, now =
     return exclusive(action, async steps => {
       const first = await sample();
       const targets = [];
-      if (first.tall.sending) targets.push(['Portrait', vertical]);
-      if (scope === 'all' && first.wide.sending) targets.push(['Horizontal', horizontal]);
+      if (mayBeLive(first.tall)) targets.push(['Portrait', vertical]);
+      if (scope === 'all' && mayBeLive(first.wide)) targets.push(['Horizontal', horizontal]);
       if (!targets.length) return { ok: true, message: 'Nothing was sending. Nothing changed.' };
-      let clean = true;
+      let confirmed = true;
       for (const [label, feed] of targets) {
-        if (!await act(feed, 'StopStream', label, steps)) { clean = false; continue; }
-        const stopped = await until(async () => ((await feed.inspect()).sending ? null : true));
-        steps.push(stopped ? `${label}: stopped` : `${label}: still sending after 20 seconds`);
-        clean &&= !!stopped;
+        const acknowledged = await act(feed, 'StopStream', label, steps);
+        let lastSeen = null;
+        const idle = await until(async () => {
+          lastSeen = await feed.inspect();
+          return lastSeen.sending === false;
+        });
+        const reading = lastSeen?.sending === true ? 'still sending' : 'state unreadable';
+        if (idle && acknowledged) steps.push(`${label}: stopped`);
+        else if (idle) steps.push(`${label}: already idle (StopStream was not acknowledged)`);
+        else steps.push(`${label}: ${acknowledged ? 'stop acknowledged' : 'StopStream not acknowledged'}; ${reading} after 20 seconds`);
+        confirmed &&= !!idle;
       }
-      return clean
+      return confirmed
         ? { ok: true, message: 'Stopped. Confirm in YouTube Studio that the ingest has ended.' }
-        : { ok: false, message: 'A feed did not stop cleanly. Check OBS directly; nothing was retried.' };
+        : { ok: false, message: 'A feed could not be confirmed stopped. Check OBS directly; nothing was retried.' };
     });
   }
 
@@ -172,6 +182,8 @@ function createGoLive({ horizontal, vertical, browserHealth, gate, keysOk, now =
     return {
       horizontal: shown(s.wide), vertical: shown(s.tall), browser: s.browser?.status ?? 'offline',
       blockers: blockersFor(s), armed: live, busy, last,
+      // The page offers stop from these, so an unreadable feed can still be stopped from the page.
+      controls: { stopPortrait: !busy && mayBeLive(s.tall), stopAll: !busy && (mayBeLive(s.tall) || mayBeLive(s.wide)) },
     };
   }
 
