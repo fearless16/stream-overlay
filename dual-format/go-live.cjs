@@ -65,15 +65,17 @@ function createGoLive({ horizontal, vertical, browserHealth, gate, keysOk, now =
     }
   }
 
-  // One command, one attempt. A rejected or timed-out command is reported, never replayed.
+  // One command, one attempt. Returns 'ok', 'timeout' or 'rejected'. A timeout does not mean OBS
+  // ignored the command, so callers must not describe it as a refusal. Nothing is ever replayed.
   async function act(feed, request, label, steps) {
     try {
       await feed.call(request);
       steps.push(`${label}: ${request} acknowledged`);
-      return true;
+      return 'ok';
     } catch (error) {
-      steps.push(`${label}: ${request} ${error.code === 'timeout' ? 'timed out' : 'was not acknowledged'}; not retried`);
-      return false;
+      const outcome = error.code === 'timeout' ? 'timeout' : 'rejected';
+      steps.push(`${label}: ${request} ${outcome === 'timeout' ? 'timed out' : 'was not acknowledged'}; not retried`);
+      return outcome;
     }
   }
 
@@ -116,8 +118,11 @@ function createGoLive({ horizontal, vertical, browserHealth, gate, keysOk, now =
         steps.push('Horizontal already sending and Healthy: left unchanged');
       } else {
         steps.push('Horizontal is idle: starting it first');
-        if (!await act(horizontal, 'StartStream', 'Horizontal', steps)) {
-          return { ok: false, message: 'Horizontal did not start. Portrait was not started.' };
+        const started = await act(horizontal, 'StartStream', 'Horizontal', steps);
+        if (started !== 'ok') {
+          return { ok: false, message: started === 'timeout'
+            ? 'Horizontal start timed out, so it may or may not be running. Portrait was not started. Check horizontal OBS before retrying.'
+            : 'Horizontal did not start. Portrait was not started.' };
         }
         const healthy = await until(async () => {
           const { wide } = await sample();
@@ -133,8 +138,11 @@ function createGoLive({ horizontal, vertical, browserHealth, gate, keysOk, now =
       if (recheck.length) {
         return { ok: false, message: 'Portrait preconditions changed while horizontal started. Portrait was not started; horizontal was left running.', blockers: recheck };
       }
-      if (!await act(vertical, 'StartStream', 'Portrait', steps)) {
-        return { ok: false, message: 'Portrait start was not acknowledged. Horizontal was left running. Check portable OBS and Studio; do not retry blindly.' };
+      const started = await act(vertical, 'StartStream', 'Portrait', steps);
+      if (started !== 'ok') {
+        return { ok: false, message: started === 'timeout'
+          ? 'Portrait start timed out, so it may or may not be running. Horizontal was left running. Check portable OBS and Studio; do not retry blindly.'
+          : 'Portrait start was not acknowledged. Horizontal was left running. Check portable OBS and Studio; do not retry blindly.' };
       }
       const sending = await until(async () => (await sample()).tall.sending);
       return sending
@@ -158,7 +166,7 @@ function createGoLive({ horizontal, vertical, browserHealth, gate, keysOk, now =
       if (!targets.length) return { ok: true, message: 'Nothing was sending. Nothing changed.' };
       let confirmed = true;
       for (const [label, feed] of targets) {
-        const acknowledged = await act(feed, 'StopStream', label, steps);
+        const acknowledged = (await act(feed, 'StopStream', label, steps)) === 'ok';
         let lastSeen = null;
         const idle = await until(async () => {
           lastSeen = await feed.inspect();
